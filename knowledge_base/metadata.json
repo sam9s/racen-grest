@@ -4,6 +4,41 @@
       "filename": "joveheal_sample.txt",
       "type": "text",
       "chunks": 5
+    },
+    {
+      "filename": "website_homepage.txt",
+      "type": "text",
+      "chunks": 6
+    },
+    {
+      "filename": "website_services.txt",
+      "type": "text",
+      "chunks": 9
+    },
+    {
+      "filename": "website_about.txt",
+      "type": "text",
+      "chunks": 5
+    },
+    {
+      "filename": "website_balance_mastery.txt",
+      "type": "text",
+      "chunks": 7
+    },
+    {
+      "filename": "website_inner_mastery_lounge.txt",
+      "type": "text",
+      "chunks": 7
+    },
+    {
+      "filename": "website_elevate360.txt",
+      "type": "text",
+      "chunks": 7
+    },
+    {
+      "filename": "website_testimonials.txt",
+      "type": "text",
+      "chunks": 14
     }
   ],
   "last_scrape": null
