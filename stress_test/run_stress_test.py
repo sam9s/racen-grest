@@ -34,95 +34,8 @@ def parse_questions_by_section(md_file_path):
     
     return sections
 
-def run_section_test(section_name, questions, output_dir):
-    """Run all questions in a section conversationally and save results."""
-    results = []
-    conversation_history = []
-    total_time = 0
-    
-    print(f"\n{'='*60}")
-    print(f"Section: {section_name}")
-    print(f"Questions: {len(questions)}")
-    print('='*60)
-    
-    for i, question in enumerate(questions, 1):
-        print(f"  [{i}/{len(questions)}] Processing: {question[:50]}...")
-        
-        start_time = time.time()
-        response = generate_response(question, conversation_history)
-        end_time = time.time()
-        
-        response_time = round(end_time - start_time, 2)
-        total_time += response_time
-        
-        answer = response.get('response', 'No response')
-        sources = response.get('sources', [])
-        is_safe = not response.get('safety_triggered', False)
-        error = response.get('error', None)
-        
-        conversation_history.append({
-            "role": "user",
-            "content": question
-        })
-        conversation_history.append({
-            "role": "assistant",
-            "content": answer
-        })
-        
-        result = {
-            "question_number": i,
-            "question": question,
-            "answer": answer,
-            "metrics": {
-                "response_time_seconds": response_time,
-                "sources_used": sources,
-                "source_count": len(sources),
-                "is_safe_response": is_safe,
-                "error": error
-            }
-        }
-        results.append(result)
-        
-        print(f"      Response time: {response_time}s | Sources: {len(sources)}")
-    
-    section_filename = section_name.replace(' ', '_').replace('/', '_').replace('&', 'and')
-    section_filename = re.sub(r'[^\w\s-]', '', section_filename).strip()
-    output_file = f"{output_dir}/section_{section_filename}.md"
-    
-    with open(output_file, 'w') as f:
-        f.write(f"# Stress Test Results: {section_name}\n\n")
-        f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write(f"**Total Questions:** {len(questions)}\n")
-        f.write(f"**Total Response Time:** {round(total_time, 2)} seconds\n")
-        f.write(f"**Average Response Time:** {round(total_time/len(questions), 2)} seconds\n")
-        f.write(f"**Conversation Mode:** Conversational (context preserved)\n\n")
-        f.write("---\n\n")
-        
-        for result in results:
-            f.write(f"## Q{result['question_number']}: {result['question']}\n\n")
-            f.write(f"**Answer:**\n\n{result['answer']}\n\n")
-            f.write(f"**Metrics:**\n")
-            f.write(f"- Response Time: {result['metrics']['response_time_seconds']} seconds\n")
-            f.write(f"- Sources Used: {result['metrics']['source_count']}\n")
-            if result['metrics']['sources_used']:
-                for src in result['metrics']['sources_used']:
-                    f.write(f"  - {src}\n")
-            f.write(f"- Safe Response: {'Yes' if result['metrics']['is_safe_response'] else 'No'}\n")
-            if result['metrics']['error']:
-                f.write(f"- Error: {result['metrics']['error']}\n")
-            f.write("\n---\n\n")
-    
-    print(f"  Saved to: {output_file}")
-    return {
-        "section": section_name,
-        "questions_count": len(questions),
-        "total_time": round(total_time, 2),
-        "avg_time": round(total_time/len(questions), 2),
-        "output_file": output_file
-    }
-
 def run_stress_test():
-    """Main stress test runner."""
+    """Main stress test runner - creates ONE consolidated output file."""
     print("\n" + "="*60)
     print("JOVEHEAL CHATBOT STRESS TEST")
     print("="*60)
@@ -133,6 +46,7 @@ def run_stress_test():
     
     md_file = "stress_test/stress_test_md/120_questions_batch1.md"
     output_dir = "stress_test/stress_test_md_output"
+    output_file = f"{output_dir}/batch1_full_results.md"
     
     print(f"\nParsing questions from: {md_file}")
     sections = parse_questions_by_section(md_file)
@@ -143,34 +57,111 @@ def run_stress_test():
     for section_name, questions in sections.items():
         print(f"  - {section_name}: {len(questions)} questions")
     
-    summary = []
+    all_results = []
+    section_summaries = []
     overall_start = time.time()
+    global_question_num = 0
     
     for section_name, questions in sections.items():
-        result = run_section_test(section_name, questions, output_dir)
-        summary.append(result)
+        print(f"\n{'='*60}")
+        print(f"Section: {section_name}")
+        print(f"Questions: {len(questions)}")
+        print('='*60)
+        
+        section_results = []
+        conversation_history = []
+        section_start = time.time()
+        
+        for i, question in enumerate(questions, 1):
+            global_question_num += 1
+            print(f"  [{global_question_num}/{total_questions}] Processing: {question[:50]}...")
+            
+            start_time = time.time()
+            response = generate_response(question, conversation_history)
+            end_time = time.time()
+            
+            response_time = round(end_time - start_time, 2)
+            
+            answer = response.get('response', 'No response')
+            sources = response.get('sources', [])
+            is_safe = not response.get('safety_triggered', False)
+            error = response.get('error', None)
+            
+            conversation_history.append({"role": "user", "content": question})
+            conversation_history.append({"role": "assistant", "content": answer})
+            
+            result = {
+                "global_num": global_question_num,
+                "section_num": i,
+                "section": section_name,
+                "question": question,
+                "answer": answer,
+                "response_time": response_time,
+                "sources": sources,
+                "is_safe": is_safe,
+                "error": error
+            }
+            section_results.append(result)
+            print(f"      Response time: {response_time}s | Sources: {len(sources)}")
+        
+        section_time = round(time.time() - section_start, 2)
+        section_summaries.append({
+            "section": section_name,
+            "questions": len(questions),
+            "total_time": section_time,
+            "avg_time": round(section_time / len(questions), 2)
+        })
+        all_results.extend(section_results)
     
     overall_time = round(time.time() - overall_start, 2)
     
-    summary_file = f"{output_dir}/00_SUMMARY.md"
-    with open(summary_file, 'w') as f:
-        f.write("# Stress Test Summary\n\n")
-        f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write(f"**Total Questions:** {total_questions}\n")
-        f.write(f"**Total Sections:** {len(sections)}\n")
-        f.write(f"**Total Execution Time:** {overall_time} seconds\n")
-        f.write(f"**Overall Average Response Time:** {round(overall_time/total_questions, 2)} seconds\n\n")
-        f.write("## Section Results\n\n")
-        f.write("| Section | Questions | Total Time | Avg Time | Output File |\n")
-        f.write("|---------|-----------|------------|----------|-------------|\n")
-        for s in summary:
-            f.write(f"| {s['section'][:30]}... | {s['questions_count']} | {s['total_time']}s | {s['avg_time']}s | {s['output_file'].split('/')[-1]} |\n")
+    print(f"\n\nWriting consolidated output to: {output_file}")
+    
+    with open(output_file, 'w') as f:
+        f.write("# JoveHeal Chatbot Stress Test - Full Results (Batch 1)\n\n")
+        f.write("---\n\n")
+        f.write("## SUMMARY\n\n")
+        f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        f.write(f"| Metric | Value |\n")
+        f.write(f"|--------|-------|\n")
+        f.write(f"| Total Questions | {total_questions} |\n")
+        f.write(f"| Total Sections | {len(sections)} |\n")
+        f.write(f"| Total Execution Time | {overall_time} seconds |\n")
+        f.write(f"| Average Response Time | {round(overall_time/total_questions, 2)} seconds |\n")
+        f.write(f"| Conversation Mode | Conversational (context preserved per section) |\n\n")
+        
+        f.write("### Section Breakdown\n\n")
+        f.write("| Section | Questions | Total Time | Avg Time |\n")
+        f.write("|---------|-----------|------------|----------|\n")
+        for s in section_summaries:
+            f.write(f"| {s['section']} | {s['questions']} | {s['total_time']}s | {s['avg_time']}s |\n")
+        
+        f.write("\n---\n\n")
+        
+        current_section = None
+        for result in all_results:
+            if result['section'] != current_section:
+                current_section = result['section']
+                f.write(f"## {current_section}\n\n")
+            
+            f.write(f"### Q{result['global_num']}: {result['question']}\n\n")
+            f.write(f"**Answer:**\n\n{result['answer']}\n\n")
+            f.write(f"**Metrics:**\n")
+            f.write(f"- Response Time: {result['response_time']} seconds\n")
+            f.write(f"- Sources Used: {len(result['sources'])}\n")
+            if result['sources']:
+                for src in result['sources']:
+                    f.write(f"  - {src}\n")
+            f.write(f"- Safe Response: {'Yes' if result['is_safe'] else 'No'}\n")
+            if result['error']:
+                f.write(f"- Error: {result['error']}\n")
+            f.write("\n---\n\n")
     
     print("\n" + "="*60)
     print("STRESS TEST COMPLETE")
     print("="*60)
     print(f"Total time: {overall_time} seconds")
-    print(f"Summary saved to: {summary_file}")
+    print(f"Output saved to: {output_file}")
     print("="*60)
 
 if __name__ == "__main__":
