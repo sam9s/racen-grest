@@ -6,7 +6,12 @@ A RAG-based web chatbot for JoveHeal wellness coaching business. The chatbot ser
 ## Current State
 - **Phase**: MVP with Multi-Channel Support
 - **Status**: Active and running
-- **Deployment**: Replit with stable URL
+- **Deployment**: Replit with stable URL + Custom Domain
+
+## Live URLs
+- **Custom Domain**: https://jove.sam9scloud.in (via Caddy reverse proxy on Hostinger VPS)
+- **Replit URL**: https://jove-heal-chatbot--sam9s.replit.app
+- **Admin Panel**: Run `streamlit run app.py --server.port 5001` for Streamlit admin access
 
 ## Project Structure
 
@@ -79,8 +84,9 @@ A RAG-based web chatbot for JoveHeal wellness coaching business. The chatbot ser
 - Migration utility for legacy file-based logs
 
 ## Tech Stack
-- **Frontend**: Streamlit
-- **Backend API**: Flask (for webhooks)
+- **Frontend**: Next.js 14 with TypeScript and Tailwind CSS (R.A.C.E.N branded)
+- **Backend API**: Flask (webhooks and chat API on port 8080)
+- **Admin Panel**: Streamlit (separate access on port 5001)
 - **LLM**: OpenAI via Replit AI Integrations (gpt-4o-mini)
 - **Vector DB**: ChromaDB
 - **Database**: PostgreSQL
@@ -89,8 +95,8 @@ A RAG-based web chatbot for JoveHeal wellness coaching business. The chatbot ser
 - **Analytics**: Pandas
 
 ## Workflows
-1. **Start application** - Main Streamlit app on port 5000
-2. **Webhook Server** - Flask API on port 8080 for external integrations
+1. **Frontend** - Next.js app on port 5000
+2. **Webhook Server** - Flask API on port 8080 for chat and external integrations
 
 ## How to Update Knowledge Base
 
