@@ -191,16 +191,17 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
 
 def get_greeting_message() -> str:
     """Return the initial greeting message for new conversations."""
-    return """Welcome to JoveHeal! I'm here to help you learn about our wellness coaching programs and services.
+    return """Hi there, I'm RACEN — your real-time guide for healing and coaching at JoveHeal.
 
-You can ask me about:
-- Our coaching programs (like Balance Mastery+, Inner Mastery Lounge)
-- Healing sessions and workshops
-- Membership options and how to join
-- Fees and policies
-- General information about JoveHeal
+I'm here to help you explore our programs, understand our philosophy, and find what might be right for you.
 
-How can I help you today?"""
+Are you looking for:
+- Program details (Balance Mastery+, Inner Mastery Lounge, Elevate 360)
+- Healing philosophy and approach
+- Membership and pricing info
+- How to get started
+
+What brings you here today?"""
 
 
 def check_knowledge_base_status() -> dict:

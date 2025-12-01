@@ -133,10 +133,20 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto py-6 space-y-4">
           {messages.length === 0 && (
             <div className="flex-1 flex items-center justify-center min-h-[60vh]">
-              <div className="text-center">
-                <p className="text-xl font-light text-theme-muted">Welcome to R.A.C.E.N</p>
-                <p className="text-sm mt-2 text-theme-muted opacity-70">
-                  Ask me anything about JoveHeal's services and programs
+              <div className="text-center max-w-md">
+                <p className="text-xl font-light text-theme-muted">Hi, I'm RACEN</p>
+                <p className="text-sm mt-2 text-theme-muted opacity-80">
+                  Your real-time guide for healing and coaching at JoveHeal
+                </p>
+                <div className="mt-6 text-left text-sm text-theme-muted opacity-70 space-y-1">
+                  <p className="font-medium opacity-90 mb-2">I can help you explore:</p>
+                  <p>• Program details (Balance Mastery+, Elevate 360)</p>
+                  <p>• Healing philosophy and approach</p>
+                  <p>• Membership and pricing info</p>
+                  <p>• How to get started</p>
+                </div>
+                <p className="text-sm mt-6 text-theme-muted opacity-60">
+                  What brings you here today?
                 </p>
               </div>
             </div>
