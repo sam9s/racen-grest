@@ -44,6 +44,21 @@
       "filename": "website_contact.txt",
       "type": "text",
       "chunks": 1
+    },
+    {
+      "filename": "website_career_healing.txt",
+      "type": "text",
+      "chunks": 5
+    },
+    {
+      "filename": "website_beyond_the_hustle.txt",
+      "type": "text",
+      "chunks": 3
+    },
+    {
+      "filename": "website_shed_and_shine.txt",
+      "type": "text",
+      "chunks": 4
     }
   ],
   "last_scrape": null
