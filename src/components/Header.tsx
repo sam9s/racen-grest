@@ -10,20 +10,29 @@ export function Header({ onReset }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-theme-surface/90 header-bg border-b border-primary-500/20 transition-colors duration-300">
-      <div className="max-w-5xl mx-auto px-4 py-3">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-theme-surface/90 header-bg border-b border-primary-500/10 transition-colors duration-300">
+      <div className="max-w-6xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col">
-              <h1 className="text-2xl md:text-3xl font-light tracking-[0.4em] text-primary-500 glow-text">
-                R.A.C.E.N
+          {/* Left spacer for balance */}
+          <div className="w-32 hidden md:block" />
+          
+          {/* Centered branding */}
+          <div className="flex flex-col items-center flex-1">
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-extralight tracking-[0.6em] md:tracking-[0.8em] text-white uppercase">
+                R<span className="text-primary-400">.</span>A<span className="text-primary-400">.</span>C<span className="text-primary-400">.</span>E<span className="text-primary-400">.</span>N
               </h1>
-              <p className="text-[9px] md:text-[10px] tracking-[0.2em] text-theme-muted mt-0.5 uppercase">
-                Real Time Advisor for Coaching, Education & Navigation
-              </p>
+              {/* R Logo */}
+              <div className="text-primary-400 text-4xl md:text-5xl font-light italic hidden md:block">
+                R
+              </div>
             </div>
+            <p className="text-[10px] md:text-xs tracking-[0.4em] md:tracking-[0.5em] text-gray-400 mt-2 uppercase font-extralight">
+              Real Time Advisor for Coaching, Education & Navigation
+            </p>
           </div>
           
+          {/* Right side buttons */}
           <div className="flex items-center gap-2">
             <button
               onClick={toggleTheme}
