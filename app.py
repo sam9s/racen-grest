@@ -7,6 +7,7 @@ Provides information about programs, services, and offerings.
 
 import streamlit as st
 import uuid
+import os
 from datetime import datetime
 
 from chatbot_engine import (
@@ -26,8 +27,13 @@ from conversation_logger import (
     log_conversation,
     get_recent_logs,
     get_flagged_conversations,
-    get_conversation_stats
+    get_conversation_stats,
+    get_analytics_by_date,
+    get_feedback_summary,
+    add_feedback,
+    migrate_file_logs_to_database
 )
+from database import init_database, is_database_available
 
 st.set_page_config(
     page_title="JoveHeal Assistant",
@@ -87,8 +93,20 @@ if "show_admin" not in st.session_state:
     st.session_state.show_admin = False
 
 
+def initialize_database_if_needed():
+    """Initialize database on first run."""
+    if "db_initialized" not in st.session_state:
+        if is_database_available():
+            init_database()
+            st.session_state.db_initialized = True
+        else:
+            st.session_state.db_initialized = False
+
+
 def initialize_kb_if_needed():
     """Initialize knowledge base on first run."""
+    initialize_database_if_needed()
+    
     if not st.session_state.kb_initialized:
         status = check_knowledge_base_status()
         if not status["ready"]:
@@ -119,12 +137,56 @@ def render_chat_interface():
             "content": greeting
         })
     
-    for message in st.session_state.messages:
+    for idx, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
             if message.get("sources"):
                 sources_text = " | ".join(message["sources"][:3])
                 st.caption(f"Sources: {sources_text}")
+            
+            if message["role"] == "assistant" and message.get("conversation_id") and is_database_available():
+                conv_id = message["conversation_id"]
+                feedback_key = f"feedback_{conv_id}"
+                comment_key = f"comment_{conv_id}"
+                show_comment_key = f"show_comment_{conv_id}"
+                
+                if feedback_key not in st.session_state:
+                    col1, col2, col3 = st.columns([1, 1, 8])
+                    with col1:
+                        if st.button("up", key=f"up_{idx}_{conv_id}"):
+                            st.session_state[feedback_key] = 1
+                            st.session_state[show_comment_key] = True
+                            st.rerun()
+                    with col2:
+                        if st.button("down", key=f"down_{idx}_{conv_id}"):
+                            st.session_state[feedback_key] = -1
+                            st.session_state[show_comment_key] = True
+                            st.rerun()
+                elif st.session_state.get(show_comment_key, False):
+                    rating = st.session_state[feedback_key]
+                    comment = st.text_input(
+                        "Any additional feedback? (optional)",
+                        key=f"comment_input_{conv_id}",
+                        placeholder="Tell us more..."
+                    )
+                    if st.button("Submit", key=f"submit_{idx}_{conv_id}"):
+                        add_feedback(conv_id, rating, comment if comment else None)
+                        st.session_state[show_comment_key] = False
+                        st.session_state[comment_key] = comment
+                        st.rerun()
+                    if st.button("Skip", key=f"skip_{idx}_{conv_id}"):
+                        add_feedback(conv_id, rating, None)
+                        st.session_state[show_comment_key] = False
+                        st.rerun()
+                else:
+                    feedback_val = st.session_state[feedback_key]
+                    saved_comment = st.session_state.get(comment_key)
+                    if feedback_val > 0:
+                        st.caption("Thanks for the positive feedback!")
+                    else:
+                        st.caption("Thanks for letting us know. We'll work to improve.")
+                    if saved_comment:
+                        st.caption(f"Your comment: {saved_comment[:50]}...")
     
     if prompt := st.chat_input("Ask me about JoveHeal's programs and services..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -149,18 +211,22 @@ def render_chat_interface():
                     sources_text = " | ".join(sources[:3])
                     st.caption(f"Sources: {sources_text}")
                 
-                log_conversation(
+                log_result = log_conversation(
                     session_id=st.session_state.session_id,
                     user_question=prompt,
                     bot_answer=response,
                     safety_flagged=safety_triggered,
-                    safety_category=result.get("safety_category")
+                    safety_category=result.get("safety_category"),
+                    sources=sources
                 )
+                
+                conversation_id = log_result.get("conversation_id")
                 
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": response,
-                    "sources": sources
+                    "sources": sources,
+                    "conversation_id": conversation_id
                 })
 
 
@@ -175,7 +241,7 @@ def render_admin_panel():
     
     st.divider()
     
-    tab1, tab2, tab3 = st.tabs(["Knowledge Base", "Upload Documents", "Conversation Logs"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Knowledge Base", "Upload Documents", "Conversation Logs", "Analytics", "Embed Widget"])
     
     with tab1:
         st.subheader("Knowledge Base Status")
@@ -303,6 +369,171 @@ def render_admin_panel():
                     st.markdown(f"**Bot:** {log['bot_answer']}")
         else:
             st.success("No flagged conversations.")
+    
+    with tab4:
+        st.subheader("Analytics Dashboard")
+        
+        db_available = is_database_available()
+        if db_available:
+            st.success("Database connected - Full analytics available")
+        else:
+            st.warning("Database not connected - Limited analytics from file logs")
+        
+        conv_stats = get_conversation_stats()
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Conversations", conv_stats["total_conversations"])
+        with col2:
+            st.metric("Unique Sessions", conv_stats["unique_sessions"])
+        with col3:
+            st.metric("Safety Flags", conv_stats["safety_flags"])
+        with col4:
+            if conv_stats.get("avg_response_time_ms"):
+                st.metric("Avg Response Time", f"{conv_stats['avg_response_time_ms']}ms")
+            else:
+                st.metric("Avg Response Time", "N/A")
+        
+        st.divider()
+        
+        if db_available:
+            st.subheader("User Feedback Summary")
+            feedback = get_feedback_summary()
+            
+            if feedback["total"] > 0:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Feedback", feedback["total"])
+                with col2:
+                    st.metric("Positive", feedback["positive"])
+                with col3:
+                    st.metric("Negative", feedback["negative"])
+                
+                if feedback["comments"]:
+                    st.markdown("**Recent Comments:**")
+                    for comment in feedback["comments"][:5]:
+                        rating_icon = "+" if comment["rating"] > 0 else "-"
+                        st.text(f"[{rating_icon}] {comment['comment'][:100]}")
+            else:
+                st.info("No feedback collected yet. Users can rate responses in the chat.")
+            
+            st.divider()
+            
+            st.subheader("Daily Trends (Last 30 Days)")
+            daily_data = get_analytics_by_date(days=30)
+            
+            if daily_data:
+                import pandas as pd
+                df = pd.DataFrame(daily_data)
+                df['date'] = pd.to_datetime(df['date'])
+                
+                st.line_chart(df.set_index('date')[['conversations', 'sessions']])
+                
+                st.markdown("**Daily Breakdown:**")
+                for row in daily_data[-7:]:
+                    st.text(f"{row['date']}: {row['conversations']} conversations, {row['sessions']} sessions, {row['safety_flags']} flags")
+            else:
+                st.info("No daily analytics data available yet.")
+            
+            st.divider()
+            
+            st.subheader("Data Management")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("Migrate File Logs to Database"):
+                    with st.spinner("Migrating logs..."):
+                        migrated = migrate_file_logs_to_database()
+                        if migrated > 0:
+                            st.success(f"Migrated {migrated} log entries to database!")
+                        else:
+                            st.info("No logs to migrate or migration already complete.")
+        else:
+            st.info("Connect a PostgreSQL database to unlock full analytics including daily trends, feedback tracking, and data migration.")
+    
+    with tab5:
+        st.subheader("Embed Chatbot Widget")
+        st.markdown("Add the JoveHeal chatbot to your website using the embed code below.")
+        
+        replit_url = os.environ.get("REPLIT_DEV_DOMAIN", "your-replit-url.replit.dev")
+        widget_url = f"https://{replit_url}/widget"
+        
+        st.markdown("### Widget Preview")
+        st.info(f"Widget URL: {widget_url}")
+        st.markdown("*Note: The widget runs on a separate endpoint for embedding.*")
+        
+        st.divider()
+        
+        st.markdown("### Embed Code")
+        st.markdown("Copy and paste this code into your website's HTML:")
+        
+        iframe_code = f'''<iframe
+    src="{widget_url}"
+    width="400"
+    height="600"
+    style="border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"
+    title="JoveHeal Chat Assistant">
+</iframe>'''
+        
+        st.code(iframe_code, language="html")
+        
+        st.divider()
+        
+        st.markdown("### Floating Button Widget")
+        st.markdown("For a floating chat button in the corner of your website:")
+        
+        floating_code = f'''<style>
+.joveheal-chat-button {{
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4a7c59 0%, #2d5a3d 100%);
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-size: 24px;
+    z-index: 9999;
+}}
+.joveheal-chat-widget {{
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 380px;
+    height: 550px;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    z-index: 9998;
+    display: none;
+}}
+.joveheal-chat-widget.open {{
+    display: block;
+}}
+</style>
+<button class="joveheal-chat-button" onclick="toggleJoveHealChat()">💬</button>
+<iframe class="joveheal-chat-widget" id="joveheal-widget" src="{widget_url}"></iframe>
+<script>
+function toggleJoveHealChat() {{
+    var widget = document.getElementById('joveheal-widget');
+    widget.classList.toggle('open');
+}}
+</script>'''
+        
+        st.code(floating_code, language="html")
+        
+        st.divider()
+        
+        st.markdown("### Customization Tips")
+        st.markdown("""
+        - **Size**: Adjust `width` and `height` in the iframe to fit your design
+        - **Position**: Modify `bottom` and `right` values for floating button placement
+        - **Colors**: Update the gradient colors to match your brand
+        - **Mobile**: Consider using responsive widths (e.g., `width="100%"`)
+        """)
 
 
 def main():
