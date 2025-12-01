@@ -150,5 +150,30 @@ The chatbot follows strict safety policies:
 - Safe redirection for crisis/distress situations
 - Stays within mindset coaching, not therapy
 
+## Next Session Task (Priority)
+
+**Add clickable program links in RACEN responses:**
+- When RACEN mentions or suggests any program, include a clickable link to that program's page on joveheal.com
+- Apply to ALL ingested pages (7 pages total):
+  - Homepage → https://joveheal.com/
+  - About → https://joveheal.com/about/
+  - Services → https://joveheal.com/services/
+  - Balance Mastery → https://joveheal.com/balance-mastery/
+  - Inner Mastery Lounge → https://joveheal.com/inner-mastery-lounge/
+  - Elevate 360 → https://joveheal.com/elevate-360/
+  - Testimonials → https://joveheal.com/testimonials/
+
+**Implementation approach:**
+1. Create a URL mapping dictionary in safety_guardrails.py or chatbot_engine.py
+2. Inject link instructions into RACEN's system prompt
+3. Ensure links render as clickable in the chat UI (markdown support)
+
+## RACEN Persona Configuration
+
+- **Toggle**: `RACEN_PERSONA_MODE` environment variable
+  - `detailed` (default): Priority-ladder persona with examples - warm, empathetic responses
+  - `simple`: Original concise persona - fallback option
+- **Location**: `safety_guardrails.py` → `get_racen_persona()` function
+
 ## Future Phases (Planned)
 - Phase 3: Booking and scheduling integration
