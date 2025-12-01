@@ -63,3 +63,8 @@ externalPort = 8080
 [[ports]]
 localPort = 40791
 externalPort = 3001
+
+[userenv]
+
+[userenv.shared]
+RACEN_PERSONA_MODE = "detailed"
