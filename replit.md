@@ -34,6 +34,14 @@ A RAG-based web chatbot for JoveHeal wellness coaching business. The chatbot ser
 
 ## Key Features
 
+### RACEN Persona
+RACEN (Real-time Advisor for Coaching, Education & Navigation) has a defined personality:
+- **Tone**: Warm, empathetic, guide-like (not salesy)
+- **Language**: Plain, human-friendly (no therapy-speak or jargon)
+- **Formatting**: Short sentences, 2-5 sentences for facts, empathy-first for emotional queries
+- **Boundaries**: Honest about being AI when asked; no medical/therapy advice
+- **Behavior**: Offers next steps, admits uncertainty openly, refers to humans when needed
+
 ### Chat Interface
 - Natural language Q&A about JoveHeal services
 - Multi-turn conversation with context awareness
