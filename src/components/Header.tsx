@@ -11,23 +11,17 @@ export function Header({ onReset }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-theme-surface/90 header-bg border-b border-primary-500/10 transition-colors duration-300">
-      <div className="max-w-6xl mx-auto px-4 py-4">
+      <div className="max-w-6xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Left spacer for balance */}
-          <div className="w-32 hidden md:block" />
+          <div className="w-24 hidden md:block" />
           
           {/* Centered branding */}
           <div className="flex flex-col items-center flex-1">
-            <div className="flex items-center gap-4">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-extralight tracking-[0.6em] md:tracking-[0.8em] text-white uppercase">
-                R<span className="text-primary-400">.</span>A<span className="text-primary-400">.</span>C<span className="text-primary-400">.</span>E<span className="text-primary-400">.</span>N
-              </h1>
-              {/* R Logo */}
-              <div className="text-primary-400 text-4xl md:text-5xl font-light italic hidden md:block">
-                R
-              </div>
-            </div>
-            <p className="text-[10px] md:text-xs tracking-[0.4em] md:tracking-[0.5em] text-gray-400 mt-2 uppercase font-extralight">
+            <h1 className="text-xl md:text-2xl font-extralight tracking-[0.5em] md:tracking-[0.7em] text-white uppercase">
+              R<span className="text-primary-400">.</span>A<span className="text-primary-400">.</span>C<span className="text-primary-400">.</span>E<span className="text-primary-400">.</span>N
+            </h1>
+            <p className="text-[8px] md:text-[9px] tracking-[0.3em] md:tracking-[0.4em] text-gray-500 mt-1 uppercase font-extralight">
               Real Time Advisor for Coaching, Education & Navigation
             </p>
           </div>
@@ -36,12 +30,12 @@ export function Header({ onReset }: HeaderProps) {
           <div className="flex items-center gap-2">
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-xl btn-theme"
+              className="p-2 rounded-lg btn-theme"
               aria-label="Toggle theme"
             >
               {theme === 'dark' ? (
                 <svg
-                  className="w-5 h-5 text-primary-400"
+                  className="w-4 h-4 text-primary-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -55,7 +49,7 @@ export function Header({ onReset }: HeaderProps) {
                 </svg>
               ) : (
                 <svg
-                  className="w-5 h-5 text-primary-600"
+                  className="w-4 h-4 text-primary-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -72,10 +66,10 @@ export function Header({ onReset }: HeaderProps) {
             
             <button
               onClick={onReset}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl btn-theme text-theme"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg btn-theme text-theme"
             >
               <svg 
-                className="w-4 h-4" 
+                className="w-3.5 h-3.5" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
