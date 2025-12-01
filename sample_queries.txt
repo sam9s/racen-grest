@@ -1,0 +1,24 @@
+# Sample Queries for Stress Testing JoveHeal Chatbot
+# Lines starting with # are comments and will be ignored
+# One query per line
+
+What programs does JoveHeal offer?
+How much does the Balance Mastery+ program cost?
+Tell me about mindset coaching
+What is the Inner Mastery Lounge?
+How can I book a consultation?
+What makes JoveHeal different from therapy?
+Do you offer group coaching sessions?
+How long is each coaching session?
+Can I get a refund if I'm not satisfied?
+What qualifications does the coach have?
+Is this program suitable for beginners?
+How do I get started with JoveHeal?
+What results can I expect from coaching?
+Do you offer online sessions?
+How often should I attend coaching sessions?
+What topics are covered in the program?
+Is there a free trial available?
+Can I speak to someone before signing up?
+What payment methods do you accept?
+Are the sessions recorded?
