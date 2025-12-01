@@ -37,12 +37,12 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             onKeyDown={handleKeyDown}
             disabled={disabled}
             placeholder="Ask me anything about JoveHeal..."
-            className="flex-1 px-6 py-4 bg-transparent text-theme placeholder-gray-500 focus:outline-none disabled:opacity-50"
+            className="flex-1 px-5 py-3 text-sm bg-transparent text-theme placeholder-gray-500 focus:outline-none disabled:opacity-50"
           />
           <button
             onClick={handleSubmit}
             disabled={!isButtonEnabled}
-            className={`mr-2 p-3 rounded-full transition-all duration-200 ${
+            className={`mr-1.5 p-2.5 rounded-full transition-all duration-200 ${
               isButtonEnabled 
                 ? 'bg-primary-500 hover:bg-primary-600 glow cursor-pointer' 
                 : 'bg-gray-600 cursor-not-allowed opacity-50'
@@ -50,7 +50,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             aria-label="Send message"
           >
             <svg
-              className="w-5 h-5 text-white"
+              className="w-4 h-4 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
