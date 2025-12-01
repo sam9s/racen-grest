@@ -241,7 +241,7 @@ def render_admin_panel():
     
     st.divider()
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Knowledge Base", "Upload Documents", "Conversation Logs", "Analytics", "Embed Widget"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Knowledge Base", "Upload Documents", "Conversation Logs", "Analytics", "Embed Widget", "Channels"])
     
     with tab1:
         st.subheader("Knowledge Base Status")
@@ -297,7 +297,6 @@ def render_admin_panel():
             if st.button("Process Document"):
                 with st.spinner(f"Processing {uploaded_file.name}..."):
                     import tempfile
-                    import os
                     
                     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
                         tmp_file.write(uploaded_file.getvalue())
@@ -534,6 +533,117 @@ function toggleJoveHealChat() {{
         - **Colors**: Update the gradient colors to match your brand
         - **Mobile**: Consider using responsive widths (e.g., `width="100%"`)
         """)
+    
+    with tab6:
+        st.subheader("Multi-Channel Integration")
+        st.markdown("Connect your JoveHeal chatbot to messaging platforms.")
+        
+        try:
+            from channel_handlers import get_channel_status
+            status = get_channel_status()
+        except ImportError:
+            status = {}
+        
+        replit_url = os.environ.get("REPLIT_DEV_DOMAIN", "your-replit-url.replit.dev")
+        
+        st.markdown("### WhatsApp (via Twilio)")
+        wa_status = status.get("whatsapp", {})
+        if wa_status.get("configured"):
+            st.success("WhatsApp is configured and ready")
+        else:
+            st.warning("WhatsApp is not configured")
+            st.markdown("**Required secrets:**")
+            for secret in wa_status.get("required_secrets", []):
+                st.code(secret)
+        
+        st.markdown("**Webhook URL:**")
+        whatsapp_webhook = f"https://{replit_url}/webhook/whatsapp"
+        st.code(whatsapp_webhook)
+        
+        with st.expander("WhatsApp Setup Instructions"):
+            st.markdown("""
+            1. **Create a Twilio account** at [twilio.com](https://www.twilio.com)
+            2. **Enable WhatsApp** in your Twilio console
+            3. **Get your credentials:**
+               - Account SID
+               - Auth Token
+               - WhatsApp sandbox or approved number
+            4. **Add secrets** to this project:
+               - `TWILIO_ACCOUNT_SID`
+               - `TWILIO_AUTH_TOKEN`
+               - `TWILIO_WHATSAPP_NUMBER`
+            5. **Configure webhook** in Twilio console:
+               - Set the webhook URL above as your message handler
+               - Select POST method
+            
+            **Security Note:** Webhook requests are validated using Twilio's signature verification.
+            For custom deployments, set `WEBHOOK_BASE_URL` to your trusted base URL.
+            """)
+        
+        st.divider()
+        
+        st.markdown("### Instagram (via Meta Graph API)")
+        ig_status = status.get("instagram", {})
+        if ig_status.get("configured"):
+            st.success("Instagram is configured and ready")
+        else:
+            st.warning("Instagram is not configured")
+            st.markdown("**Required secrets:**")
+            for secret in ig_status.get("required_secrets", []):
+                st.code(secret)
+        
+        st.markdown("**Webhook URL:**")
+        instagram_webhook = f"https://{replit_url}/webhook/instagram"
+        st.code(instagram_webhook)
+        
+        with st.expander("Instagram Setup Instructions"):
+            st.markdown("""
+            1. **Create a Meta Developer account** at [developers.facebook.com](https://developers.facebook.com)
+            2. **Create a new app** with Messenger product
+            3. **Connect your Instagram Business account**
+            4. **Get your credentials:**
+               - Page Access Token
+               - Page ID
+               - Create a Verify Token (any string you choose)
+            5. **Add secrets** to this project:
+               - `INSTAGRAM_ACCESS_TOKEN`
+               - `INSTAGRAM_PAGE_ID`
+               - `INSTAGRAM_VERIFY_TOKEN`
+            6. **Configure webhook** in Meta developer console:
+               - Set the webhook URL above
+               - Enter your verify token
+               - Subscribe to `messages` events
+            """)
+        
+        st.divider()
+        
+        st.markdown("### Direct API Integration")
+        st.markdown("For custom integrations, use the chat API endpoint:")
+        
+        api_url = f"https://{replit_url}/api/chat"
+        st.code(api_url)
+        
+        st.markdown("**Example request:**")
+        api_example = '''{
+    "message": "What programs do you offer?",
+    "user_id": "user123",
+    "channel": "custom_app"
+}'''
+        st.code(api_example, language="json")
+        
+        st.markdown("**Response format:**")
+        response_example = '''{
+    "response": "JoveHeal offers several wellness programs...",
+    "user_id": "user123",
+    "channel": "custom_app"
+}'''
+        st.code(response_example, language="json")
+        
+        st.divider()
+        
+        st.markdown("### Webhook Server Status")
+        st.info("The webhook server runs on port 8080 to handle incoming messages from external platforms.")
+        st.markdown("Make sure to start the webhook server workflow for multi-channel messaging to work.")
 
 
 def main():
