@@ -100,11 +100,16 @@ Required secrets:
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_WHATSAPP_NUMBER`
 
+Security: WhatsApp webhooks use Twilio signature validation. For custom deployments, set `WEBHOOK_BASE_URL` to your trusted base URL.
+
 ### Instagram (Meta Graph API)
 Required secrets:
 - `INSTAGRAM_ACCESS_TOKEN`
 - `INSTAGRAM_PAGE_ID`
 - `INSTAGRAM_VERIFY_TOKEN`
+
+### Session Storage Note
+Channel sessions are stored in-process memory. For multi-worker deployments, implement Redis or database-backed session storage.
 
 See Admin Panel > Channels tab for detailed setup instructions.
 
