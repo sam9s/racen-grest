@@ -255,11 +255,11 @@ def render_admin_panel():
         st.markdown("""
         **How to update the knowledge base:**
         
-        1. **Website Content**: Click "Refresh Website Content" to re-scrape the JoveHeal website
-        2. **PDF Documents**: Upload PDF files (brochures, program guides, FAQs)
-        3. **Text Files**: Upload .txt files with additional information
+        1. **PDF Documents**: Upload PDF files (brochures, program guides, FAQs)
+        2. **Text Files**: Upload .txt files with additional information
         
-        The chatbot will use all this content to answer visitor questions.
+        The chatbot will use all uploaded content to answer visitor questions.
+        Files are validated to ensure they contain readable text content.
         """)
     
     with tab3:

@@ -32,10 +32,11 @@ A RAG-based web chatbot for JoveHeal wellness coaching business. The chatbot ser
 - Session-based conversation history
 
 ### Knowledge Base
-- Automatic web scraping of joveheal.com
 - PDF document upload and processing
-- Text file ingestion
+- Text file ingestion with validation
+- Sample document with JoveHeal business information
 - ChromaDB vector storage for semantic search
+- Content validation (rejects binary/malformed content)
 
 ### Safety Guardrails
 - Strict medical/mental health content filtering
@@ -53,14 +54,14 @@ A RAG-based web chatbot for JoveHeal wellness coaching business. The chatbot ser
 - **Frontend**: Streamlit
 - **LLM**: OpenAI via Replit AI Integrations (gpt-4o-mini)
 - **Vector DB**: ChromaDB
-- **Web Scraping**: Trafilatura
 - **PDF Processing**: PyPDF
 
 ## How to Update Knowledge Base
 
-1. **Website Content**: Go to Admin Panel > Knowledge Base > Click "Refresh Website Content"
-2. **PDF Documents**: Go to Admin Panel > Upload Documents > Upload PDF files
-3. **Text Files**: Go to Admin Panel > Upload Documents > Upload .txt files
+1. **PDF Documents**: Go to Admin Panel > Upload Documents > Upload PDF files
+2. **Text Files**: Go to Admin Panel > Upload Documents > Upload .txt files
+
+Files are validated before ingestion to ensure readable text content.
 
 ## Safety Guidelines
 

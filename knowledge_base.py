@@ -214,11 +214,17 @@ def ingest_pdf_file(file_path: str, original_filename: str = None) -> int:
             print(f"No text content found in PDF: {original_filename}")
             return 0
         
+        if not is_valid_text_content(text_content):
+            print(f"PDF content failed validation (binary/malformed): {original_filename}")
+            return 0
+        
         chunks = split_text_into_chunks(text_content, f"PDF: {original_filename}")
         collection = get_or_create_collection()
         chunks_added = 0
         
         for chunk in chunks:
+            if not is_valid_text_content(chunk["content"], min_printable_ratio=0.90):
+                continue
             try:
                 collection.upsert(
                     ids=[chunk["id"]],
@@ -236,8 +242,10 @@ def ingest_pdf_file(file_path: str, original_filename: str = None) -> int:
         metadata = load_metadata()
         if "documents" not in metadata:
             metadata["documents"] = []
-        existing_docs = [d["filename"] for d in metadata["documents"]]
-        if original_filename not in existing_docs:
+        existing_doc = next((d for d in metadata["documents"] if d["filename"] == original_filename), None)
+        if existing_doc:
+            existing_doc["chunks"] = chunks_added
+        else:
             metadata["documents"].append({
                 "filename": original_filename,
                 "type": "pdf",
@@ -269,11 +277,17 @@ def ingest_text_file(file_path: str, original_filename: str = None) -> int:
             print(f"No content found in text file: {original_filename}")
             return 0
         
+        if not is_valid_text_content(text_content):
+            print(f"Text file content failed validation (binary/malformed): {original_filename}")
+            return 0
+        
         chunks = split_text_into_chunks(text_content, f"Document: {original_filename}")
         collection = get_or_create_collection()
         chunks_added = 0
         
         for chunk in chunks:
+            if not is_valid_text_content(chunk["content"], min_printable_ratio=0.90):
+                continue
             try:
                 collection.upsert(
                     ids=[chunk["id"]],
@@ -291,8 +305,10 @@ def ingest_text_file(file_path: str, original_filename: str = None) -> int:
         metadata = load_metadata()
         if "documents" not in metadata:
             metadata["documents"] = []
-        existing_docs = [d["filename"] for d in metadata["documents"]]
-        if original_filename not in existing_docs:
+        existing_doc = next((d for d in metadata["documents"] if d["filename"] == original_filename), None)
+        if existing_doc:
+            existing_doc["chunks"] = chunks_added
+        else:
             metadata["documents"].append({
                 "filename": original_filename,
                 "type": "text",
