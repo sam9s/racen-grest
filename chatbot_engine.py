@@ -13,7 +13,7 @@ from typing import List, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 from knowledge_base import search_knowledge_base, get_knowledge_base_stats
-from safety_guardrails import apply_safety_filters, get_system_prompt, filter_response_for_safety
+from safety_guardrails import apply_safety_filters, get_system_prompt, filter_response_for_safety, inject_program_links
 
 _openai_client = None
 
@@ -156,6 +156,8 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
         
         filtered_response, was_filtered = filter_response_for_safety(assistant_message)
         
+        final_response = inject_program_links(filtered_response)
+        
         sources = []
         for doc in relevant_docs:
             source = doc.get("source", "Unknown")
@@ -163,7 +165,7 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
                 sources.append(source)
         
         return {
-            "response": filtered_response,
+            "response": final_response,
             "sources": sources[:3],
             "safety_triggered": was_filtered,
             "safety_category": "output_filtered" if was_filtered else None
