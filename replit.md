@@ -175,5 +175,31 @@ The chatbot follows strict safety policies:
   - `simple`: Original concise persona - fallback option
 - **Location**: `safety_guardrails.py` → `get_racen_persona()` function
 
+## Production Reliability (RCA Fix - Dec 2025)
+
+### Issue
+After 24 hours of no traffic, Replit's autoscale feature suspended the app. On wake-up, Next.js started serving traffic before Flask was ready, causing chat errors.
+
+### Fixes Applied
+1. **Retry Logic**: Frontend API route now retries 3 times with 1-second delays if Flask isn't ready
+2. **Startup Script**: `start_production.sh` ensures Flask is healthy before Next.js starts
+3. **Health Endpoint**: Flask has `/health` endpoint for monitoring
+
+### Deployment Configuration
+To apply the startup script fix, update the deployment run command in Deployments settings:
+
+**Current (problematic):**
+```
+npx next start -p 5000 -H 0.0.0.0 & python webhook_server.py
+```
+
+**Recommended (robust):**
+```
+bash start_production.sh
+```
+
+### Monitoring Recommendation
+Consider adding an external uptime monitor (e.g., UptimeRobot, Pingdom) to hit `/health` endpoint every 5 minutes during business hours. This keeps the app warm and alerts on failures.
+
 ## Future Phases (Planned)
 - Phase 3: Booking and scheduling integration
