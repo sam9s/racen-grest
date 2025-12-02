@@ -17,6 +17,40 @@ interface ChatMessageProps {
   onFeedback: (messageId: string, feedback: 'up' | 'down', comment?: string) => void;
 }
 
+function renderMarkdownLinks(text: string): React.ReactNode[] {
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    
+    const [, linkText, url] = match;
+    parts.push(
+      <a
+        key={match.index}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors"
+      >
+        {linkText}
+      </a>
+    );
+    
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+}
+
 export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
   const [showFeedbackInput, setShowFeedbackInput] = useState(false);
   const [feedbackComment, setFeedbackComment] = useState('');
@@ -68,7 +102,7 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
         }`}
       >
         <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed">
-          {message.content}
+          {renderMarkdownLinks(message.content)}
         </div>
         
         {!isUser && (
