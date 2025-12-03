@@ -3,9 +3,15 @@
 
 echo "Starting backup to GitHub..."
 
-# Set the remote URL with token
-git remote set-url github https://sam9s:$GITHUB_TOKEN@github.com/sam9s/racen-joveheal.git 2>/dev/null || \
-git remote add github https://sam9s:$GITHUB_TOKEN@github.com/sam9s/racen-joveheal.git
+# Check if token exists
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo "ERROR: GITHUB_TOKEN not found in secrets!"
+    exit 1
+fi
+
+# Remove existing github remote if exists, then add fresh
+git remote remove github 2>/dev/null
+git remote add github "https://sam9s:${GITHUB_TOKEN}@github.com/sam9s/racen-joveheal.git"
 
 # Get commit message (use default if not provided)
 MESSAGE="${1:-Backup $(date '+%Y-%m-%d %H:%M')}"
@@ -17,6 +23,7 @@ git add -A
 git commit -m "$MESSAGE" || echo "Nothing new to commit"
 
 # Push
-git push github main
+git push -u github main
 
-echo "Backup complete!"
+echo ""
+echo "Backup complete! Check: https://github.com/sam9s/racen-joveheal"
