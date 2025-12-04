@@ -86,6 +86,47 @@ def format_conversation_history(messages: List[dict]) -> List[dict]:
     return formatted
 
 
+def build_context_aware_query(user_message: str, conversation_history: List[dict] = None) -> str:
+    """
+    Build a search query that includes context from conversation history.
+    This helps with follow-up questions like "tell me more about that program".
+    """
+    if not conversation_history:
+        return user_message
+    
+    program_keywords = [
+        "Balance Mastery", "Inner Mastery Lounge", "Elevate 360",
+        "Relationship Healing", "Career Healing", "Beyond the Hustle",
+        "Inner Reset", "Shed & Shine", "Shed and Shine",
+        "Healing Sessions", "coaching", "program"
+    ]
+    
+    pronouns_indicating_reference = [
+        "this program", "that program", "this", "that", "it",
+        "more details", "more information", "tell me more",
+        "details on", "about it", "learn more"
+    ]
+    
+    has_pronoun_reference = any(phrase.lower() in user_message.lower() for phrase in pronouns_indicating_reference)
+    
+    if not has_pronoun_reference:
+        return user_message
+    
+    recent_context = []
+    for msg in reversed(conversation_history[-4:]):
+        content = msg.get("content", "")
+        for keyword in program_keywords:
+            if keyword.lower() in content.lower():
+                if keyword not in recent_context:
+                    recent_context.append(keyword)
+    
+    if recent_context:
+        context_str = " ".join(recent_context[:3])
+        return f"{user_message} {context_str}"
+    
+    return user_message
+
+
 def generate_response(
     user_message: str,
     conversation_history: List[dict] = None,
@@ -121,7 +162,8 @@ def generate_response(
             "safety_category": "safety_redirect"
         }
     
-    relevant_docs = search_knowledge_base(user_message, n_results=n_context_docs)
+    search_query = build_context_aware_query(user_message, conversation_history)
+    relevant_docs = search_knowledge_base(search_query, n_results=n_context_docs)
     context = format_context_from_docs(relevant_docs)
     
     system_prompt = get_system_prompt()
