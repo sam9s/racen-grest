@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { ThemeProvider } from '@/components/ThemeProvider';
-import { SessionProvider } from '@/components/SessionProvider';
+import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
   title: 'R.A.C.E.N - Real Time Advisor for Coaching, Education & Navigation',
@@ -16,11 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans">
-        <SessionProvider>
-          <ThemeProvider>
-            {children}
-          </ThemeProvider>
-        </SessionProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

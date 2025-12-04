@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { ChatMessage } from '@/components/ChatMessage';
 import { ChatInput } from '@/components/ChatInput';
 import { Header } from '@/components/Header';
@@ -16,14 +17,19 @@ interface Message {
 }
 
 export default function Home() {
+  const { data: session, status } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setSessionId(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-  }, []);
+    if (status === 'authenticated' && session?.user?.email) {
+      setSessionId(`user_${session.user.email}`);
+    } else {
+      setSessionId(`guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+    }
+  }, [status, session]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,10 +125,21 @@ export default function Home() {
         body: JSON.stringify({ session_id: sessionId }),
       });
       setMessages([]);
-      setSessionId(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+      if (status === 'authenticated' && session?.user?.email) {
+        setSessionId(`user_${session.user.email}_${Date.now()}`);
+      } else {
+        setSessionId(`guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+      }
     } catch (error) {
       console.error('Error resetting conversation:', error);
     }
+  };
+
+  const getUserFirstName = () => {
+    if (status === 'authenticated' && session?.user?.name) {
+      return session.user.name.split(' ')[0];
+    }
+    return null;
   };
 
   return (
@@ -134,7 +151,9 @@ export default function Home() {
           {messages.length === 0 && (
             <div className="flex-1 flex items-center justify-center min-h-[60vh]">
               <div className="text-center max-w-md">
-                <p className="text-xl font-light text-theme-muted">Hi, I'm RACEN</p>
+                <p className="text-xl font-light text-theme-muted">
+                  {getUserFirstName() ? `Hi ${getUserFirstName()}, I'm RACEN` : "Hi, I'm RACEN"}
+                </p>
                 <p className="text-sm mt-2 text-theme-muted opacity-80">
                   Your real-time guide for healing and coaching at JoveHeal
                 </p>

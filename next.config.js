@@ -4,8 +4,24 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: 'http://localhost:8080/api/:path*',
+        source: '/api/chat/:path*',
+        destination: 'http://localhost:8080/api/chat/:path*',
+      },
+      {
+        source: '/api/feedback/:path*',
+        destination: 'http://localhost:8080/api/feedback/:path*',
+      },
+      {
+        source: '/api/channels/:path*',
+        destination: 'http://localhost:8080/api/channels/:path*',
+      },
+      {
+        source: '/webhook/:path*',
+        destination: 'http://localhost:8080/webhook/:path*',
+      },
+      {
+        source: '/health',
+        destination: 'http://localhost:8080/health',
       },
     ];
   },
