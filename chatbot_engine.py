@@ -78,7 +78,7 @@ def format_conversation_history(messages: List[dict]) -> List[dict]:
     """Format conversation history for the API call."""
     formatted = []
     for msg in messages[-6:]:
-        if msg.get("role") in ["user", "assistant"]:
+        if msg.get("role") in ["user", "assistant", "system"]:
             formatted.append({
                 "role": msg["role"],
                 "content": msg["content"]
@@ -176,9 +176,26 @@ def generate_response(
     
     personalization_context = ""
     if user_name:
-        personalization_context = f"\nUSER CONTEXT:\nThe user's name is {user_name}. Address them by name naturally in your responses (e.g., 'Hi {user_name}!' or 'That's a great question, {user_name}.')."
+        personalization_context = f"\nUSER CONTEXT:\nThe user's name is {user_name}. Address them by name naturally."
         if is_returning_user and last_topic_summary:
-            personalization_context += f"\nThis is a returning user. Last time you discussed: {last_topic_summary}. If appropriate, acknowledge their return warmly and reference what you discussed before."
+            personalization_context += f"""
+
+**** CRITICAL RETURNING USER INSTRUCTION ****
+This user has spoken with you before. You MUST greet them with specific details from their previous conversation.
+
+PREVIOUS CONVERSATION SUMMARY:
+{last_topic_summary}
+
+YOUR GREETING MUST INCLUDE:
+1. Their name ({user_name})
+2. Acknowledge you remember them ("Great to see you back!" or similar)
+3. SPECIFICALLY mention what they shared from the summary above
+4. Ask if they want to continue where they left off
+
+DO NOT give a generic greeting like "How can I help you today?" 
+DO mention their specific issues and programs from the summary.
+**** END CRITICAL INSTRUCTION ****
+"""
         elif is_returning_user:
             personalization_context += f"\nThis is a returning user. Welcome them back warmly."
     

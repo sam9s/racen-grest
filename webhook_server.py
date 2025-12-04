@@ -198,12 +198,15 @@ def api_chat():
             if stored_summary:
                 summary_parts = []
                 if stored_summary.get('emotional_themes'):
-                    summary_parts.append(f"You shared: {stored_summary['emotional_themes']}")
+                    summary_parts.append(f"emotional issues: {stored_summary['emotional_themes']}")
                 if stored_summary.get('recommended_programs'):
-                    summary_parts.append(f"Programs discussed: {stored_summary['recommended_programs']}")
+                    summary_parts.append(f"programs suggested: {stored_summary['recommended_programs']}")
                 if stored_summary.get('last_topics'):
-                    summary_parts.append(f"Topic: {stored_summary['last_topics']}")
+                    summary_parts.append(f"topic: {stored_summary['last_topics']}")
                 last_topic_summary = " | ".join(summary_parts) if summary_parts else None
+                
+                if last_topic_summary:
+                    conversation_histories[session_id] = conversation_histories[session_id][-4:]
     
     if conversation_history and not conversation_histories[session_id]:
         conversation_histories[session_id] = conversation_history
