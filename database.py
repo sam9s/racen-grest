@@ -9,7 +9,7 @@ PostgreSQL database for:
 
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, Float, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, Float, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from contextlib import contextmanager
 
@@ -25,16 +25,38 @@ else:
 Base = declarative_base()
 
 
+class UserAccount(Base):
+    """Stores user accounts across different channels."""
+    __tablename__ = "user_accounts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    channel = Column(String(50), nullable=False, index=True)
+    external_id = Column(String(255), nullable=False, index=True)
+    email = Column(String(255), nullable=True, index=True)
+    display_name = Column(String(255), nullable=True)
+    profile_image = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    sessions = relationship("ChatSession", back_populates="user")
+    
+    __table_args__ = (
+        UniqueConstraint('channel', 'external_id', name='uq_channel_external_id'),
+    )
+
+
 class ChatSession(Base):
     """Tracks individual chat sessions."""
     __tablename__ = "chat_sessions"
     
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String(100), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("user_accounts.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_activity = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     channel = Column(String(50), default="web")
     
+    user = relationship("UserAccount", back_populates="sessions")
     conversations = relationship("Conversation", back_populates="session")
 
 
@@ -112,3 +134,70 @@ def get_db_session():
 def is_database_available():
     """Check if database connection is available."""
     return engine is not None and DATABASE_URL is not None
+
+
+def get_or_create_user(channel: str, external_id: str, email: str = None, 
+                       display_name: str = None, profile_image: str = None):
+    """
+    Get existing user or create new one.
+    Returns (user, created) tuple.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return None, False
+        
+        user = db.query(UserAccount).filter(
+            UserAccount.channel == channel,
+            UserAccount.external_id == external_id
+        ).first()
+        
+        if user:
+            user.last_seen = datetime.utcnow()
+            if email and not user.email:
+                user.email = email
+            if display_name and not user.display_name:
+                user.display_name = display_name
+            if profile_image:
+                user.profile_image = profile_image
+            db.commit()
+            return user, False
+        
+        user = UserAccount(
+            channel=channel,
+            external_id=external_id,
+            email=email,
+            display_name=display_name,
+            profile_image=profile_image
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user, True
+
+
+def get_user_by_email(email: str):
+    """Get user by email address."""
+    with get_db_session() as db:
+        if db is None:
+            return None
+        return db.query(UserAccount).filter(UserAccount.email == email).first()
+
+
+def get_user_conversation_history(user_id: int, limit: int = 20):
+    """Get recent conversation history for a user."""
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        conversations = db.query(Conversation).join(ChatSession).filter(
+            ChatSession.user_id == user_id
+        ).order_by(Conversation.timestamp.desc()).limit(limit).all()
+        
+        return [
+            {
+                'question': c.user_question,
+                'answer': c.bot_answer,
+                'timestamp': c.timestamp.isoformat() if c.timestamp else None
+            }
+            for c in reversed(conversations)
+        ]

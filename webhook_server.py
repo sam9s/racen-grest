@@ -20,6 +20,7 @@ from channel_handlers import (
 )
 from chatbot_engine import generate_response
 from conversation_logger import log_feedback
+from database import get_or_create_user, get_user_conversation_history
 
 app = Flask(__name__)
 CORS(app)
@@ -122,14 +123,44 @@ def api_chat():
     message = data.get("message")
     session_id = data.get("session_id", "anonymous")
     conversation_history = data.get("conversation_history", [])
+    user_info = data.get("user", {})
     
     if not message:
         return jsonify({"error": "Message is required"}), 400
     
+    user_id = None
+    is_returning_user = False
+    user_name = None
+    
+    if session_id.startswith("user_") and user_info:
+        email = user_info.get("email")
+        name = user_info.get("name")
+        image = user_info.get("image")
+        
+        if email:
+            user, created = get_or_create_user(
+                channel="google",
+                external_id=email,
+                email=email,
+                display_name=name,
+                profile_image=image
+            )
+            if user:
+                user_id = user.id
+                user_name = name.split()[0] if name else None
+                is_returning_user = not created and session_id not in conversation_histories
+    
     if session_id not in conversation_histories:
         conversation_histories[session_id] = []
+        
+        if is_returning_user and user_id:
+            past_history = get_user_conversation_history(user_id, limit=10)
+            if past_history:
+                for conv in past_history[-5:]:
+                    conversation_histories[session_id].append({"role": "user", "content": conv['question']})
+                    conversation_histories[session_id].append({"role": "assistant", "content": conv['answer']})
     
-    if conversation_history:
+    if conversation_history and not conversation_histories[session_id]:
         conversation_histories[session_id] = conversation_history
     
     result = generate_response(message, conversation_histories[session_id])
@@ -144,7 +175,9 @@ def api_chat():
         "response": result.get("response", "I apologize, but I encountered an issue. Please try again."),
         "sources": result.get("sources", []),
         "safety_triggered": result.get("safety_triggered", False),
-        "session_id": session_id
+        "session_id": session_id,
+        "user_id": user_id,
+        "is_returning_user": is_returning_user
     })
 
 

@@ -61,6 +61,11 @@ export default function Home() {
             role: m.role,
             content: m.content,
           })),
+          user: session?.user ? {
+            email: session.user.email,
+            name: session.user.name,
+            image: session.user.image,
+          } : null,
         }),
       });
 
