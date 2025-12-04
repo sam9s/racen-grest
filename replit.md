@@ -270,3 +270,8 @@ Consider adding an external uptime monitor (e.g., UptimeRobot, Pingdom) to hit `
 
 ## Future Phases (Planned)
 - Phase 3: Booking and scheduling integration
+- Phase 4: Client VPS deployment (after v1 finalization)
+  - Move PostgreSQL and ChromaDB to client's own VPS
+  - Eliminates container timeout/ephemeral storage issues
+  - Full data ownership for client
+  - Docker Compose packaging for easy deployment
