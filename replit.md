@@ -58,6 +58,13 @@ When users sign in with Google:
 - RACEN remembers what you discussed and can continue the conversation
 - In-memory buffer keeps last 100 messages (50 exchanges) per session
 
+### Personalized Greetings (Dec 2025)
+RACEN provides personalized experiences for signed-in users:
+- **First-name addressing**: "Hi Sammy!" instead of generic greetings
+- **Welcome-back messages**: Returning users get "It's great to see you back!" with context about their last conversation topics
+- **New user introductions**: First-time users get a friendly intro explaining who RACEN is
+- **Session ID timing fix**: Frontend waits for auth check before generating session ID, ensuring logged-in users aren't treated as guests
+
 ### Knowledge Base
 - PDF document upload and processing
 - Text file ingestion with validation
