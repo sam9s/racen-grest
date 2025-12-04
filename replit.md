@@ -16,7 +16,7 @@ The core system uses a Retrieval Augmented Generation (RAG) approach.
 - **Persistent Conversation Memory**: Users can sign in with Google to save conversations to a PostgreSQL database, allowing RACEN to remember past interactions and provide personalized greetings and context-aware responses.
 - **Personalized Greetings**: For signed-in users, RACEN offers first-name addressing, welcome-back messages with context from previous conversations, and new user introductions.
 - **Smart Conversation Summaries**: LLM-powered summaries of conversations are generated and stored, enabling RACEN to recall specific topics and recommendations for returning users.
-- **LLM-Powered Typo Fixer**: Utilizes GPT-3.5-turbo to correct user typos before RAG retrieval, ensuring accurate search results from the ChromaDB vector store.
+- **LLM-Powered Typo Fixer**: Utilizes GPT-4o-mini to correct user typos before RAG retrieval, ensuring accurate search results from the ChromaDB vector store.
 - **Knowledge Base**: Supports PDF and text document uploads, and ingests website content. ChromaDB is used for vector storage to enable semantic search.
 - **Safety Guardrails**: Includes strict filtering for medical/mental health content, crisis keyword detection with safe redirection, and logging of flagged conversations.
 - **Multi-Channel Support**: Integrates with WhatsApp (via Twilio) and Instagram (via Meta Graph API), along with a direct API for custom integrations, maintaining session management and unified logging across channels.

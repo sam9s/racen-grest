@@ -164,7 +164,7 @@ def fix_typos_with_llm(user_message: str) -> str:
     
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
@@ -449,10 +449,12 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
         
         full_response = ""
         for chunk in stream:
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                full_response += content
-                yield {"type": "content", "content": content}
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if hasattr(delta, 'content') and delta.content:
+                    content = delta.content
+                    full_response += content
+                    yield {"type": "content", "content": content}
         
         filtered_response, was_filtered = filter_response_for_safety(full_response)
         response_with_links = inject_program_links(filtered_response)
