@@ -240,6 +240,17 @@ After 24 hours of no traffic, Replit's autoscale feature suspended the app. On w
 1. **Retry Logic**: Frontend API route now retries 3 times with 1-second delays if Flask isn't ready
 2. **Startup Script**: `start_production.sh` ensures Flask is healthy before Next.js starts
 3. **Health Endpoint**: Flask has `/health` endpoint for monitoring
+4. **Auto-Rebuild Knowledge Base**: ChromaDB vector database auto-rebuilds on cold starts if empty
+
+### Knowledge Base Cold Start Fix (Dec 2025)
+Replit autoscale deployments don't persist local files after cold starts. The `vector_db/` folder with ChromaDB data would be lost.
+
+**Solution**: On Flask startup, `init_knowledge_base_on_startup()` checks if the vector DB is empty. If so, it:
+1. Loads 73 chunks from pre-saved documents in `knowledge_base/documents/`
+2. Scrapes the JoveHeal website for ~34 additional chunks
+3. Total: ~107 chunks ready for RAG queries
+
+This ensures production always has the same knowledge as development, even after cold starts.
 
 ### Deployment Configuration
 To apply the startup script fix, update the deployment run command in Deployments settings:
