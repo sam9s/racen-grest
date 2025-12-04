@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
 const MAX_RETRIES = 3;
@@ -34,12 +36,25 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
+    const session = await getServerSession(authOptions);
+    
+    const secureBody = {
+      ...body,
+      verified_user: session?.user ? {
+        email: session.user.email,
+        name: session.user.name,
+        image: session.user.image,
+      } : null,
+      user: undefined,
+    };
+    
     const response = await fetchWithRetry(`${BACKEND_URL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Internal-Api-Key': process.env.INTERNAL_API_KEY || '',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(secureBody),
     });
 
     if (!response.ok) {

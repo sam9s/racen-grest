@@ -80,3 +80,4 @@ externalPort = 4200
 
 [userenv.shared]
 RACEN_PERSONA_MODE = "detailed"
+INTERNAL_API_KEY = "J8N05Lhofi7WbWPAJMnKV+VzH5PSqbQZctE+zXsnZB0="

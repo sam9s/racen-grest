@@ -112,6 +112,15 @@ def instagram_webhook():
     return jsonify(result), 200
 
 
+def validate_internal_api_key():
+    """Validate the internal API key from trusted Next.js server."""
+    expected_key = os.environ.get("INTERNAL_API_KEY")
+    if not expected_key:
+        return False
+    provided_key = request.headers.get("X-Internal-Api-Key", "")
+    return provided_key == expected_key
+
+
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     """Direct API endpoint for chat integration - used by React frontend."""
@@ -123,7 +132,9 @@ def api_chat():
     message = data.get("message")
     session_id = data.get("session_id", "anonymous")
     conversation_history = data.get("conversation_history", [])
-    user_info = data.get("user", {})
+    
+    is_trusted_request = validate_internal_api_key()
+    verified_user = data.get("verified_user") if is_trusted_request else None
     
     if not message:
         return jsonify({"error": "Message is required"}), 400
@@ -132,10 +143,10 @@ def api_chat():
     is_returning_user = False
     user_name = None
     
-    if session_id.startswith("user_") and user_info:
-        email = user_info.get("email")
-        name = user_info.get("name")
-        image = user_info.get("image")
+    if verified_user and session_id.startswith("user_"):
+        email = verified_user.get("email")
+        name = verified_user.get("name")
+        image = verified_user.get("image")
         
         if email:
             user, created = get_or_create_user(

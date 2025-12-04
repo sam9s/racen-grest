@@ -134,6 +134,50 @@ Channel sessions are stored in-process memory. For multi-worker deployments, imp
 
 See Admin Panel > Channels tab for detailed setup instructions.
 
+## Google OAuth Authentication (Dec 2025)
+
+### Overview
+Web users can sign in with their Google account to enable persistent conversation history across visits.
+
+### Implementation
+- **NextAuth.js** with Google provider for OAuth 2.0 authentication
+- **User accounts stored** in PostgreSQL `user_accounts` table
+- **Multi-channel identity** support (Google for web, platform IDs for WhatsApp/Instagram)
+
+### Required Secrets
+- `GOOGLE_CLIENT_ID` - OAuth client ID from Google Cloud Console
+- `GOOGLE_CLIENT_SECRET` - OAuth client secret
+- `NEXTAUTH_SECRET` - Secret for session encryption (auto-generated)
+- `NEXTAUTH_URL` - Base URL for NextAuth (https://jove.sam9scloud.in for production)
+
+### Security Features
+- Server-side session verification via `getServerSession()`
+- Internal API key (`INTERNAL_API_KEY`) for trusted Next.js to Flask communication
+- Flask backend only trusts user identity from verified Next.js requests
+- Direct API calls without valid internal key are treated as anonymous
+
+### User Flow
+1. User clicks "Sign In" button in header
+2. Redirects to Google OAuth consent screen
+3. After authorization, returns to app with session
+4. Session persists across page refreshes
+5. User's conversation history is tied to their Google email
+
+### Publishing OAuth App
+The Google OAuth app must be published to "Production" mode in Google Cloud Console for all users to sign in (not just test users).
+
+To publish:
+1. Go to Google Cloud Console > APIs & Credentials > OAuth consent screen
+2. Review app information and branding
+3. Click "Publish App" to move from Testing to Production
+4. May require Google verification for sensitive scopes
+
+### Files
+- `src/app/api/auth/[...nextauth]/route.ts` - NextAuth configuration
+- `src/components/Header.tsx` - Sign In/Sign Out UI
+- `src/components/SessionProvider.tsx` - Client session provider
+- `database.py` - UserAccount model and helper functions
+
 ## API Endpoints
 
 - `POST /api/chat` - Send a message and get a response
