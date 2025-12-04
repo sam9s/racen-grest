@@ -51,8 +51,10 @@ export default function Home() {
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
+    const assistantMessageId = `msg_${Date.now()}_assistant`;
+
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -72,18 +74,92 @@ export default function Home() {
         }),
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error('Stream request failed');
+      }
 
-      const assistantMessage: Message = {
-        id: `msg_${Date.now()}_assistant`,
-        role: 'assistant',
-        content: data.response || 'I apologize, but I encountered an issue. Please try again.',
-        sources: data.sources || [],
-        timestamp: new Date(),
-        feedbackGiven: null,
-      };
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No reader available');
+      }
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      const decoder = new TextDecoder();
+      let streamedContent = '';
+      let sources: string[] = [];
+      let messageAdded = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'content') {
+                streamedContent += data.content;
+                
+                if (!messageAdded) {
+                  setMessages((prev) => [...prev, {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: streamedContent,
+                    sources: [],
+                    timestamp: new Date(),
+                    feedbackGiven: null,
+                  }]);
+                  messageAdded = true;
+                  setIsLoading(false);
+                } else {
+                  setMessages((prev) => 
+                    prev.map((msg) => 
+                      msg.id === assistantMessageId 
+                        ? { ...msg, content: streamedContent }
+                        : msg
+                    )
+                  );
+                }
+              } else if (data.type === 'done') {
+                sources = data.sources || [];
+                const finalContent = data.full_response || streamedContent;
+                setMessages((prev) => 
+                  prev.map((msg) => 
+                    msg.id === assistantMessageId 
+                      ? { ...msg, content: finalContent, sources }
+                      : msg
+                  )
+                );
+              } else if (data.type === 'error') {
+                if (!messageAdded) {
+                  setMessages((prev) => [...prev, {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: data.content || 'I apologize, but I encountered an issue. Please try again.',
+                    timestamp: new Date(),
+                    feedbackGiven: null,
+                  }]);
+                }
+              }
+            } catch {
+            }
+          }
+        }
+      }
+
+      if (!messageAdded) {
+        setMessages((prev) => [...prev, {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: streamedContent || 'I apologize, but I encountered an issue. Please try again.',
+          sources,
+          timestamp: new Date(),
+          feedbackGiven: null,
+        }]);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {

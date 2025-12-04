@@ -9,7 +9,8 @@ Flask-based API server handling:
 """
 
 import os
-from flask import Flask, request, jsonify
+import json
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 
 from channel_handlers import (
@@ -18,7 +19,7 @@ from channel_handlers import (
     process_channel_message,
     get_channel_status
 )
-from chatbot_engine import generate_response, generate_conversation_summary
+from chatbot_engine import generate_response, generate_response_stream, generate_conversation_summary, fix_typos_with_llm
 from conversation_logger import log_feedback, log_conversation, ensure_session_exists
 from database import get_or_create_user, get_user_conversation_history, get_conversation_summary, upsert_conversation_summary
 from knowledge_base import initialize_knowledge_base, get_knowledge_base_stats
@@ -156,6 +157,9 @@ def api_chat():
     if not message:
         return jsonify({"error": "Message is required"}), 400
     
+    original_message = message
+    message = fix_typos_with_llm(message)
+    
     user_id = None
     is_returning_user = False
     user_name = None
@@ -259,6 +263,146 @@ def api_chat():
         "user_id": user_id,
         "is_returning_user": is_returning_user
     })
+
+
+@app.route("/api/chat/stream", methods=["POST"])
+def api_chat_stream():
+    """Streaming chat endpoint using Server-Sent Events."""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    message = data.get("message")
+    session_id = data.get("session_id", "anonymous")
+    conversation_history = data.get("conversation_history", [])
+    
+    is_trusted_request = validate_internal_api_key()
+    verified_user = data.get("verified_user") if is_trusted_request else None
+    
+    if not message:
+        return jsonify({"error": "Message is required"}), 400
+    
+    original_message = message
+    message = fix_typos_with_llm(message)
+    
+    user_id = None
+    is_returning_user = False
+    user_name = None
+    
+    if verified_user and session_id.startswith("user_"):
+        email = verified_user.get("email")
+        name = verified_user.get("name")
+        image = verified_user.get("image")
+        
+        if email:
+            user_data, created = get_or_create_user(
+                channel="google",
+                external_id=email,
+                email=email,
+                display_name=name,
+                profile_image=image
+            )
+            if user_data:
+                user_id = user_data['id']
+                user_name = name.split()[0] if name else None
+                is_returning_user = not created and session_id not in conversation_histories
+    
+    ensure_session_exists(session_id, channel="web", user_id=user_id)
+    
+    last_topic_summary = None
+    stored_summary = None
+    
+    if session_id not in conversation_histories:
+        conversation_histories[session_id] = []
+        
+        if is_returning_user and user_id:
+            stored_summary = get_conversation_summary(user_id)
+            
+            past_history = get_user_conversation_history(user_id, limit=50)
+            if past_history:
+                for conv in past_history:
+                    conversation_histories[session_id].append({"role": "user", "content": conv['question']})
+                    conversation_histories[session_id].append({"role": "assistant", "content": conv['answer']})
+            
+            if stored_summary:
+                summary_parts = []
+                if stored_summary.get('emotional_themes'):
+                    summary_parts.append(f"emotional issues: {stored_summary['emotional_themes']}")
+                if stored_summary.get('recommended_programs'):
+                    summary_parts.append(f"programs suggested: {stored_summary['recommended_programs']}")
+                if stored_summary.get('last_topics'):
+                    summary_parts.append(f"topic: {stored_summary['last_topics']}")
+                last_topic_summary = " | ".join(summary_parts) if summary_parts else None
+                
+                if last_topic_summary:
+                    conversation_histories[session_id] = conversation_histories[session_id][-4:]
+    
+    if conversation_history and not conversation_histories[session_id]:
+        conversation_histories[session_id] = conversation_history
+    
+    def generate():
+        full_response = ""
+        sources = []
+        safety_triggered = False
+        
+        for chunk in generate_response_stream(
+            message, 
+            conversation_histories[session_id],
+            user_name=user_name,
+            is_returning_user=is_returning_user,
+            last_topic_summary=last_topic_summary
+        ):
+            if chunk["type"] == "content":
+                full_response += chunk["content"]
+                yield f"data: {json.dumps(chunk)}\n\n"
+            elif chunk["type"] == "done":
+                sources = chunk.get("sources", [])
+                safety_triggered = chunk.get("safety_triggered", False)
+                full_response = chunk.get("full_response", full_response)
+                yield f"data: {json.dumps(chunk)}\n\n"
+            elif chunk["type"] == "error":
+                yield f"data: {json.dumps(chunk)}\n\n"
+                return
+        
+        log_conversation(
+            session_id=session_id,
+            user_question=message,
+            bot_answer=full_response,
+            safety_flagged=safety_triggered,
+            sources=sources,
+            channel="web"
+        )
+        
+        conversation_histories[session_id].append({"role": "user", "content": message})
+        conversation_histories[session_id].append({"role": "assistant", "content": full_response})
+        
+        if len(conversation_histories[session_id]) > 100:
+            conversation_histories[session_id] = conversation_histories[session_id][-100:]
+        
+        if user_id and len(conversation_histories[session_id]) >= 4:
+            try:
+                summary = generate_conversation_summary(conversation_histories[session_id])
+                if summary:
+                    upsert_conversation_summary(
+                        user_id=user_id,
+                        emotional_themes=summary.get('emotional_themes'),
+                        recommended_programs=summary.get('recommended_programs'),
+                        last_topics=summary.get('last_topics'),
+                        conversation_status=summary.get('conversation_status')
+                    )
+            except Exception as e:
+                print(f"Error updating conversation summary: {e}")
+    
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'
+        }
+    )
 
 
 @app.route("/api/chat/reset", methods=["POST"])
