@@ -239,7 +239,7 @@ def generate_response(
     client = get_openai_client()
     if client is None:
         return {
-            "response": "I'm temporarily unavailable. Please try again later or contact JoveHeal directly for assistance.",
+            "response": "I'm temporarily unavailable. Please try again later or contact us at https://www.joveheal.com/contact for assistance.",
             "sources": [],
             "safety_triggered": False,
             "error": "openai_not_configured"
@@ -299,7 +299,7 @@ The following information is from JoveHeal's official website and documents. Use
 
 {context}
 
-IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and suggest they contact JoveHeal directly."""
+IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://www.joveheal.com/contact"""
 
     messages = [{"role": "system", "content": augmented_system_prompt}]
     
@@ -352,7 +352,7 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
             }
         
         return {
-            "response": "I apologize, but I'm having trouble processing your question right now. Please try again, or contact JoveHeal directly for assistance.",
+            "response": "I apologize, but I'm having trouble processing your question right now. Please try again, or contact us at https://www.joveheal.com/contact for assistance.",
             "sources": [],
             "safety_triggered": False,
             "error": str(e)
@@ -429,7 +429,7 @@ The following information is from JoveHeal's official website and documents. Use
 
 {context}
 
-IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and suggest they contact JoveHeal directly."""
+IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://www.joveheal.com/contact"""
 
     messages = [{"role": "system", "content": augmented_system_prompt}]
     
