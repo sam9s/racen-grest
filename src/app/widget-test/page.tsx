@@ -88,14 +88,14 @@ export default function WidgetTestPage() {
       
       <div className="demo-header">
         <h1>JoveHeal Website (Demo)</h1>
-        <p>This simulates how the RACEN widget will appear on your Kajabi site</p>
+        <p>This simulates how the Jovee widget will appear on your Kajabi site</p>
       </div>
 
       <div className="demo-content">
-        <h2>RACEN Chat Widget Test Page</h2>
+        <h2>Jovee Chat Widget Test Page</h2>
         
         <p>
-          This page demonstrates the embeddable RACEN chat widget. Look at the 
+          This page demonstrates the embeddable Jovee chat widget. Look at the 
           <strong> bottom-right corner</strong> of this page - you&apos;ll see a floating 
           chat bubble. Click it to open the chat!
         </p>
@@ -113,27 +113,28 @@ export default function WidgetTestPage() {
         </div>
 
         <div className="code-block">
-          <span style={{color: '#6c7086'}}>&lt;!-- RACEN Chat Widget - Add this to your Kajabi page --&gt;</span><br/>
+          <span style={{color: '#6c7086'}}>&lt;!-- Jovee Chat Widget - Add this to your Kajabi page --&gt;</span><br/>
           <span style={{color: '#f38ba8'}}>&lt;script</span> <span style={{color: '#a6e3a1'}}>src</span>=<span style={{color: '#f9e2af'}}>&quot;https://jove.sam9scloud.in/widget.js&quot;</span><span style={{color: '#f38ba8'}}>&gt;&lt;/script&gt;</span>
         </div>
 
         <p>
-          That&apos;s it! Just one line of code adds the full RACEN chat experience to 
+          That&apos;s it! Just one line of code adds the full Jovee chat experience to 
           any page on your website. The widget will:
         </p>
 
         <ul className="feature-list">
           <li>Display a floating chat bubble in the bottom-right corner</li>
           <li>Open a chat window when clicked</li>
-          <li>Connect to RACEN for AI-powered responses</li>
+          <li>Connect to Jovee for AI-powered responses</li>
           <li>Stream responses in real-time</li>
           <li>Support clickable links to JoveHeal programs</li>
           <li>Work on mobile and desktop</li>
+          <li>Drag top-left corner to resize the widget</li>
         </ul>
 
         <div className="test-note">
           <strong>Testing:</strong> Click the blue chat bubble in the bottom-right corner 
-          to test the widget. Try asking about JoveHeal programs!
+          to test the widget. Try asking about JoveHeal programs! You can also drag the top-left corner to resize the chat window.
         </div>
       </div>
 
