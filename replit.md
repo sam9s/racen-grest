@@ -20,6 +20,7 @@ The core system uses a Retrieval Augmented Generation (RAG) approach.
 - **Knowledge Base**: Supports PDF and text document uploads, and ingests website content. ChromaDB is used for vector storage to enable semantic search.
 - **Safety Guardrails**: Includes strict filtering for medical/mental health content, crisis keyword detection with safe redirection, and logging of flagged conversations.
 - **Multi-Channel Support**: Integrates with WhatsApp (via Twilio) and Instagram (via Meta Graph API), along with a direct API for custom integrations, maintaining session management and unified logging across channels.
+- **Embeddable Widget**: A standalone JavaScript widget (`/widget.js`) that can be embedded on external websites (like Kajabi) with a single script tag. Features a floating chat bubble, streaming responses, and XSS-safe rendering. CORS headers configured for joveheal.com and Kajabi domains.
 - **Google OAuth Authentication**: Implemented using NextAuth.js for user sign-in, linking conversations to user accounts in PostgreSQL. Server-side session verification and an internal API key secure communication between Next.js and Flask.
 - **Production Reliability**: Includes retry logic on the frontend, a robust startup script (`start_production.sh`) to ensure Flask is healthy before Next.js, a Flask `/health` endpoint, and an auto-rebuild mechanism for the ChromaDB knowledge base on cold starts to ensure data persistence.
 
