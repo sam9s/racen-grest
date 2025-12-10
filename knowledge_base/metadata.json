@@ -59,9 +59,12 @@
       "filename": "website_shed_and_shine.txt",
       "type": "text",
       "chunks": 4
+    },
+    {
+      "filename": "discovery_call_faq.txt",
+      "type": "text",
+      "chunks": 3
     }
   ],
-  "last_scrape": "2025-12-04T06:24:24.574605",
-  "website_pages": 6,
-  "website_chunks": 34
+  "last_scrape": null
 }
