@@ -1,0 +1,42 @@
+ManyChat expects different response formats depending on how the external request is used. Responses from an External Request action are mapped to custom fields using JSON Path, while responses from a Dynamic Content block are expected to be a specific JSON structure that defines the message content to be sent to the user. 
+ManyChat Response Formats
+External Request (Action block): This feature is primarily for sending data to an external server or retrieving data to save in ManyChat Custom User Fields. The external server should respond with a standard HTTP 200 code, and the body should be a JSON object. Specific values are then extracted from this JSON using JSON Path expressions (e.g., $.film_title) and saved to pre-defined Custom User Fields. No specific ManyChat-defined JSON structure is required for the entire response body in this case.
+Dynamic Content (Block): This block is used to fetch an entire message structure from an external server and display it to the user. The external server must return a JSON object that strictly follows the ManyChat Dynamic Block Response Format. This format allows for sending various message types (text, image, gallery, etc.), actions (add tag, set field), and quick replies.An example of the dynamic content response format:
+json
+{
+  "version": "v2",
+  "content": {
+    "messages": [
+      {
+        "type": "text",
+        "text": "Hello, {{first_name}}!"
+      }
+    ],
+    "actions": [],
+    "quick_replies": []
+  }
+}
+Use code with caution.
+
+This format must be adhered to for the dynamic content block to function correctly. 
+Available ManyChat Variables
+When making an external request from ManyChat to your server, you can include a wide range of contact-specific variables in the request URL, headers, or body. These variables are placeholders (e.g., {{first_name}}) that ManyChat replaces with the actual contact data before sending the request. 
+Commonly used variables include: 
+Contact Information:
+{{user.id}} or {{subscriber.id}} (Subscriber ID)
+{{first_name}} (First Name)
+{{last_name}} (Last Name)
+{{name}} (Full Name)
+{{user.gender}} (Gender)
+{{user.locale}} (Locale/Language)
+{{user.timezone}} (Timezone)
+{{user.profile_pic}} (Profile Picture URL)
+{{live_chat_url}} (Link to the contact's chat in ManyChat)
+User Input:
+{{last_input_text}} (The last message the user sent)
+System/Bot Fields:
+{{page_id}} (The ManyChat page ID)
+{{bot_field.Your_Bot_Field}} (Any predefined Bot Field)
+Custom User Fields:
+{{custom.Your_Custom_Field}} (Any predefined Custom User Field) 
+For convenience, you can also send all contact data at once using the {{Full Contact Data}} variable in a POST or PUT request body. 

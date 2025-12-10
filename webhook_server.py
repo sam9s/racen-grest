@@ -405,6 +405,93 @@ def api_chat_stream():
     )
 
 
+@app.route("/api/chat/manychat", methods=["POST"])
+def api_chat_manychat():
+    """ManyChat Dynamic Content endpoint for Instagram/Facebook integration."""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({
+            "version": "v2",
+            "content": {
+                "messages": [{"type": "text", "text": "Sorry, I couldn't process your request."}],
+                "actions": [],
+                "quick_replies": []
+            }
+        })
+    
+    message = data.get("message", "").strip()
+    user_id = data.get("user_id", "anonymous")
+    first_name = data.get("first_name", "")
+    
+    if not message:
+        return jsonify({
+            "version": "v2",
+            "content": {
+                "messages": [{"type": "text", "text": "Hi! I'm RACEN, your guide for JoveHeal's wellness programs. How can I help you today?"}],
+                "actions": [],
+                "quick_replies": []
+            }
+        })
+    
+    session_id = f"manychat_{user_id}"
+    
+    original_message = message
+    message = fix_typos_with_llm(message)
+    
+    if session_id not in conversation_histories:
+        conversation_histories[session_id] = []
+    
+    ensure_session_exists(session_id, channel="instagram", user_id=None)
+    
+    try:
+        result = generate_response(
+            message, 
+            conversation_histories[session_id],
+            user_name=first_name if first_name else None,
+            is_returning_user=len(conversation_histories[session_id]) > 0,
+            last_topic_summary=None
+        )
+        
+        answer = result.get("response", "I'm sorry, I couldn't generate a response.")
+        sources = result.get("sources", [])
+        safety_triggered = result.get("safety_triggered", False)
+        
+        conversation_histories[session_id].append({"role": "user", "content": message})
+        conversation_histories[session_id].append({"role": "assistant", "content": answer})
+        
+        if len(conversation_histories[session_id]) > 20:
+            conversation_histories[session_id] = conversation_histories[session_id][-20:]
+        
+        log_conversation(
+            session_id=session_id,
+            user_question=original_message,
+            bot_answer=answer,
+            sources=sources,
+            safety_flagged=safety_triggered
+        )
+        
+        return jsonify({
+            "version": "v2",
+            "content": {
+                "messages": [{"type": "text", "text": answer}],
+                "actions": [],
+                "quick_replies": []
+            }
+        })
+        
+    except Exception as e:
+        print(f"ManyChat endpoint error: {e}")
+        return jsonify({
+            "version": "v2",
+            "content": {
+                "messages": [{"type": "text", "text": "I'm having trouble right now. Please try again in a moment."}],
+                "actions": [],
+                "quick_replies": []
+            }
+        })
+
+
 @app.route("/api/chat/reset", methods=["POST"])
 def api_chat_reset():
     """Reset conversation for a session."""
