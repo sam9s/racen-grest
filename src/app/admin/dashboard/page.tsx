@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import {
   AreaChart,
   Area,
@@ -147,6 +147,13 @@ export default function AdminDashboard() {
     }
     
     setLoginLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/admin/login', { method: 'DELETE' });
+    await signOut({ redirect: false });
+    setIsAuthenticated(false);
+    setAdminUser(null);
   };
 
   const fetchStats = async () => {
@@ -336,20 +343,37 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-bold text-white">Jovee Analytics</h1>
             <p className="text-gray-400 mt-1">Real-time chatbot performance dashboard</p>
           </div>
-          <div className="flex gap-2">
-            {['24h', '7d', '30d'].map((range) => (
+          <div className="flex items-center gap-4">
+            <div className="flex gap-2">
+              {['24h', '7d', '30d'].map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    timeRange === range
+                      ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
+                  }`}
+                >
+                  {range === '24h' ? 'Last 24h' : range === '7d' ? 'Last 7 days' : 'Last 30 days'}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 pl-4 border-l border-gray-700">
+              <div className="text-right">
+                <p className="text-sm text-white">{adminUser?.name || 'Admin'}</p>
+                <p className="text-xs text-gray-500">{adminUser?.email}</p>
+              </div>
               <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  timeRange === range
-                    ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-                }`}
+                onClick={handleLogout}
+                className="p-2 bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-lg transition-colors"
+                title="Logout"
               >
-                {range === '24h' ? 'Last 24h' : range === '7d' ? 'Last 7 days' : 'Last 30 days'}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
               </button>
-            ))}
+            </div>
           </div>
         </div>
 
