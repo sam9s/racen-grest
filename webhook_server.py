@@ -558,6 +558,9 @@ from sqlalchemy import func, desc
 @app.route("/api/admin/stats", methods=["GET"])
 def admin_stats():
     """Get dashboard statistics."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
     range_param = request.args.get("range", "7d")
     
     days = 7
@@ -620,6 +623,9 @@ def admin_stats():
 @app.route("/api/admin/conversations", methods=["GET"])
 def admin_conversations():
     """Get list of chat sessions for the conversation viewer."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
     range_param = request.args.get("range", "7d")
     page = int(request.args.get("page", 1))
     limit = int(request.args.get("limit", 50))
@@ -693,6 +699,9 @@ def admin_conversations():
 @app.route("/api/admin/conversations/<session_id>", methods=["GET"])
 def admin_conversation_detail(session_id):
     """Get full conversation history for a specific session."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
     if not is_database_available():
         return jsonify({"messages": [], "session": None})
     
