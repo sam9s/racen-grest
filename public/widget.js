@@ -487,8 +487,73 @@
   let messages = [];
   let isLoading = false;
 
+  const STORAGE_KEY_SESSION = 'jovee_session_id';
+  const STORAGE_KEY_MESSAGES = 'jovee_messages';
+
   function generateSessionId() {
     return 'widget_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  function getOrCreateSessionId() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_SESSION);
+      if (stored) {
+        return stored;
+      }
+      const newId = generateSessionId();
+      localStorage.setItem(STORAGE_KEY_SESSION, newId);
+      return newId;
+    } catch (e) {
+      return generateSessionId();
+    }
+  }
+
+  function saveMessagesToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages.slice(-50)));
+    } catch (e) {}
+  }
+
+  function loadMessagesFromStorage() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_MESSAGES);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  function restoreMessages(storedMessages) {
+    if (!storedMessages || storedMessages.length === 0) return;
+    
+    const messagesContainer = document.getElementById('jovee-chat-messages');
+    const welcome = messagesContainer.querySelector('.jovee-welcome');
+    if (welcome) welcome.remove();
+
+    for (const msg of storedMessages) {
+      const wrapperEl = document.createElement('div');
+      wrapperEl.className = `jovee-message-wrapper ${msg.role}`;
+      
+      if (msg.role === 'assistant') {
+        const avatarEl = document.createElement('div');
+        avatarEl.className = 'jovee-message-avatar';
+        const avatarImg = document.createElement('img');
+        avatarImg.src = WIDGET_CONFIG.logoUrl;
+        avatarImg.alt = 'Jovee';
+        avatarEl.appendChild(avatarImg);
+        wrapperEl.appendChild(avatarEl);
+      }
+      
+      const msgEl = document.createElement('div');
+      msgEl.className = `jovee-message ${msg.role}`;
+      msgEl.appendChild(createSafeContent(msg.content));
+      wrapperEl.appendChild(msgEl);
+      
+      messagesContainer.appendChild(wrapperEl);
+    }
+    
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 
   function toggleChat() {
@@ -703,6 +768,7 @@
 
     addMessage('user', content);
     messages.push({ role: 'user', content });
+    saveMessagesToStorage();
 
     showTyping();
 
@@ -757,6 +823,7 @@
                   updateMessageContent(assistantMsgEl, finalContent);
                 }
                 messages.push({ role: 'assistant', content: finalContent });
+                saveMessagesToStorage();
               }
             } catch (e) {}
           }
@@ -766,6 +833,7 @@
       if (!assistantMsgEl && streamedContent) {
         addMessage('assistant', streamedContent);
         messages.push({ role: 'assistant', content: streamedContent });
+        saveMessagesToStorage();
       }
 
     } catch (error) {
@@ -784,7 +852,13 @@
 
     injectStyles();
     createWidget();
-    sessionId = generateSessionId();
+    sessionId = getOrCreateSessionId();
+
+    const storedMessages = loadMessagesFromStorage();
+    if (storedMessages.length > 0) {
+      messages = storedMessages;
+      restoreMessages(storedMessages);
+    }
 
     document.getElementById('jovee-chat-bubble').addEventListener('click', toggleChat);
     
