@@ -1,24 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { cookies } from 'next/headers';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+const DASHBOARD_EMAIL = process.env.DASHBOARD_EMAIL || '';
+
+async function isAuthorized(): Promise<boolean> {
+  const googleSession = await getServerSession(authOptions);
+  if (googleSession?.user?.email) {
+    const userEmail = googleSession.user.email.toLowerCase();
+    if (ADMIN_EMAILS.includes(userEmail)) {
+      return true;
+    }
+  }
+  
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get('admin_token');
+  if (adminToken?.value) {
+    try {
+      const decoded = Buffer.from(adminToken.value, 'base64').toString();
+      const [email] = decoded.split(':');
+      if (email.toLowerCase() === DASHBOARD_EMAIL.toLowerCase()) {
+        return true;
+      }
+    } catch {
+      // Invalid token
+    }
+  }
+  
+  return false;
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
+    const authorized = await isAuthorized();
+    if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const userEmail = session.user.email.toLowerCase();
-    if (ADMIN_EMAILS.length > 0 && ADMIN_EMAILS[0] !== '' && !ADMIN_EMAILS.includes(userEmail)) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     const { sessionId } = await params;

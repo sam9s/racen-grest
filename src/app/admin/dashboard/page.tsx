@@ -59,10 +59,15 @@ interface ConversationDetail {
   messages: ChatMessage[];
 }
 
+interface AdminUser {
+  email: string;
+  name: string;
+}
+
 const COLORS = ['#03a9f4', '#4fc3f7', '#81d4fa', '#b3e5fc'];
 
 export default function AdminDashboard() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [activeTab, setActiveTab] = useState<'analytics' | 'conversations'>('analytics');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,15 +80,74 @@ export default function AdminDashboard() {
   const [conversationDetail, setConversationDetail] = useState<ConversationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+
   useEffect(() => {
-    if (status === 'authenticated') {
+    checkAuth();
+  }, [status]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
       if (activeTab === 'analytics') {
         fetchStats();
       } else {
         fetchSessions();
       }
     }
-  }, [timeRange, activeTab, status]);
+  }, [timeRange, activeTab, isAuthenticated]);
+
+  const checkAuth = async () => {
+    setAuthChecking(true);
+    try {
+      const res = await fetch('/api/admin/session');
+      const data = await res.json();
+      if (data.authenticated) {
+        setIsAuthenticated(true);
+        setAdminUser(data.user);
+      } else {
+        setIsAuthenticated(false);
+        setAdminUser(null);
+      }
+    } catch {
+      setIsAuthenticated(false);
+    }
+    setAuthChecking(false);
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError('');
+    
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setIsAuthenticated(true);
+        setAdminUser(data.user);
+        setLoginEmail('');
+        setLoginPassword('');
+      } else {
+        setLoginError(data.error || 'Invalid credentials');
+      }
+    } catch {
+      setLoginError('Login failed. Please try again.');
+    }
+    
+    setLoginLoading(false);
+  };
 
   const fetchStats = async () => {
     setLoading(true);
@@ -164,7 +228,7 @@ export default function AdminDashboard() {
     }
   };
 
-  if (status === 'loading') {
+  if (authChecking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
@@ -172,20 +236,67 @@ export default function AdminDashboard() {
     );
   }
 
-  if (status === 'unauthenticated') {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-6">
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50 max-w-md w-full">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">Jovee Analytics</h1>
+            <p className="text-gray-400">Sign in to access the dashboard</p>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Admin Dashboard</h1>
-          <p className="text-gray-400 mb-6">Please sign in to access the Jovee Analytics dashboard.</p>
+
+          <form onSubmit={handlePasswordLogin} className="space-y-4 mb-6">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Email</label>
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Password</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Enter password"
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                required
+              />
+            </div>
+            {loginError && (
+              <p className="text-red-400 text-sm">{loginError}</p>
+            )}
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="w-full bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-500/50 text-white font-medium py-3 px-6 rounded-xl transition-colors"
+            >
+              {loginLoading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-700"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-3 bg-gray-800/50 text-gray-500">or</span>
+            </div>
+          </div>
+
           <button
             onClick={() => signIn('google')}
-            className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-3"
+            className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-3"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
