@@ -1457,6 +1457,11 @@ body {
   border-color: rgb(100 116 139 / var(--tw-border-opacity));
 }
 
+.hover\:bg-cyan-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(8 145 178 / var(--tw-bg-opacity));
+}
+
 .hover\:bg-gray-100:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(243 244 246 / var(--tw-bg-opacity));
@@ -1499,11 +1504,6 @@ body {
 
 .hover\:bg-slate-600\/50:hover {
   background-color: rgb(71 85 105 / 0.5);
-}
-
-.hover\:bg-cyan-600:hover {
-  --tw-bg-opacity: 1;
-  background-color: rgb(8 145 178 / var(--tw-bg-opacity));
 }
 
 .hover\:text-green-500:hover {
