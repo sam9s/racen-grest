@@ -544,6 +544,209 @@ def api_feedback():
         }), 500
 
 
+# =============================================================================
+# Admin Dashboard API Endpoints
+# =============================================================================
+
+from conversation_logger import (
+    get_conversation_stats, get_analytics_by_date, get_feedback_summary,
+    get_recent_logs, get_session_history
+)
+from database import ChatSession, Conversation, UserAccount, get_db_session, is_database_available
+from sqlalchemy import func, desc
+
+@app.route("/api/admin/stats", methods=["GET"])
+def admin_stats():
+    """Get dashboard statistics."""
+    range_param = request.args.get("range", "7d")
+    
+    days = 7
+    if range_param == "24h":
+        days = 1
+    elif range_param == "30d":
+        days = 30
+    
+    try:
+        stats = get_conversation_stats()
+        daily_data = get_analytics_by_date(days)
+        feedback = get_feedback_summary()
+        
+        total_feedback = feedback.get("positive", 0) + feedback.get("negative", 0)
+        satisfaction = 0
+        if total_feedback > 0:
+            satisfaction = round((feedback.get("positive", 0) / total_feedback) * 100)
+        
+        channel_dist = []
+        if is_database_available():
+            with get_db_session() as db:
+                if db:
+                    channels = db.query(
+                        ChatSession.channel,
+                        func.count(ChatSession.id).label('count')
+                    ).group_by(ChatSession.channel).all()
+                    channel_dist = [{"channel": c.channel or "web", "count": c.count} for c in channels]
+        
+        conversations_by_day = []
+        for d in daily_data:
+            date_str = d.get("date", "")
+            if date_str:
+                from datetime import datetime
+                try:
+                    dt = datetime.strptime(date_str, "%Y-%m-%d")
+                    formatted = dt.strftime("%b %d")
+                except:
+                    formatted = date_str
+                conversations_by_day.append({
+                    "date": formatted,
+                    "count": d.get("conversations", 0)
+                })
+        
+        top_queries = []
+        
+        return jsonify({
+            "totalConversations": stats.get("total_conversations", 0),
+            "totalSessions": stats.get("unique_sessions", 0),
+            "avgResponseTime": round((stats.get("avg_response_time_ms") or 0) / 1000, 1),
+            "positiveRating": satisfaction,
+            "conversationsByDay": conversations_by_day,
+            "channelDistribution": channel_dist if channel_dist else [{"channel": "Widget", "count": stats.get("total_conversations", 0)}],
+            "topQueries": top_queries
+        })
+    except Exception as e:
+        print(f"Admin stats error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/conversations", methods=["GET"])
+def admin_conversations():
+    """Get list of chat sessions for the conversation viewer."""
+    range_param = request.args.get("range", "7d")
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 50))
+    
+    days = 7
+    if range_param == "24h":
+        days = 1
+    elif range_param == "30d":
+        days = 30
+    
+    if not is_database_available():
+        return jsonify({"sessions": [], "total": 0})
+    
+    try:
+        from datetime import datetime, timedelta
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        
+        with get_db_session() as db:
+            if db is None:
+                return jsonify({"sessions": [], "total": 0})
+            
+            total = db.query(func.count(ChatSession.id)).filter(
+                ChatSession.created_at >= cutoff
+            ).scalar() or 0
+            
+            sessions = db.query(ChatSession).filter(
+                ChatSession.created_at >= cutoff
+            ).order_by(desc(ChatSession.last_activity)).offset((page - 1) * limit).limit(limit).all()
+            
+            result = []
+            for s in sessions:
+                msg_count = db.query(func.count(Conversation.id)).filter(
+                    Conversation.session_id == s.session_id
+                ).scalar() or 0
+                
+                first_msg = db.query(Conversation.user_question).filter(
+                    Conversation.session_id == s.session_id
+                ).order_by(Conversation.timestamp).first()
+                
+                user_name = "Anonymous"
+                user_email = None
+                if s.user_id:
+                    user = db.query(UserAccount).filter(UserAccount.id == s.user_id).first()
+                    if user:
+                        user_name = user.display_name or user.email or "User"
+                        user_email = user.email
+                
+                result.append({
+                    "sessionId": s.session_id,
+                    "userName": user_name,
+                    "userEmail": user_email,
+                    "channel": s.channel or "web",
+                    "messageCount": msg_count,
+                    "firstMessage": first_msg[0][:100] + "..." if first_msg and len(first_msg[0]) > 100 else (first_msg[0] if first_msg else ""),
+                    "createdAt": s.created_at.isoformat() if s.created_at else None,
+                    "lastActivity": s.last_activity.isoformat() if s.last_activity else None
+                })
+            
+            return jsonify({
+                "sessions": result,
+                "total": total,
+                "page": page,
+                "limit": limit,
+                "totalPages": (total + limit - 1) // limit
+            })
+    except Exception as e:
+        print(f"Admin conversations error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/conversations/<session_id>", methods=["GET"])
+def admin_conversation_detail(session_id):
+    """Get full conversation history for a specific session."""
+    if not is_database_available():
+        return jsonify({"messages": [], "session": None})
+    
+    try:
+        with get_db_session() as db:
+            if db is None:
+                return jsonify({"messages": [], "session": None})
+            
+            session = db.query(ChatSession).filter(
+                ChatSession.session_id == session_id
+            ).first()
+            
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+            
+            user_name = "Anonymous"
+            user_email = None
+            if session.user_id:
+                user = db.query(UserAccount).filter(UserAccount.id == session.user_id).first()
+                if user:
+                    user_name = user.display_name or user.email or "User"
+                    user_email = user.email
+            
+            messages = db.query(Conversation).filter(
+                Conversation.session_id == session_id
+            ).order_by(Conversation.timestamp).all()
+            
+            message_list = []
+            for m in messages:
+                message_list.append({
+                    "id": m.id,
+                    "userQuestion": m.user_question,
+                    "botAnswer": m.bot_answer,
+                    "timestamp": m.timestamp.isoformat() if m.timestamp else None,
+                    "safetyFlagged": m.safety_flagged,
+                    "responseTimeMs": m.response_time_ms
+                })
+            
+            return jsonify({
+                "session": {
+                    "sessionId": session.session_id,
+                    "userName": user_name,
+                    "userEmail": user_email,
+                    "channel": session.channel or "web",
+                    "createdAt": session.created_at.isoformat() if session.created_at else None,
+                    "lastActivity": session.last_activity.isoformat() if session.last_activity else None
+                },
+                "messages": message_list
+            })
+    except Exception as e:
+        print(f"Admin conversation detail error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("WEBHOOK_PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
