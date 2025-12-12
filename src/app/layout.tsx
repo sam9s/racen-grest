@@ -3,8 +3,9 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
-  title: 'R.A.C.E.N - Real Time Advisor for Coaching, Education & Navigation',
-  description: 'Your intelligent wellness coaching assistant',
+  title: 'Jovee - JoveHeal Wellness Guide',
+  description: 'Your friendly wellness coaching assistant from JoveHeal',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -14,6 +15,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#7c3aed" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Jovee" />
+      </head>
       <body className="font-sans">
         <Providers>
           {children}
