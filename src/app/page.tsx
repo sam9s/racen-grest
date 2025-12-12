@@ -230,16 +230,16 @@ export default function Home() {
     <main className="flex min-h-screen flex-col bg-theme transition-colors duration-300">
       <Header onReset={resetConversation} />
       
-      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4">
-        <div className="flex-1 overflow-y-auto py-6 space-y-4">
+      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-2 md:px-4">
+        <div className="flex-1 overflow-y-auto py-3 md:py-6 space-y-3 md:space-y-4">
           {messages.length === 0 && (
-            <div className="flex-1 flex items-center justify-center min-h-[60vh]">
-              <div className="text-center max-w-md">
+            <div className="flex-1 flex items-center justify-center min-h-[50vh] md:min-h-[60vh]">
+              <div className="text-center max-w-md px-4">
                 <p className="text-xl font-light text-theme-muted">
-                  {getUserFirstName() ? `Hi ${getUserFirstName()}, I'm RACEN` : "Hi, I'm RACEN"}
+                  {getUserFirstName() ? `Hi ${getUserFirstName()}, I'm Jovee` : "Hi, I'm Jovee"}
                 </p>
                 <p className="text-sm mt-2 text-theme-muted opacity-80">
-                  Your real-time guide for healing and coaching at JoveHeal
+                  Your friendly wellness guide at JoveHeal
                 </p>
                 <div className="mt-6 text-left text-sm text-theme-muted opacity-70 space-y-1">
                   <p className="font-medium opacity-90 mb-2">I can help you explore:</p>
@@ -268,7 +268,7 @@ export default function Home() {
           <div ref={messagesEndRef} />
         </div>
         
-        <div className="sticky bottom-0 pb-6 pt-4">
+        <div className="sticky bottom-0 pb-3 md:pb-6 pt-2 md:pt-4 bg-gradient-to-t from-theme via-theme to-transparent">
           <ChatInput onSend={sendMessage} disabled={isLoading} />
         </div>
       </div>
