@@ -485,7 +485,7 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
 
 def get_greeting_message() -> str:
     """Return the initial greeting message for new conversations."""
-    return """Hi there, I'm RACEN — your real-time guide for healing and coaching at JoveHeal.
+    return """Hi there, I'm Jovee — your friendly guide here at JoveHeal!
 
 I'm here to help you explore our programs, understand our philosophy, and find what might be right for you.
 

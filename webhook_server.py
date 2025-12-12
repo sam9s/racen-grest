@@ -428,7 +428,7 @@ def api_chat_manychat():
         return jsonify({
             "version": "v2",
             "content": {
-                "messages": [{"type": "text", "text": "Hi! I'm RACEN, your guide for JoveHeal's wellness programs. How can I help you today?"}],
+                "messages": [{"type": "text", "text": "Hi! I'm Jovee, your guide for JoveHeal's wellness programs. How can I help you today?"}],
                 "actions": [],
                 "quick_replies": []
             }
