@@ -1,6 +1,35 @@
-# RACEN - JoveHeal Wellness Chatbot
+# Jovee - JoveHeal Wellness Chatbot
 
-A RAG-based web chatbot for JoveHeal wellness coaching business. RACEN (Real-time Advisor for Coaching, Education & Navigation) serves as a front-line information bot for website visitors, answering questions about programs, services, and offerings.
+A RAG-based web chatbot for JoveHeal wellness coaching business. Jovee serves as a front-line information bot for website visitors, answering questions about programs, services, and offerings.
+
+## Mobile App (Android/iOS)
+
+This project includes Capacitor for building native mobile apps.
+
+### Quick Start (Clone & Build)
+
+```bash
+# 1. Clone the repo
+git clone <your-repo-url>
+cd <project-folder>
+
+# 2. Install dependencies
+npm install
+
+# 3. Sync Capacitor with Android
+npx cap sync android
+
+# 4. Open in Android Studio
+# Navigate to the 'android' folder and open it in Android Studio
+# Build → Build Bundle(s) / APK(s) → Build APK(s)
+```
+
+### For iOS (requires Mac + Xcode)
+```bash
+npx cap add ios
+npx cap sync ios
+# Open ios/ folder in Xcode
+```
 
 ## Live Demo
 
