@@ -4,7 +4,7 @@
   "description": "Your friendly wellness coaching assistant from JoveHeal",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#1e1b4b",
   "theme_color": "#7c3aed",
   "orientation": "portrait-primary",
   "icons": [
@@ -12,13 +12,19 @@
       "src": "/jovee-logo.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/favicon.png",
+      "src": "/jovee-splash-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/jovee-splash-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["health", "lifestyle", "wellness"],
