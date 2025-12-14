@@ -72,6 +72,35 @@ def format_conversation_history(messages: List[dict]) -> List[dict]:
     return formatted
 
 
+def build_contextual_search_query(user_message: str, conversation_history: List[dict]) -> str:
+    """
+    Build a context-aware search query by combining current message with recent user context.
+    
+    This prevents source attribution errors in follow-up questions like:
+    - User: "I'm unhappy at my job" → retrieves job content
+    - User: "What steps should I take?" → without context, might retrieve "5 Steps" procrastination content
+    
+    With context: "What steps should I take?" + "unhappy at my job" → correctly retrieves job content
+    """
+    if not conversation_history:
+        return user_message
+    
+    recent_user_messages = []
+    for msg in conversation_history[-4:]:
+        if msg.get("role") == "user":
+            content = msg.get("content", "").strip()
+            if content and len(content) > 10:
+                recent_user_messages.append(content)
+    
+    if not recent_user_messages:
+        return user_message
+    
+    context_summary = " ".join(recent_user_messages[-2:])
+    contextual_query = f"{user_message} (context: {context_summary})"
+    
+    return contextual_query
+
+
 def generate_somera_response(
     user_message: str,
     conversation_history: List[dict] = None,
@@ -111,8 +140,11 @@ def generate_somera_response(
             "safety_category": "safety_redirect"
         }
     
-    relevant_docs = search_coaching_content(user_message, n_results=n_context_docs)
+    contextual_query = build_contextual_search_query(user_message, conversation_history)
+    relevant_docs = search_coaching_content(contextual_query, n_results=n_context_docs)
     context = format_coaching_context(relevant_docs)
+    
+    has_relevant_content = bool(relevant_docs) and context != "No specific coaching content found for this topic."
     
     system_prompt = get_somera_system_prompt()
     
@@ -120,19 +152,27 @@ def generate_somera_response(
     if user_name:
         personalization = f"\nThe user's name is {user_name}. Use their name naturally in your response."
     
-    augmented_prompt = f"""{system_prompt}
+    if has_relevant_content:
+        augmented_prompt = f"""{system_prompt}
 {personalization}
 
 === SHWETA'S COACHING WISDOM ===
-The following is from Shweta's actual coaching content. Use these insights naturally in your response:
+The following is from Shweta's actual coaching content. You MUST base your response on these insights:
 
 {context}
 
-IMPORTANT: 
-- Weave Shweta's teachings into your response naturally
-- Don't quote sources directly, just use the wisdom
-- Always start with empathy before sharing insights
-- If the context doesn't cover the topic, still respond warmly using general coaching principles"""
+CRITICAL ANTI-HALLUCINATION RULES:
+1. ONLY share advice, frameworks, or steps that come from the coaching content above
+2. If the user asks for "steps" or "advice", draw ONLY from what's in the coaching content
+3. If the content doesn't cover what the user is asking, say: "Based on the coaching content I have, I don't have specific guidance on that topic. Would you like to explore what we discussed earlier, or connect with our team for more personalized support?"
+4. DO NOT invent coaching steps, frameworks, or advice that aren't in the content above
+5. You may use warm, empathetic language around the content, but the core advice must come from Shweta's teachings
+6. Weave the teachings naturally - don't quote sources directly, but stay true to the actual content"""
+    else:
+        augmented_prompt = f"""{system_prompt}
+{personalization}
+
+NOTE: I don't have specific coaching content for this topic in my knowledge base. Respond warmly and empathetically, but be honest that you don't have specific coaching guidance. Offer to help them explore related topics or connect with the JoveHeal team."""
 
     messages = [{"role": "system", "content": augmented_prompt}]
     
@@ -218,8 +258,11 @@ def generate_somera_response_stream(
         }
         return
     
-    relevant_docs = search_coaching_content(user_message, n_results=n_context_docs)
+    contextual_query = build_contextual_search_query(user_message, conversation_history)
+    relevant_docs = search_coaching_content(contextual_query, n_results=n_context_docs)
     context = format_coaching_context(relevant_docs)
+    
+    has_relevant_content = bool(relevant_docs) and context != "No specific coaching content found for this topic."
     
     system_prompt = get_somera_system_prompt()
     
@@ -227,19 +270,27 @@ def generate_somera_response_stream(
     if user_name:
         personalization = f"\nThe user's name is {user_name}. Use their name naturally in your response."
     
-    augmented_prompt = f"""{system_prompt}
+    if has_relevant_content:
+        augmented_prompt = f"""{system_prompt}
 {personalization}
 
 === SHWETA'S COACHING WISDOM ===
-The following is from Shweta's actual coaching content. Use these insights naturally in your response:
+The following is from Shweta's actual coaching content. You MUST base your response on these insights:
 
 {context}
 
-IMPORTANT: 
-- Weave Shweta's teachings into your response naturally
-- Don't quote sources directly, just use the wisdom
-- Always start with empathy before sharing insights
-- If the context doesn't cover the topic, still respond warmly using general coaching principles"""
+CRITICAL ANTI-HALLUCINATION RULES:
+1. ONLY share advice, frameworks, or steps that come from the coaching content above
+2. If the user asks for "steps" or "advice", draw ONLY from what's in the coaching content
+3. If the content doesn't cover what the user is asking, say: "Based on the coaching content I have, I don't have specific guidance on that topic. Would you like to explore what we discussed earlier, or connect with our team for more personalized support?"
+4. DO NOT invent coaching steps, frameworks, or advice that aren't in the content above
+5. You may use warm, empathetic language around the content, but the core advice must come from Shweta's teachings
+6. Weave the teachings naturally - don't quote sources directly, but stay true to the actual content"""
+    else:
+        augmented_prompt = f"""{system_prompt}
+{personalization}
+
+NOTE: I don't have specific coaching content for this topic in my knowledge base. Respond warmly and empathetically, but be honest that you don't have specific coaching guidance. Offer to help them explore related topics or connect with the JoveHeal team."""
 
     messages = [{"role": "system", "content": augmented_prompt}]
     
