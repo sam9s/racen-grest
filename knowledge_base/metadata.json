@@ -66,5 +66,13 @@
       "chunks": 3
     }
   ],
-  "last_scrape": null
+  "last_scrape": null,
+  "coaching_transcripts": [
+    {
+      "video_title": "5 Steps To Heal Your Procrastination",
+      "topic": "procrastination",
+      "speaker": "Shweta",
+      "chunks": 13
+    }
+  ]
 }
