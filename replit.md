@@ -13,6 +13,7 @@ The chatbot, named RACEN (Real-time Advisor for Coaching, Education & Navigation
 
 ### Technical Implementations
 The core system uses a Retrieval Augmented Generation (RAG) approach.
+- **SOMERA Coaching Assistant**: A separate empathetic coaching interface at `/somera` that uses Shweta's coaching content from video transcripts. Features streaming SSE responses, purple/pink themed UI, and independent sessions from Jove. Backend endpoints at `/api/somera` and `/api/somera/stream`.
 - **Persistent Conversation Memory**: Users can sign in with Google to save conversations to a PostgreSQL database, allowing RACEN to remember past interactions and provide personalized greetings and context-aware responses.
 - **Personalized Greetings**: For signed-in users, RACEN offers first-name addressing, welcome-back messages with context from previous conversations, and new user introductions.
 - **Smart Conversation Summaries**: LLM-powered summaries of conversations are generated and stored, enabling RACEN to recall specific topics and recommendations for returning users.
