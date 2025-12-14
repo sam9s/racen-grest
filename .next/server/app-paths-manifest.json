@@ -1,4 +1,7 @@
 {
   "/page": "app/page.js",
-  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js"
+  "/somera/page": "app/somera/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/somera/stream/route": "app/api/somera/stream/route.js",
+  "/icon.png/route": "app/icon.png/route.js"
 }
