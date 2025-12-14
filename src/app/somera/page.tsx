@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Send, RotateCcw, Heart } from 'lucide-react';
+import { useState, useRef, useEffect, KeyboardEvent } from 'react';
+import { useTheme } from '@/components/ThemeProvider';
+import Image from 'next/image';
 
 interface Message {
   id: string;
@@ -11,9 +12,210 @@ interface Message {
   timestamp: Date;
 }
 
+function SomeraHeader({ onReset }: { onReset: () => void }) {
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-theme-surface/90 header-bg border-b border-primary-500/10 transition-colors duration-300">
+      <div className="max-w-6xl mx-auto px-2 md:px-4 py-1.5 md:py-2">
+        <div className="flex items-center justify-between">
+          <div className="w-20 md:w-24 hidden md:block" />
+          
+          <div className="flex flex-col items-center flex-1">
+            <h1 className="text-2xl md:text-3xl font-medium tracking-wider text-white">
+              SOMERA
+            </h1>
+            <p className="hidden md:block text-[10px] md:text-xs tracking-wide text-gray-400 mt-0.5">
+              Your Empathetic Coaching Companion
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-1 md:gap-2">
+            <button
+              onClick={toggleTheme}
+              className="p-2 md:p-2 rounded-lg btn-theme min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? (
+                <svg
+                  className="w-4 h-4 text-primary-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-4 h-4 text-primary-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                  />
+                </svg>
+              )}
+            </button>
+            
+            <button
+              onClick={onReset}
+              className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-2 md:py-1.5 text-xs font-medium rounded-lg btn-theme text-theme min-h-[44px]"
+            >
+              <svg 
+                className="w-4 h-4 md:w-3.5 md:h-3.5" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M12 4v16m8-8H4" 
+                />
+              </svg>
+              <span className="hidden md:inline">New Chat</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function SomeraMessage({ message }: { message: Message }) {
+  const isUser = message.role === 'user';
+
+  return (
+    <div className={`message-enter flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      {!isUser && (
+        <div className="flex-shrink-0 mr-2 mt-1">
+          <div className="w-7 h-7 rounded-full overflow-hidden bg-primary-500/20 border border-primary-500/30 flex items-center justify-center">
+            <svg className="w-4 h-4 text-primary-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          </div>
+        </div>
+      )}
+      
+      <div
+        className={`max-w-[80%] md:max-w-[70%] rounded-xl px-3 py-2 transition-colors duration-300 ${
+          isUser
+            ? 'bg-primary-500/20 border border-primary-500/30 text-theme'
+            : 'bg-theme-card border border-primary-500/10 text-theme'
+        }`}
+      >
+        <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed">
+          {message.content}
+        </div>
+        
+        {message.sources && message.sources.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-primary-500/10">
+            <p className="text-[10px] text-theme-muted">
+              Inspired by: {message.sources.map(s => s.source).join(', ')}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SomeraInput({ onSend, disabled }: { onSend: (message: string) => void; disabled: boolean }) {
+  const [input, setInput] = useState('');
+
+  const handleSubmit = () => {
+    if (input.trim() && !disabled) {
+      onSend(input);
+      setInput('');
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  const isButtonEnabled = input.trim().length > 0 && !disabled;
+
+  return (
+    <div className="relative">
+      <div className="gradient-border rounded-full overflow-hidden">
+        <div className="flex items-center bg-theme-surface/90 rounded-full transition-colors duration-300">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            placeholder="Share what's on your mind..."
+            className="flex-1 px-3 md:px-5 py-3 md:py-3 text-base md:text-sm bg-transparent text-theme placeholder-gray-500 focus:outline-none disabled:opacity-50"
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={!isButtonEnabled}
+            className={`mr-1 md:mr-1.5 p-3 md:p-2.5 rounded-full transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center ${
+              isButtonEnabled 
+                ? 'bg-primary-500 hover:bg-primary-600 glow cursor-pointer' 
+                : 'bg-gray-600 cursor-not-allowed opacity-50'
+            }`}
+            aria-label="Send message"
+          >
+            <svg
+              className="w-5 h-5 md:w-4 md:h-4 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M14 5l7 7m0 0l-7 7m7-7H3"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SomeraTypingIndicator() {
+  return (
+    <div className="flex justify-start message-enter">
+      <div className="flex-shrink-0 mr-2 mt-1">
+        <div className="w-7 h-7 rounded-full overflow-hidden bg-primary-500/20 border border-primary-500/30 flex items-center justify-center">
+          <svg className="w-4 h-4 text-primary-400" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </div>
+      </div>
+      <div className="bg-theme-card border border-primary-500/10 rounded-2xl px-5 py-4 transition-colors duration-300">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 bg-primary-400 rounded-full typing-dot" />
+          <div className="w-2 h-2 bg-primary-400 rounded-full typing-dot" />
+          <div className="w-2 h-2 bg-primary-400 rounded-full typing-dot" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SomeraPage() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => `somera_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -22,18 +224,17 @@ export default function SomeraPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async (content: string) => {
+    if (!content.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: `msg_${Date.now()}`,
       role: 'user',
-      content: input.trim(),
+      content: content.trim(),
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
     setIsLoading(true);
 
     const assistantMessageId = `msg_${Date.now()}_assistant`;
@@ -45,7 +246,7 @@ export default function SomeraPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: userMessage.content,
+          message: content.trim(),
           session_id: sessionId,
         }),
       });
@@ -152,50 +353,28 @@ export default function SomeraPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-gradient-to-b from-purple-50 to-white">
-      <header className="sticky top-0 z-10 backdrop-blur-md bg-white/80 border-b border-purple-100">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <Heart className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-purple-900">SOMERA</h1>
-              <p className="text-xs text-purple-600">Empathetic Coaching Assistant</p>
-            </div>
-          </div>
-          <button
-            onClick={resetConversation}
-            className="p-2 rounded-full hover:bg-purple-100 transition-colors"
-            title="Start new conversation"
-          >
-            <RotateCcw className="w-5 h-5 text-purple-600" />
-          </button>
-        </div>
-      </header>
+    <main className="flex min-h-screen flex-col bg-theme transition-colors duration-300">
+      <SomeraHeader onReset={resetConversation} />
       
-      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4">
-        <div className="flex-1 overflow-y-auto py-6 space-y-4">
+      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-2 md:px-4">
+        <div className="flex-1 overflow-y-auto py-3 md:py-6 space-y-3 md:space-y-4">
           {messages.length === 0 && (
-            <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+            <div className="flex-1 flex items-center justify-center min-h-[50vh] md:min-h-[60vh]">
               <div className="text-center max-w-md px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                  <Heart className="w-8 h-8 text-white" />
-                </div>
-                <h2 className="text-2xl font-light text-purple-900 mb-2">
+                <p className="text-xl font-light text-theme-muted">
                   Hi, I'm SOMERA
-                </h2>
-                <p className="text-purple-600 mb-6">
+                </p>
+                <p className="text-sm mt-2 text-theme-muted opacity-80">
                   Your empathetic coaching companion, inspired by Shweta's wisdom
                 </p>
-                <div className="text-left text-sm text-purple-700 space-y-2 bg-purple-50 rounded-lg p-4">
-                  <p className="font-medium text-purple-800 mb-2">I'm here to support you with:</p>
+                <div className="mt-6 text-left text-sm text-theme-muted opacity-70 space-y-1">
+                  <p className="font-medium opacity-90 mb-2">I'm here to support you with:</p>
                   <p>• Understanding procrastination patterns</p>
                   <p>• Finding inner peace and balance</p>
                   <p>• Navigating life's challenges</p>
                   <p>• Gentle, empathetic guidance</p>
                 </div>
-                <p className="text-sm mt-6 text-purple-500">
+                <p className="text-sm mt-6 text-theme-muted opacity-60">
                   What's on your mind today?
                 </p>
               </div>
@@ -203,63 +382,16 @@ export default function SomeraPage() {
           )}
           
           {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                  message.role === 'user'
-                    ? 'bg-purple-600 text-white rounded-br-sm'
-                    : 'bg-white border border-purple-100 text-gray-800 rounded-bl-sm shadow-sm'
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{message.content}</p>
-                {message.sources && message.sources.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-purple-200">
-                    <p className="text-xs text-purple-400">
-                      Inspired by: {message.sources.map(s => s.source).join(', ')}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <SomeraMessage key={message.id} message={message} />
           ))}
           
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-purple-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            </div>
-          )}
+          {isLoading && <SomeraTypingIndicator />}
           
           <div ref={messagesEndRef} />
         </div>
         
-        <div className="sticky bottom-0 pb-6 pt-4 bg-gradient-to-t from-white via-white to-transparent">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder="Share what's on your mind..."
-              disabled={isLoading}
-              className="flex-1 px-4 py-3 rounded-full border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white disabled:opacity-50"
-            />
-            <button
-              onClick={sendMessage}
-              disabled={isLoading || !input.trim()}
-              className="p-3 rounded-full bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="sticky bottom-0 pb-3 md:pb-6 pt-2 md:pt-4 bg-gradient-to-t from-theme via-theme to-transparent">
+          <SomeraInput onSend={sendMessage} disabled={isLoading} />
         </div>
       </div>
     </main>
