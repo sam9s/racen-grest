@@ -20,6 +20,32 @@ from safety_guardrails import (
 
 _openai_client = None
 
+GREETING_PATTERNS = [
+    "hi", "hello", "hey", "hiya", "howdy", "greetings",
+    "good morning", "good afternoon", "good evening", "good night",
+    "what's up", "whats up", "sup", "yo",
+    "how are you", "how r u", "how're you", "how do you do",
+    "nice to meet you", "pleased to meet you",
+    "namaste", "hola", "bonjour"
+]
+
+
+def is_greeting(message: str) -> bool:
+    """Check if the message is a simple greeting that doesn't need coaching content."""
+    msg_lower = message.lower().strip()
+    msg_clean = ''.join(c for c in msg_lower if c.isalnum() or c.isspace())
+    
+    if len(msg_clean) > 50:
+        return False
+    
+    for pattern in GREETING_PATTERNS:
+        if msg_clean == pattern or msg_clean.startswith(pattern + " ") or msg_clean.endswith(" " + pattern):
+            return True
+        if pattern in msg_clean and len(msg_clean) < 30:
+            return True
+    
+    return False
+
 
 def get_openai_client():
     """Get OpenAI client singleton."""
@@ -258,11 +284,17 @@ def generate_somera_response_stream(
         }
         return
     
-    contextual_query = build_contextual_search_query(user_message, conversation_history)
-    relevant_docs = search_coaching_content(contextual_query, n_results=n_context_docs)
-    context = format_coaching_context(relevant_docs)
+    is_simple_greeting = is_greeting(user_message)
     
-    has_relevant_content = bool(relevant_docs) and context != "No specific coaching content found for this topic."
+    if is_simple_greeting:
+        relevant_docs = []
+        context = ""
+        has_relevant_content = False
+    else:
+        contextual_query = build_contextual_search_query(user_message, conversation_history)
+        relevant_docs = search_coaching_content(contextual_query, n_results=n_context_docs)
+        context = format_coaching_context(relevant_docs)
+        has_relevant_content = bool(relevant_docs) and context != "No specific coaching content found for this topic."
     
     system_prompt = get_somera_system_prompt()
     
@@ -270,7 +302,12 @@ def generate_somera_response_stream(
     if user_name:
         personalization = f"\nThe user's name is {user_name}. Use their name naturally in your response."
     
-    if has_relevant_content:
+    if is_simple_greeting:
+        augmented_prompt = f"""{system_prompt}
+{personalization}
+
+The user is greeting you. Respond warmly and welcome them. Ask how they're feeling or what's on their mind today. Keep it brief and inviting. Do NOT provide any coaching advice yet - just welcome them warmly."""
+    elif has_relevant_content:
         augmented_prompt = f"""{system_prompt}
 {personalization}
 
@@ -321,16 +358,17 @@ NOTE: I don't have specific coaching content for this topic in my knowledge base
         filtered_response, was_filtered = filter_response_for_safety(full_response)
         
         sources = []
-        seen_videos = set()
-        for doc in relevant_docs[:3]:
-            video_title = doc.get("video_title", doc.get("source", "Unknown"))
-            if video_title not in seen_videos:
-                seen_videos.add(video_title)
-                sources.append({
-                    "source": video_title,
-                    "topic": doc.get("topic", "general"),
-                    "youtube_url": doc.get("youtube_url")
-                })
+        if not is_simple_greeting:
+            seen_videos = set()
+            for doc in relevant_docs[:3]:
+                video_title = doc.get("video_title", doc.get("source", "Unknown"))
+                if video_title not in seen_videos:
+                    seen_videos.add(video_title)
+                    sources.append({
+                        "source": video_title,
+                        "topic": doc.get("topic", "general"),
+                        "youtube_url": doc.get("youtube_url")
+                    })
         
         yield {
             "type": "done",
