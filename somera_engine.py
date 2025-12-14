@@ -200,17 +200,17 @@ def generate_somera_response_stream(
         }
         return
     
-    safety_result = apply_safety_filters(user_message)
-    if safety_result["is_blocked"]:
+    should_redirect, redirect_response = apply_safety_filters(user_message)
+    if should_redirect:
         yield {
             "type": "content",
-            "content": safety_result["redirect_message"]
+            "content": redirect_response
         }
         yield {
             "type": "done",
             "sources": [],
             "safety_triggered": True,
-            "full_response": safety_result["redirect_message"]
+            "full_response": redirect_response
         }
         return
     
