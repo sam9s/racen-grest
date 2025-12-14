@@ -306,15 +306,11 @@ def generate_somera_response_stream(
         augmented_prompt = f"""{system_prompt}
 {personalization}
 
-The user is greeting you. Respond with THIS exact greeting (you may vary slightly but keep the same warmth and structure):
+The user is greeting you. Respond with THIS exact greeting:
 
-"Hello there, beautiful soul. I'm Somera. Let me know how I can support you today — whether you have a question, something on your mind, or just need someone to talk with."
+"Hello there, beautiful soul ❤️. I'm Somera. Let me know how I can support you today — whether you have a question, something on your mind, or just need someone to talk with 😊."
 
-Key elements to preserve:
-- "beautiful soul" - warm, personal
-- Introduce yourself as Somera
-- Offer multiple ways you can help (question, something on mind, someone to talk with)
-- Inviting but not pushy
+This is the standard welcome message - use it exactly as written with the emojis.
 
 Do NOT provide any coaching advice yet - just welcome them warmly."""
     elif has_relevant_content:
