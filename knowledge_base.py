@@ -324,6 +324,154 @@ def ingest_text_file(file_path: str, original_filename: str = None) -> int:
         return 0
 
 
+def ingest_coaching_transcript(text_content: str, topic: str, video_title: str, speaker: str = "Shweta") -> int:
+    """
+    Ingest a coaching video transcript into the knowledge base with topic metadata.
+    Used for SOMERA's coaching knowledge.
+    
+    Args:
+        text_content: The full transcript text
+        topic: Topic category (e.g., "procrastination", "peace", "relationships")
+        video_title: Title of the video
+        speaker: Speaker name (default: Shweta)
+    
+    Returns the number of chunks added.
+    """
+    if not text_content.strip():
+        print(f"No content found in transcript: {video_title}")
+        return 0
+    
+    if not is_valid_text_content(text_content):
+        print(f"Transcript content failed validation: {video_title}")
+        return 0
+    
+    source_name = f"Coaching: {video_title}"
+    chunks = split_text_into_chunks(text_content, source_name)
+    collection = get_or_create_collection()
+    chunks_added = 0
+    
+    for chunk in chunks:
+        if not is_valid_text_content(chunk["content"], min_printable_ratio=0.90):
+            continue
+        try:
+            collection.upsert(
+                ids=[chunk["id"]],
+                documents=[chunk["content"]],
+                metadatas=[{
+                    "source": source_name,
+                    "type": "coaching_transcript",
+                    "topic": topic.lower(),
+                    "speaker": speaker,
+                    "video_title": video_title,
+                    "chunk_index": chunk["chunk_index"]
+                }]
+            )
+            chunks_added += 1
+        except Exception as e:
+            print(f"Error adding chunk: {e}")
+    
+    metadata = load_metadata()
+    if "coaching_transcripts" not in metadata:
+        metadata["coaching_transcripts"] = []
+    
+    existing = next((t for t in metadata["coaching_transcripts"] if t["video_title"] == video_title), None)
+    if existing:
+        existing["chunks"] = chunks_added
+        existing["topic"] = topic.lower()
+    else:
+        metadata["coaching_transcripts"].append({
+            "video_title": video_title,
+            "topic": topic.lower(),
+            "speaker": speaker,
+            "chunks": chunks_added
+        })
+    save_metadata(metadata)
+    
+    print(f"Added {chunks_added} chunks from coaching transcript: {video_title} (topic: {topic})")
+    return chunks_added
+
+
+def search_coaching_content(query: str, n_results: int = 5, topic: str = None) -> List[dict]:
+    """
+    Search only coaching content for SOMERA responses.
+    Optionally filter by topic.
+    
+    Args:
+        query: Search query
+        n_results: Number of results to return
+        topic: Optional topic filter (e.g., "procrastination")
+    
+    Returns a list of matching documents with metadata.
+    """
+    try:
+        collection = get_or_create_collection()
+        
+        count = collection.count()
+        if count == 0:
+            return []
+        
+        where_filter = {"type": "coaching_transcript"}
+        if topic:
+            where_filter = {"$and": [
+                {"type": "coaching_transcript"},
+                {"topic": topic.lower()}
+            ]}
+        
+        results = collection.query(
+            query_texts=[query],
+            n_results=min(n_results, count),
+            where=where_filter
+        )
+        
+        if not results or not results.get("documents") or not results["documents"][0]:
+            return []
+        
+        documents = []
+        for i, doc in enumerate(results["documents"][0]):
+            metadata = results["metadatas"][0][i] if results.get("metadatas") else {}
+            distance = results["distances"][0][i] if results.get("distances") else None
+            
+            documents.append({
+                "content": doc,
+                "source": metadata.get("source", "Unknown"),
+                "type": metadata.get("type", "Unknown"),
+                "topic": metadata.get("topic", "general"),
+                "speaker": metadata.get("speaker", "Unknown"),
+                "video_title": metadata.get("video_title", "Unknown"),
+                "relevance_score": 1 - distance if distance else None
+            })
+        
+        return documents
+        
+    except Exception as e:
+        print(f"Error searching coaching content: {e}")
+        return []
+
+
+def get_coaching_stats() -> dict:
+    """Get statistics about coaching content in the knowledge base."""
+    metadata = load_metadata()
+    transcripts = metadata.get("coaching_transcripts", [])
+    
+    topics = {}
+    total_chunks = 0
+    for t in transcripts:
+        topic = t.get("topic", "general")
+        chunks = t.get("chunks", 0)
+        if topic not in topics:
+            topics[topic] = {"count": 0, "chunks": 0}
+        topics[topic]["count"] += 1
+        topics[topic]["chunks"] += chunks
+        total_chunks += chunks
+    
+    return {
+        "total_transcripts": len(transcripts),
+        "total_chunks": total_chunks,
+        "topics": topics,
+        "transcripts": transcripts
+    }
+
+
 def search_knowledge_base(query: str, n_results: int = 5) -> List[dict]:
     """
     Search the knowledge base for relevant content.
