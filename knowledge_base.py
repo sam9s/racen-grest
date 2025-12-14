@@ -492,13 +492,18 @@ def get_coaching_stats() -> dict:
     }
 
 
-def search_knowledge_base(query: str, n_results: int = 5) -> List[dict]:
+def search_knowledge_base(query: str, n_results: int = 5, retry_count: int = 0) -> List[dict]:
     """
     Search the knowledge base for relevant content.
     Returns a list of matching documents with their metadata.
+    Includes retry logic for ChromaDB index issues.
     """
     try:
-        collection = get_or_create_collection()
+        client = get_chroma_client()
+        collection = client.get_or_create_collection(
+            name="joveheal_knowledge",
+            metadata={"description": "JoveHeal website and document knowledge base"}
+        )
         
         count = collection.count()
         if count == 0:
@@ -528,6 +533,11 @@ def search_knowledge_base(query: str, n_results: int = 5) -> List[dict]:
         
     except Exception as e:
         print(f"Error searching knowledge base: {e}")
+        if retry_count < 2 and "Error finding id" in str(e):
+            print(f"Retrying search with fresh client (attempt {retry_count + 2})...")
+            import time
+            time.sleep(0.5)
+            return search_knowledge_base(query, n_results, retry_count + 1)
         return []
 
 
