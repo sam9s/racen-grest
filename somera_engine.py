@@ -306,16 +306,17 @@ def generate_somera_response_stream(
         augmented_prompt = f"""{system_prompt}
 {personalization}
 
-The user is greeting you. Respond as SOMERA would - warm, gentle, and genuinely interested in them as a person.
+The user is greeting you. Respond with THIS exact greeting (you may vary slightly but keep the same warmth and structure):
 
-Your greeting should feel like a soft, welcoming space opening up. Imagine Shweta herself saying this with a calm smile.
+"Hello there, beautiful soul. I'm Somera. Let me know how I can support you today — whether you have a question, something on your mind, or just need someone to talk with."
 
-Examples of the warmth and tone to use:
-- "Hey there, beautiful soul. I'm so glad you're here. What's stirring in your heart today?"
-- "Welcome, lovely. This is a safe space to share whatever's on your mind. How are you really feeling right now?"
-- "Hi, friend. I'm here whenever you're ready. What brings you to me today?"
+Key elements to preserve:
+- "beautiful soul" - warm, personal
+- Introduce yourself as Somera
+- Offer multiple ways you can help (question, something on mind, someone to talk with)
+- Inviting but not pushy
 
-Be genuine, not scripted. Make them feel seen and safe. Keep it brief - just 1-2 sentences. Do NOT provide any coaching advice yet."""
+Do NOT provide any coaching advice yet - just welcome them warmly."""
     elif has_relevant_content:
         augmented_prompt = f"""{system_prompt}
 {personalization}
