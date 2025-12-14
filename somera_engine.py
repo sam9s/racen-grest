@@ -153,13 +153,17 @@ IMPORTANT:
         
         filtered_response, was_filtered = filter_response_for_safety(assistant_message)
         
-        sources = [
-            {
-                "source": doc.get("video_title", doc.get("source", "Unknown")),
-                "topic": doc.get("topic", "general")
-            }
-            for doc in relevant_docs[:3]
-        ]
+        sources = []
+        seen_videos = set()
+        for doc in relevant_docs[:3]:
+            video_title = doc.get("video_title", doc.get("source", "Unknown"))
+            if video_title not in seen_videos:
+                seen_videos.add(video_title)
+                sources.append({
+                    "source": video_title,
+                    "topic": doc.get("topic", "general"),
+                    "youtube_url": doc.get("youtube_url")
+                })
         
         return {
             "response": filtered_response,
@@ -265,13 +269,17 @@ IMPORTANT:
         
         filtered_response, was_filtered = filter_response_for_safety(full_response)
         
-        sources = [
-            {
-                "source": doc.get("video_title", doc.get("source", "Unknown")),
-                "topic": doc.get("topic", "general")
-            }
-            for doc in relevant_docs[:3]
-        ]
+        sources = []
+        seen_videos = set()
+        for doc in relevant_docs[:3]:
+            video_title = doc.get("video_title", doc.get("source", "Unknown"))
+            if video_title not in seen_videos:
+                seen_videos.add(video_title)
+                sources.append({
+                    "source": video_title,
+                    "topic": doc.get("topic", "general"),
+                    "youtube_url": doc.get("youtube_url")
+                })
         
         yield {
             "type": "done",

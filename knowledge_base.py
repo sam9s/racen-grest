@@ -324,7 +324,7 @@ def ingest_text_file(file_path: str, original_filename: str = None) -> int:
         return 0
 
 
-def ingest_coaching_transcript(text_content: str, topic: str, video_title: str, speaker: str = "Shweta") -> int:
+def ingest_coaching_transcript(text_content: str, topic: str, video_title: str, speaker: str = "Shweta", youtube_url: str = None) -> int:
     """
     Ingest a coaching video transcript into the knowledge base with topic metadata.
     Used for SOMERA's coaching knowledge.
@@ -334,6 +334,7 @@ def ingest_coaching_transcript(text_content: str, topic: str, video_title: str, 
         topic: Topic category (e.g., "procrastination", "peace", "relationships")
         video_title: Title of the video
         speaker: Speaker name (default: Shweta)
+        youtube_url: YouTube video URL for reference
     
     Returns the number of chunks added.
     """
@@ -354,17 +355,20 @@ def ingest_coaching_transcript(text_content: str, topic: str, video_title: str, 
         if not is_valid_text_content(chunk["content"], min_printable_ratio=0.90):
             continue
         try:
+            chunk_metadata = {
+                "source": source_name,
+                "type": "coaching_transcript",
+                "topic": topic.lower(),
+                "speaker": speaker,
+                "video_title": video_title,
+                "chunk_index": chunk["chunk_index"]
+            }
+            if youtube_url:
+                chunk_metadata["youtube_url"] = youtube_url
             collection.upsert(
                 ids=[chunk["id"]],
                 documents=[chunk["content"]],
-                metadatas=[{
-                    "source": source_name,
-                    "type": "coaching_transcript",
-                    "topic": topic.lower(),
-                    "speaker": speaker,
-                    "video_title": video_title,
-                    "chunk_index": chunk["chunk_index"]
-                }]
+                metadatas=[chunk_metadata]
             )
             chunks_added += 1
         except Exception as e:
@@ -378,13 +382,18 @@ def ingest_coaching_transcript(text_content: str, topic: str, video_title: str, 
     if existing:
         existing["chunks"] = chunks_added
         existing["topic"] = topic.lower()
+        if youtube_url:
+            existing["youtube_url"] = youtube_url
     else:
-        metadata["coaching_transcripts"].append({
+        transcript_meta = {
             "video_title": video_title,
             "topic": topic.lower(),
             "speaker": speaker,
             "chunks": chunks_added
-        })
+        }
+        if youtube_url:
+            transcript_meta["youtube_url"] = youtube_url
+        metadata["coaching_transcripts"].append(transcript_meta)
     save_metadata(metadata)
     
     print(f"Added {chunks_added} chunks from coaching transcript: {video_title} (topic: {topic})")
@@ -438,6 +447,7 @@ def search_coaching_content(query: str, n_results: int = 5, topic: str = None) -
                 "topic": metadata.get("topic", "general"),
                 "speaker": metadata.get("speaker", "Unknown"),
                 "video_title": metadata.get("video_title", "Unknown"),
+                "youtube_url": metadata.get("youtube_url"),
                 "relevance_score": 1 - distance if distance else None
             })
         

@@ -8,7 +8,7 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  sources?: { source: string; topic: string }[];
+  sources?: { source: string; topic: string; youtube_url?: string }[];
   timestamp: Date;
 }
 
@@ -120,10 +120,27 @@ function SomeraMessage({ message }: { message: Message }) {
         </div>
         
         {message.sources && message.sources.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-primary-500/10">
-            <p className="text-[10px] text-theme-muted">
-              Inspired by: {message.sources.map(s => s.source).join(', ')}
-            </p>
+          <div className="mt-2 pt-2 border-t border-primary-500/10 space-y-1">
+            <p className="text-[10px] text-theme-muted">Inspired by:</p>
+            {message.sources.map((s, i) => (
+              <div key={i} className="flex items-center gap-1">
+                {s.youtube_url ? (
+                  <a
+                    href={s.youtube_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-primary-400 hover:text-primary-300 underline underline-offset-2 flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                    </svg>
+                    {s.source}
+                  </a>
+                ) : (
+                  <span className="text-[10px] text-theme-muted">{s.source}</span>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
