@@ -400,20 +400,25 @@ def ingest_coaching_transcript(text_content: str, topic: str, video_title: str, 
     return chunks_added
 
 
-def search_coaching_content(query: str, n_results: int = 5, topic: str = None) -> List[dict]:
+def search_coaching_content(query: str, n_results: int = 5, topic: str = None, retry_count: int = 0) -> List[dict]:
     """
     Search only coaching content for SOMERA responses.
-    Optionally filter by topic.
+    Optionally filter by topic. Includes retry logic for ChromaDB index issues.
     
     Args:
         query: Search query
         n_results: Number of results to return
         topic: Optional topic filter (e.g., "procrastination")
+        retry_count: Internal retry counter (max 2 retries)
     
     Returns a list of matching documents with metadata.
     """
     try:
-        collection = get_or_create_collection()
+        client = get_chroma_client()
+        collection = client.get_or_create_collection(
+            name="joveheal_knowledge",
+            metadata={"description": "JoveHeal website and document knowledge base"}
+        )
         
         count = collection.count()
         if count == 0:
@@ -455,6 +460,11 @@ def search_coaching_content(query: str, n_results: int = 5, topic: str = None) -
         
     except Exception as e:
         print(f"Error searching coaching content: {e}")
+        if retry_count < 2 and "Error finding id" in str(e):
+            print(f"Retrying search with fresh client (attempt {retry_count + 2})...")
+            import time
+            time.sleep(0.5)
+            return search_coaching_content(query, n_results, topic, retry_count + 1)
         return []
 
 
