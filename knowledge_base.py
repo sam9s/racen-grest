@@ -1,10 +1,11 @@
 """
-Knowledge Base / RAG Module for JoveHeal Chatbot
+Knowledge Base / RAG Module for GRESTA Chatbot
 
 This module handles:
 - Document ingestion (web scraping, PDF, text files)
 - Vector storage using ChromaDB
 - Retrieval for RAG queries
+- GREST website content for product and policy information
 """
 
 import os
@@ -18,7 +19,7 @@ from chromadb.config import Settings
 from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from web_scraper import scrape_joveheal_website
+from web_scraper import scrape_grest_website
 
 KNOWLEDGE_BASE_DIR = Path("knowledge_base")
 VECTOR_DB_DIR = Path("vector_db")
@@ -46,13 +47,13 @@ def get_chroma_client():
 
 
 def get_or_create_collection(client=None):
-    """Get or create the JoveHeal knowledge collection."""
+    """Get or create the GREST knowledge collection."""
     if client is None:
         client = get_chroma_client()
     
     return client.get_or_create_collection(
-        name="joveheal_knowledge",
-        metadata={"description": "JoveHeal website and document knowledge base"}
+        name="grest_knowledge",
+        metadata={"description": "GREST website and document knowledge base for refurbished Apple products"}
     )
 
 
@@ -130,16 +131,13 @@ def clear_website_chunks():
 
 def ingest_website_content(max_pages: int = 50, clear_existing: bool = True) -> int:
     """
-    Scrape the JoveHeal website and add content to the knowledge base.
+    Scrape the GREST website and add content to the knowledge base.
     Returns the number of chunks added.
-    
-    WARNING: Website scraping may produce unreliable results due to encoding issues.
-    Prefer using document uploads for reliable content ingestion.
     """
     from datetime import datetime
     
-    print("Scraping JoveHeal website...")
-    documents = scrape_joveheal_website(max_pages=max_pages)
+    print("Scraping GREST website...")
+    documents = scrape_grest_website(max_pages=max_pages)
     
     if not documents:
         print("No content found from website.")
@@ -324,174 +322,6 @@ def ingest_text_file(file_path: str, original_filename: str = None) -> int:
         return 0
 
 
-def ingest_coaching_transcript(text_content: str, topic: str, video_title: str, speaker: str = "Shweta", youtube_url: str = None) -> int:
-    """
-    Ingest a coaching video transcript into the knowledge base with topic metadata.
-    Used for SOMERA's coaching knowledge.
-    
-    Args:
-        text_content: The full transcript text
-        topic: Topic category (e.g., "procrastination", "peace", "relationships")
-        video_title: Title of the video
-        speaker: Speaker name (default: Shweta)
-        youtube_url: YouTube video URL for reference
-    
-    Returns the number of chunks added.
-    """
-    if not text_content.strip():
-        print(f"No content found in transcript: {video_title}")
-        return 0
-    
-    if not is_valid_text_content(text_content):
-        print(f"Transcript content failed validation: {video_title}")
-        return 0
-    
-    source_name = f"Coaching: {video_title}"
-    chunks = split_text_into_chunks(text_content, source_name)
-    collection = get_or_create_collection()
-    chunks_added = 0
-    
-    for chunk in chunks:
-        if not is_valid_text_content(chunk["content"], min_printable_ratio=0.90):
-            continue
-        try:
-            chunk_metadata = {
-                "source": source_name,
-                "type": "coaching_transcript",
-                "topic": topic.lower(),
-                "speaker": speaker,
-                "video_title": video_title,
-                "chunk_index": chunk["chunk_index"]
-            }
-            if youtube_url:
-                chunk_metadata["youtube_url"] = youtube_url
-            collection.upsert(
-                ids=[chunk["id"]],
-                documents=[chunk["content"]],
-                metadatas=[chunk_metadata]
-            )
-            chunks_added += 1
-        except Exception as e:
-            print(f"Error adding chunk: {e}")
-    
-    metadata = load_metadata()
-    if "coaching_transcripts" not in metadata:
-        metadata["coaching_transcripts"] = []
-    
-    existing = next((t for t in metadata["coaching_transcripts"] if t["video_title"] == video_title), None)
-    if existing:
-        existing["chunks"] = chunks_added
-        existing["topic"] = topic.lower()
-        if youtube_url:
-            existing["youtube_url"] = youtube_url
-    else:
-        transcript_meta = {
-            "video_title": video_title,
-            "topic": topic.lower(),
-            "speaker": speaker,
-            "chunks": chunks_added
-        }
-        if youtube_url:
-            transcript_meta["youtube_url"] = youtube_url
-        metadata["coaching_transcripts"].append(transcript_meta)
-    save_metadata(metadata)
-    
-    print(f"Added {chunks_added} chunks from coaching transcript: {video_title} (topic: {topic})")
-    return chunks_added
-
-
-def search_coaching_content(query: str, n_results: int = 5, topic: str = None, retry_count: int = 0) -> List[dict]:
-    """
-    Search only coaching content for SOMERA responses.
-    Optionally filter by topic. Includes retry logic for ChromaDB index issues.
-    
-    Args:
-        query: Search query
-        n_results: Number of results to return
-        topic: Optional topic filter (e.g., "procrastination")
-        retry_count: Internal retry counter (max 2 retries)
-    
-    Returns a list of matching documents with metadata.
-    """
-    try:
-        client = get_chroma_client()
-        collection = client.get_or_create_collection(
-            name="joveheal_knowledge",
-            metadata={"description": "JoveHeal website and document knowledge base"}
-        )
-        
-        count = collection.count()
-        if count == 0:
-            return []
-        
-        where_filter = {"type": "coaching_transcript"}
-        if topic:
-            where_filter = {"$and": [
-                {"type": "coaching_transcript"},
-                {"topic": topic.lower()}
-            ]}
-        
-        results = collection.query(
-            query_texts=[query],
-            n_results=min(n_results, count),
-            where=where_filter
-        )
-        
-        if not results or not results.get("documents") or not results["documents"][0]:
-            return []
-        
-        documents = []
-        for i, doc in enumerate(results["documents"][0]):
-            metadata = results["metadatas"][0][i] if results.get("metadatas") else {}
-            distance = results["distances"][0][i] if results.get("distances") else None
-            
-            documents.append({
-                "content": doc,
-                "source": metadata.get("source", "Unknown"),
-                "type": metadata.get("type", "Unknown"),
-                "topic": metadata.get("topic", "general"),
-                "speaker": metadata.get("speaker", "Unknown"),
-                "video_title": metadata.get("video_title", "Unknown"),
-                "youtube_url": metadata.get("youtube_url"),
-                "relevance_score": 1 - distance if distance else None
-            })
-        
-        return documents
-        
-    except Exception as e:
-        print(f"Error searching coaching content: {e}")
-        if retry_count < 2 and "Error finding id" in str(e):
-            print(f"Retrying search with fresh client (attempt {retry_count + 2})...")
-            import time
-            time.sleep(0.5)
-            return search_coaching_content(query, n_results, topic, retry_count + 1)
-        return []
-
-
-def get_coaching_stats() -> dict:
-    """Get statistics about coaching content in the knowledge base."""
-    metadata = load_metadata()
-    transcripts = metadata.get("coaching_transcripts", [])
-    
-    topics = {}
-    total_chunks = 0
-    for t in transcripts:
-        topic = t.get("topic", "general")
-        chunks = t.get("chunks", 0)
-        if topic not in topics:
-            topics[topic] = {"count": 0, "chunks": 0}
-        topics[topic]["count"] += 1
-        topics[topic]["chunks"] += chunks
-        total_chunks += chunks
-    
-    return {
-        "total_transcripts": len(transcripts),
-        "total_chunks": total_chunks,
-        "topics": topics,
-        "transcripts": transcripts
-    }
-
-
 def search_knowledge_base(query: str, n_results: int = 5, retry_count: int = 0) -> List[dict]:
     """
     Search the knowledge base for relevant content.
@@ -501,8 +331,8 @@ def search_knowledge_base(query: str, n_results: int = 5, retry_count: int = 0) 
     try:
         client = get_chroma_client()
         collection = client.get_or_create_collection(
-            name="joveheal_knowledge",
-            metadata={"description": "JoveHeal website and document knowledge base"}
+            name="grest_knowledge",
+            metadata={"description": "GREST website and document knowledge base for refurbished Apple products"}
         )
         
         count = collection.count()
@@ -564,6 +394,11 @@ def clear_knowledge_base():
     try:
         client = get_chroma_client()
         try:
+            client.delete_collection("grest_knowledge")
+        except Exception:
+            pass
+        
+        try:
             client.delete_collection("joveheal_knowledge")
         except Exception:
             pass
@@ -601,8 +436,7 @@ def initialize_knowledge_base(force_refresh: bool = False, enable_web_scrape: bo
     
     Args:
         force_refresh: If True, clear all content and rebuild
-        enable_web_scrape: If True, attempt to scrape the JoveHeal website
-                          (disabled by default due to encoding issues)
+        enable_web_scrape: If True, attempt to scrape the GREST website
     """
     ensure_directories()
     
@@ -623,8 +457,8 @@ def initialize_knowledge_base(force_refresh: bool = False, enable_web_scrape: bo
     print(f"Loaded {sample_chunks} chunks from sample documents.")
     
     if enable_web_scrape:
-        print("Attempting website scraping (experimental)...")
-        website_chunks = ingest_website_content(max_pages=30)
+        print("Scraping GREST website...")
+        website_chunks = ingest_website_content(max_pages=50)
         chunks_added += website_chunks
     
     return chunks_added > 0

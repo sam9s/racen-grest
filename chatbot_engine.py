@@ -14,7 +14,7 @@ from typing import List, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 from knowledge_base import search_knowledge_base, get_knowledge_base_stats
-from safety_guardrails import apply_safety_filters, get_system_prompt, filter_response_for_safety, inject_program_links, append_contextual_links
+from safety_guardrails import apply_safety_filters, get_system_prompt, filter_response_for_safety, inject_product_links, append_contextual_links
 
 _openai_client = None
 
@@ -100,46 +100,46 @@ def build_context_aware_query(user_message: str, conversation_history: List[dict
     if not conversation_history:
         return user_message
     
-    program_names = [
-        "Balance Mastery", "Inner Mastery Lounge", "Elevate 360",
-        "Relationship Healing", "Career Healing", "Beyond the Hustle",
-        "Inner Reset", "Shed & Shine", "Shed and Shine",
-        "Healing Sessions", "Healing Circle", "Meta-U", 
-        "Money and Abundance", "1:1 Private Coaching"
+    product_names = [
+        "iPhone 12", "iPhone 13", "iPhone 14", "iPhone 15",
+        "iPhone 12 Pro", "iPhone 13 Pro", "iPhone 14 Pro", "iPhone 15 Pro",
+        "iPhone 12 Pro Max", "iPhone 13 Pro Max", "iPhone 14 Pro Max", "iPhone 15 Pro Max",
+        "MacBook Air", "MacBook Pro", "MacBook Air M1", "MacBook Air M2",
+        "MacBook Pro M1", "MacBook Pro M2", "refurbished", "warranty"
     ]
     
     message_lower = user_message.lower()
     
     follow_up_indicators = [
-        "this", "that", "it", "the program", "the course",
+        "this", "that", "it", "the product", "the phone", "the macbook",
         "more details", "more information", "tell me more",
         "details", "about it", "learn more", "know more",
         "give me", "share more", "explain", "what is it",
-        "how does it", "how much", "price", "cost", "duration",
-        "sign up", "enroll", "join", "register"
+        "how does it", "how much", "price", "cost", "specs",
+        "buy", "order", "purchase", "warranty", "delivery"
     ]
     
-    program_typo_patterns = ["program", "progam", "programm", "programme", "prog"]
+    product_typo_patterns = ["iphone", "macbook", "phone", "laptop", "product"]
     
     has_follow_up = any(phrase in message_lower for phrase in follow_up_indicators)
-    has_program_reference = any(pattern in message_lower for pattern in program_typo_patterns)
+    has_product_reference = any(pattern in message_lower for pattern in product_typo_patterns)
     is_short_query = len(user_message.split()) <= 8
     
-    should_add_context = has_follow_up or (has_program_reference and is_short_query)
+    should_add_context = has_follow_up or (has_product_reference and is_short_query)
     
     if not should_add_context:
         return user_message
     
-    recent_programs = []
+    recent_products = []
     for msg in reversed(conversation_history[-6:]):
         content = msg.get("content", "")
-        for program in program_names:
-            if program.lower() in content.lower():
-                if program not in recent_programs:
-                    recent_programs.append(program)
+        for product in product_names:
+            if product.lower() in content.lower():
+                if product not in recent_products:
+                    recent_products.append(product)
     
-    if recent_programs:
-        context_str = " ".join(recent_programs[:3])
+    if recent_products:
+        context_str = " ".join(recent_products[:3])
         return f"{user_message} {context_str}"
     
     return user_message
@@ -240,7 +240,7 @@ def generate_response(
     client = get_openai_client()
     if client is None:
         return {
-            "response": "I'm temporarily unavailable. Please try again later or contact us at https://www.joveheal.com/contact for assistance.",
+            "response": "I'm temporarily unavailable. Please try again later or contact us at https://grest.in/pages/contact-us for assistance.",
             "sources": [],
             "safety_triggered": False,
             "error": "openai_not_configured"
@@ -296,11 +296,11 @@ ONLY say something like: "Great to see you back! How can I help you today?"
 {personalization_context}
 
 KNOWLEDGE BASE CONTEXT:
-The following information is from JoveHeal's official website and documents. Use this to answer the user's question accurately:
+The following information is from GREST's official website and documents. Use this to answer the user's question accurately:
 
 {context}
 
-IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://www.joveheal.com/contact"""
+IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
     messages = [{"role": "system", "content": augmented_system_prompt}]
     
@@ -311,8 +311,6 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
     messages.append({"role": "user", "content": user_message})
     
     try:
-        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
@@ -323,9 +321,9 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
         
         filtered_response, was_filtered = filter_response_for_safety(assistant_message)
         
-        response_with_program_links = inject_program_links(filtered_response)
+        response_with_product_links = inject_product_links(filtered_response)
         
-        final_response = append_contextual_links(user_message, response_with_program_links)
+        final_response = append_contextual_links(user_message, response_with_product_links)
         
         sources = []
         for doc in relevant_docs:
@@ -353,7 +351,7 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
             }
         
         return {
-            "response": "I apologize, but I'm having trouble processing your question right now. Please try again, or contact us at https://www.joveheal.com/contact for assistance.",
+            "response": "I apologize, but I'm having trouble processing your question right now. Please try again, or contact us at https://grest.in/pages/contact-us for assistance.",
             "sources": [],
             "safety_triggered": False,
             "error": str(e)
@@ -426,11 +424,11 @@ ONLY say something like: "Great to see you back! How can I help you today?"
 {personalization_context}
 
 KNOWLEDGE BASE CONTEXT:
-The following information is from JoveHeal's official website and documents. Use this to answer the user's question accurately:
+The following information is from GREST's official website and documents. Use this to answer the user's question accurately:
 
 {context}
 
-IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://www.joveheal.com/contact"""
+IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
     messages = [{"role": "system", "content": augmented_system_prompt}]
     
@@ -458,7 +456,7 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
                     yield {"type": "content", "content": content}
         
         filtered_response, was_filtered = filter_response_for_safety(full_response)
-        response_with_links = inject_program_links(filtered_response)
+        response_with_links = inject_product_links(filtered_response)
         final_response = append_contextual_links(user_message, response_with_links)
         
         sources = []
@@ -486,17 +484,16 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
 
 def get_greeting_message() -> str:
     """Return the initial greeting message for new conversations."""
-    return """Hi there, I'm Jovee — your friendly guide here at JoveHeal!
+    return """Namaste! I'm GRESTA — your friendly assistant for GREST, India's trusted destination for premium refurbished iPhones and MacBooks!
 
-I'm here to help you explore our programs, understand our philosophy, and find what might be right for you.
+Main kaise help kar sakti hoon? I can assist you with:
+- iPhone collection (12, 13, 14, 15 series)
+- MacBook options (Air M1/M2, Pro)
+- Warranty & quality details (12-month warranty, 50+ checks)
+- Order tracking & delivery info
+- EMI & payment options
 
-Are you looking for:
-- Program details (Balance Mastery+, Inner Mastery Lounge, Elevate 360)
-- Healing philosophy and approach
-- Membership and pricing info
-- How to get started
-
-What brings you here today?"""
+Kya dekhna chahenge aaj?"""
 
 
 def check_knowledge_base_status() -> dict:
@@ -530,12 +527,12 @@ CONVERSATION:
 {history}
 
 Respond in this EXACT format (use "None" if not applicable):
-EMOTIONAL_THEMES: [List any emotional issues or feelings the user shared, e.g., "feeling disconnected from society", "stressed at work", "relationship struggles"]
-RECOMMENDED_PROGRAMS: [List any JoveHeal programs mentioned as recommendations, e.g., "Inner Mastery Lounge", "Balance Mastery", "Elevate 360"]
+INTERESTS: [List any products or features the user showed interest in, e.g., "iPhone 14 Pro", "MacBook Air M2", "warranty information"]
+RECOMMENDED_PRODUCTS: [List any GREST products mentioned as recommendations, e.g., "iPhone 15", "MacBook Pro M2"]
 LAST_TOPICS: [Summarize in 1-2 sentences what the conversation was about]
-CONVERSATION_STATUS: [One of: "exploring programs", "shared personal issue", "asked for contact info", "general inquiry", "follow-up needed"]
+CONVERSATION_STATUS: [One of: "exploring products", "asked about warranty", "asked for pricing", "general inquiry", "ready to purchase"]
 
-Be concise. Focus on the most important emotional themes and program recommendations."""
+Be concise. Focus on the most important product interests and recommendations."""
 
     try:
         response = client.chat.completions.create(

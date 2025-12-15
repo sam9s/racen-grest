@@ -50,7 +50,7 @@ conversation_histories = {}
 @app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint."""
-    return jsonify({"status": "healthy", "service": "R.A.C.E.N API Server"})
+    return jsonify({"status": "healthy", "service": "GRESTA API Server"})
 
 
 @app.route("/api/channels/status", methods=["GET"])
@@ -533,7 +533,7 @@ def api_chat_manychat():
         return jsonify({
             "version": "v2",
             "content": {
-                "messages": [{"type": "text", "text": "Hi! I'm Jovee, your guide for JoveHeal's wellness programs. How can I help you today?"}],
+                "messages": [{"type": "text", "text": "Namaste! I'm GRESTA, your assistant for GREST's premium refurbished iPhones & MacBooks. How can I help you today?"}],
                 "actions": [],
                 "quick_replies": []
             }

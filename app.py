@@ -1,8 +1,8 @@
 """
-JoveHeal Wellness Chatbot - Main Streamlit Application
+GRESTA - GREST Real-time Engagement Support & Technology Assistant
 
-A RAG-based chatbot for JoveHeal wellness coaching business.
-Provides information about programs, services, and offerings.
+A RAG-based chatbot for GREST, India's premium refurbished iPhone and MacBook brand.
+Provides bilingual (English + Hinglish) support for product information, pricing, and policies.
 """
 
 import streamlit as st
@@ -36,8 +36,8 @@ from conversation_logger import (
 from database import init_database, is_database_available
 
 st.set_page_config(
-    page_title="JoveHeal Assistant",
-    page_icon="🌿",
+    page_title="GRESTA - GREST Assistant",
+    page_icon="📱",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -54,7 +54,7 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     .user-message {
-        background-color: #e3f2fd;
+        background-color: #e8f5e9;
     }
     .assistant-message {
         background-color: #f5f5f5;
@@ -119,8 +119,8 @@ def initialize_kb_if_needed():
 
 def render_chat_interface():
     """Render the main chat interface."""
-    st.title("JoveHeal Assistant")
-    st.markdown("*Your guide to wellness coaching programs and services*")
+    st.title("GRESTA Assistant")
+    st.markdown("*Your guide to premium refurbished iPhones & MacBooks*")
     
     status = check_knowledge_base_status()
     if status["ready"]:
@@ -153,12 +153,12 @@ def render_chat_interface():
                 if feedback_key not in st.session_state:
                     col1, col2, col3 = st.columns([1, 1, 8])
                     with col1:
-                        if st.button("up", key=f"up_{idx}_{conv_id}"):
+                        if st.button("👍", key=f"up_{idx}_{conv_id}"):
                             st.session_state[feedback_key] = 1
                             st.session_state[show_comment_key] = True
                             st.rerun()
                     with col2:
-                        if st.button("down", key=f"down_{idx}_{conv_id}"):
+                        if st.button("👎", key=f"down_{idx}_{conv_id}"):
                             st.session_state[feedback_key] = -1
                             st.session_state[show_comment_key] = True
                             st.rerun()
@@ -188,7 +188,7 @@ def render_chat_interface():
                     if saved_comment:
                         st.caption(f"Your comment: {saved_comment[:50]}...")
     
-    if prompt := st.chat_input("Ask me about JoveHeal's programs and services..."):
+    if prompt := st.chat_input("Ask me about GREST products, prices, warranty..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         
         with st.chat_message("user"):
@@ -241,7 +241,7 @@ def render_admin_panel():
     
     st.divider()
     
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Knowledge Base", "Upload Documents", "Conversation Logs", "Analytics", "Embed Widget", "Channels"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Knowledge Base", "Upload Documents", "Conversation Logs", "Analytics", "Embed Widget"])
     
     with tab1:
         st.subheader("Knowledge Base Status")
@@ -267,16 +267,29 @@ def render_admin_panel():
         
         st.subheader("Actions")
         
-        if st.button("Clear Knowledge Base", type="secondary"):
-            if st.session_state.get("confirm_clear"):
-                clear_knowledge_base()
-                st.session_state.kb_initialized = False
-                st.session_state.confirm_clear = False
-                st.success("Knowledge base cleared!")
-                st.rerun()
-            else:
-                st.session_state.confirm_clear = True
-                st.warning("Click again to confirm clearing all knowledge base content.")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("Scrape GREST Website", type="primary"):
+                with st.spinner("Scraping GREST website... This may take a few minutes."):
+                    chunks = ingest_website_content(max_pages=50, clear_existing=True)
+                    if chunks > 0:
+                        st.success(f"Successfully added {chunks} chunks from GREST website!")
+                    else:
+                        st.warning("No content was scraped. Check the logs for details.")
+                    st.rerun()
+        
+        with col2:
+            if st.button("Clear Knowledge Base", type="secondary"):
+                if st.session_state.get("confirm_clear"):
+                    clear_knowledge_base()
+                    st.session_state.kb_initialized = False
+                    st.session_state.confirm_clear = False
+                    st.success("Knowledge base cleared!")
+                    st.rerun()
+                else:
+                    st.session_state.confirm_clear = True
+                    st.warning("Click again to confirm clearing all knowledge base content.")
         
         if stats.get("documents"):
             st.subheader("Uploaded Documents")
@@ -290,7 +303,7 @@ def render_admin_panel():
         uploaded_file = st.file_uploader(
             "Choose a file",
             type=["pdf", "txt"],
-            help="Upload PDF or TXT files containing JoveHeal information"
+            help="Upload PDF or TXT files containing GREST product or policy information"
         )
         
         if uploaded_file is not None:
@@ -320,7 +333,7 @@ def render_admin_panel():
         st.markdown("""
         **How to update the knowledge base:**
         
-        1. **PDF Documents**: Upload PDF files (brochures, program guides, FAQs)
+        1. **PDF Documents**: Upload PDF files (product guides, policy documents)
         2. **Text Files**: Upload .txt files with additional information
         
         The chatbot will use all uploaded content to answer visitor questions.
@@ -411,7 +424,7 @@ def render_admin_panel():
                 if feedback["comments"]:
                     st.markdown("**Recent Comments:**")
                     for comment in feedback["comments"][:5]:
-                        rating_icon = "+" if comment["rating"] > 0 else "-"
+                        rating_icon = "👍" if comment["rating"] > 0 else "👎"
                         st.text(f"[{rating_icon}] {comment['comment'][:100]}")
             else:
                 st.info("No feedback collected yet. Users can rate responses in the chat.")
@@ -437,22 +450,20 @@ def render_admin_panel():
             st.divider()
             
             st.subheader("Data Management")
-            col1, col2 = st.columns(2)
             
-            with col1:
-                if st.button("Migrate File Logs to Database"):
-                    with st.spinner("Migrating logs..."):
-                        migrated = migrate_file_logs_to_database()
-                        if migrated > 0:
-                            st.success(f"Migrated {migrated} log entries to database!")
-                        else:
-                            st.info("No logs to migrate or migration already complete.")
+            if st.button("Migrate File Logs to Database"):
+                with st.spinner("Migrating logs..."):
+                    migrated = migrate_file_logs_to_database()
+                    if migrated > 0:
+                        st.success(f"Migrated {migrated} log entries to database!")
+                    else:
+                        st.info("No logs to migrate or migration already complete.")
         else:
             st.info("Connect a PostgreSQL database to unlock full analytics including daily trends, feedback tracking, and data migration.")
     
     with tab5:
         st.subheader("Embed Chatbot Widget")
-        st.markdown("Add the JoveHeal chatbot to your website using the embed code below.")
+        st.markdown("Add the GRESTA chatbot to your website using the embed code below.")
         
         replit_url = os.environ.get("REPLIT_DEV_DOMAIN", "your-replit-url.replit.dev")
         widget_url = f"https://{replit_url}/widget"
@@ -471,7 +482,7 @@ def render_admin_panel():
     width="400"
     height="600"
     style="border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"
-    title="JoveHeal Chat Assistant">
+    title="GRESTA Chat Assistant">
 </iframe>'''
         
         st.code(iframe_code, language="html")
@@ -482,14 +493,14 @@ def render_admin_panel():
         st.markdown("For a floating chat button in the corner of your website:")
         
         floating_code = f'''<style>
-.joveheal-chat-button {{
+.gresta-chat-button {{
     position: fixed;
     bottom: 20px;
     right: 20px;
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #4a7c59 0%, #2d5a3d 100%);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
     border: none;
     cursor: pointer;
@@ -497,7 +508,7 @@ def render_admin_panel():
     font-size: 24px;
     z-index: 9999;
 }}
-.joveheal-chat-widget {{
+.gresta-chat-widget {{
     position: fixed;
     bottom: 90px;
     right: 20px;
@@ -509,15 +520,15 @@ def render_admin_panel():
     z-index: 9998;
     display: none;
 }}
-.joveheal-chat-widget.open {{
+.gresta-chat-widget.open {{
     display: block;
 }}
 </style>
-<button class="joveheal-chat-button" onclick="toggleJoveHealChat()">💬</button>
-<iframe class="joveheal-chat-widget" id="joveheal-widget" src="{widget_url}"></iframe>
+<button class="gresta-chat-button" onclick="toggleGrestaChat()">💬</button>
+<iframe class="gresta-chat-widget" id="gresta-widget" src="{widget_url}"></iframe>
 <script>
-function toggleJoveHealChat() {{
-    var widget = document.getElementById('joveheal-widget');
+function toggleGrestaChat() {{
+    var widget = document.getElementById('gresta-widget');
     widget.classList.toggle('open');
 }}
 </script>'''
@@ -530,153 +541,26 @@ function toggleJoveHealChat() {{
         st.markdown("""
         - **Size**: Adjust `width` and `height` in the iframe to fit your design
         - **Position**: Modify `bottom` and `right` values for floating button placement
-        - **Colors**: Update the gradient colors to match your brand
+        - **Colors**: Update the gradient colors to match your brand (currently GREST green)
         - **Mobile**: Consider using responsive widths (e.g., `width="100%"`)
         """)
-    
-    with tab6:
-        st.subheader("Multi-Channel Integration")
-        st.markdown("Connect your JoveHeal chatbot to messaging platforms.")
-        
-        try:
-            from channel_handlers import get_channel_status
-            status = get_channel_status()
-        except ImportError:
-            status = {}
-        
-        replit_url = os.environ.get("REPLIT_DEV_DOMAIN", "your-replit-url.replit.dev")
-        
-        st.markdown("### WhatsApp (via Twilio)")
-        wa_status = status.get("whatsapp", {})
-        if wa_status.get("configured"):
-            st.success("WhatsApp is configured and ready")
-        else:
-            st.warning("WhatsApp is not configured")
-            st.markdown("**Required secrets:**")
-            for secret in wa_status.get("required_secrets", []):
-                st.code(secret)
-        
-        st.markdown("**Webhook URL:**")
-        whatsapp_webhook = f"https://{replit_url}/webhook/whatsapp"
-        st.code(whatsapp_webhook)
-        
-        with st.expander("WhatsApp Setup Instructions"):
-            st.markdown("""
-            1. **Create a Twilio account** at [twilio.com](https://www.twilio.com)
-            2. **Enable WhatsApp** in your Twilio console
-            3. **Get your credentials:**
-               - Account SID
-               - Auth Token
-               - WhatsApp sandbox or approved number
-            4. **Add secrets** to this project:
-               - `TWILIO_ACCOUNT_SID`
-               - `TWILIO_AUTH_TOKEN`
-               - `TWILIO_WHATSAPP_NUMBER`
-            5. **Configure webhook** in Twilio console:
-               - Set the webhook URL above as your message handler
-               - Select POST method
-            
-            **Security Note:** Webhook requests are validated using Twilio's signature verification.
-            For custom deployments, set `WEBHOOK_BASE_URL` to your trusted base URL.
-            """)
-        
-        st.divider()
-        
-        st.markdown("### Instagram (via Meta Graph API)")
-        ig_status = status.get("instagram", {})
-        if ig_status.get("configured"):
-            st.success("Instagram is configured and ready")
-        else:
-            st.warning("Instagram is not configured")
-            st.markdown("**Required secrets:**")
-            for secret in ig_status.get("required_secrets", []):
-                st.code(secret)
-        
-        st.markdown("**Webhook URL:**")
-        instagram_webhook = f"https://{replit_url}/webhook/instagram"
-        st.code(instagram_webhook)
-        
-        with st.expander("Instagram Setup Instructions"):
-            st.markdown("""
-            1. **Create a Meta Developer account** at [developers.facebook.com](https://developers.facebook.com)
-            2. **Create a new app** with Messenger product
-            3. **Connect your Instagram Business account**
-            4. **Get your credentials:**
-               - Page Access Token
-               - Page ID
-               - Create a Verify Token (any string you choose)
-            5. **Add secrets** to this project:
-               - `INSTAGRAM_ACCESS_TOKEN`
-               - `INSTAGRAM_PAGE_ID`
-               - `INSTAGRAM_VERIFY_TOKEN`
-            6. **Configure webhook** in Meta developer console:
-               - Set the webhook URL above
-               - Enter your verify token
-               - Subscribe to `messages` events
-            """)
-        
-        st.divider()
-        
-        st.markdown("### Direct API Integration")
-        st.markdown("For custom integrations, use the chat API endpoint:")
-        
-        api_url = f"https://{replit_url}/api/chat"
-        st.code(api_url)
-        
-        st.markdown("**Example request:**")
-        api_example = '''{
-    "message": "What programs do you offer?",
-    "user_id": "user123",
-    "channel": "custom_app"
-}'''
-        st.code(api_example, language="json")
-        
-        st.markdown("**Response format:**")
-        response_example = '''{
-    "response": "JoveHeal offers several wellness programs...",
-    "user_id": "user123",
-    "channel": "custom_app"
-}'''
-        st.code(response_example, language="json")
-        
-        st.divider()
-        
-        st.markdown("### Webhook Server Status")
-        st.info("The webhook server runs on port 8080 to handle incoming messages from external platforms.")
-        st.markdown("Make sure to start the webhook server workflow for multi-channel messaging to work.")
 
 
 def main():
     """Main application entry point."""
     initialize_kb_if_needed()
     
-    with st.sidebar:
-        st.markdown("### Navigation")
-        if st.button("Chat", use_container_width=True):
-            st.session_state.show_admin = False
-            st.rerun()
-        if st.button("Admin Panel", use_container_width=True):
-            st.session_state.show_admin = True
-            st.rerun()
-        
-        st.divider()
-        
-        st.markdown("### About")
-        st.markdown("""
-        This chatbot provides information about JoveHeal's wellness coaching programs and services.
-        
-        For bookings or personal inquiries, please visit [joveheal.com](https://www.joveheal.com)
-        """)
-        
-        if st.button("New Conversation"):
-            st.session_state.messages = []
-            st.session_state.session_id = str(uuid.uuid4())
-            st.rerun()
-    
     if st.session_state.show_admin:
         render_admin_panel()
     else:
         render_chat_interface()
+        
+        st.divider()
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if st.button("Admin Panel", key="admin_btn"):
+                st.session_state.show_admin = True
+                st.rerun()
 
 
 if __name__ == "__main__":

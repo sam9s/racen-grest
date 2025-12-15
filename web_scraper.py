@@ -164,28 +164,26 @@ def clean_extracted_text(text: str) -> str:
     return '\n'.join(cleaned_lines)
 
 
-def scrape_joveheal_website(max_pages: int = 50) -> list:
+def scrape_grest_website(max_pages: int = 50) -> list:
     """
-    Scrape the JoveHeal website and return a list of documents.
+    Scrape the GREST website and return a list of documents.
     Each document contains the URL and its text content.
     """
-    base_url = "https://www.joveheal.com"
-    base_domain = "joveheal.com"
+    base_url = "https://grest.in"
+    base_domain = "grest.in"
     
     common_pages = [
-        "https://www.joveheal.com",
-        "https://www.joveheal.com/about",
-        "https://www.joveheal.com/services",
-        "https://www.joveheal.com/programs",
-        "https://www.joveheal.com/coaching",
-        "https://www.joveheal.com/healing",
-        "https://www.joveheal.com/membership",
-        "https://www.joveheal.com/workshops",
-        "https://www.joveheal.com/contact",
-        "https://www.joveheal.com/faq",
-        "https://www.joveheal.com/pricing",
-        "https://www.joveheal.com/balance-mastery",
-        "https://www.joveheal.com/inner-mastery-lounge",
+        "https://grest.in",
+        "https://grest.in/collections/iphones",
+        "https://grest.in/collections/macbook",
+        "https://grest.in/collections/all",
+        "https://grest.in/pages/about",
+        "https://grest.in/pages/faqs",
+        "https://grest.in/pages/contact-us",
+        "https://grest.in/pages/warranty-policy",
+        "https://grest.in/pages/refund-policy",
+        "https://grest.in/pages/track-your-order",
+        "https://grest.in/blogs/news",
     ]
     
     visited = set()
@@ -231,8 +229,13 @@ def scrape_joveheal_website(max_pages: int = 50) -> list:
     return documents
 
 
+def scrape_joveheal_website(max_pages: int = 50) -> list:
+    """Legacy function - redirects to scrape_grest_website for backwards compatibility."""
+    return scrape_grest_website(max_pages)
+
+
 if __name__ == "__main__":
-    docs = scrape_joveheal_website(max_pages=10)
+    docs = scrape_grest_website(max_pages=10)
     for doc in docs:
         print(f"\n--- {doc['url']} ---")
         print(doc['content'][:500] + "..." if len(doc['content']) > 500 else doc['content'])
