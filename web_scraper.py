@@ -180,10 +180,18 @@ def scrape_grest_website(max_pages: int = 50) -> list:
         "https://grest.in/pages/faqs",
         "https://grest.in/pages/contact-us",
         "https://grest.in/pages/warranty-policy",
-        "https://grest.in/pages/refund-policy",
-        "https://grest.in/pages/track-your-order",
+        "https://grest.in/policies/refund-policy",
+        "https://grest.in/policies/shipping-policy",
         "https://grest.in/blogs/news",
+        "https://grest.in/blogs/news/how-much-storage-do-you-really-need-in-a-refurbished-iphone-64gb-vs-128gb-vs-256gb",
+        "https://grest.in/blogs/news/refurbished-iphone-conditions-fair-good-superb",
+        "https://grest.in/blogs/news/why-refurbished-macbooks-are-a-smart-investment-for-freelancers-startups",
+        "https://grest.in/blogs/news/how-to-choose-the-best-refurbished-ipad-air-vs-mini-vs-pro-what-s-right-for-you",
+        "https://grest.in/blogs/news/trade-in-vs-buying-a-refurbished-iphone-which-route-gives-you-better-value",
+        "https://grest.in/blogs/news/best-time-season-to-buy-a-refurbished-iphone-in-india-festival-deals-to-year-end-discounts",
     ]
+    
+    skip_extensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.woff', '.woff2', '.ttf', '.ico', '.webp']
     
     visited = set()
     to_visit = common_pages.copy()
@@ -219,6 +227,10 @@ def scrape_grest_website(max_pages: int = 50) -> list:
         new_links = get_all_links(url, base_domain)
         for link in new_links:
             normalized_link = link.rstrip('/')
+            if any(ext in normalized_link.lower() for ext in skip_extensions):
+                continue
+            if '/cdn/' in normalized_link:
+                continue
             if normalized_link not in visited and link not in to_visit:
                 to_visit.append(link)
         
