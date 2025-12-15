@@ -467,3 +467,11 @@ def filter_response_for_safety(response: str) -> Tuple[str, bool]:
     For GRESTA (e-commerce), this is minimal - just checks for inappropriate content.
     """
     return response, False
+
+
+def get_somera_system_prompt() -> str:
+    """
+    Return SOMERA system prompt - compatibility stub.
+    SOMERA is not used for GREST e-commerce, returns empty string.
+    """
+    return ""

@@ -429,6 +429,15 @@ def load_sample_documents() -> int:
     return chunks_added
 
 
+def search_coaching_content(query: str, n_results: int = 3) -> List[dict]:
+    """
+    Search for coaching content in the knowledge base.
+    This is a compatibility stub for SOMERA engine.
+    Returns empty results as SOMERA coaching is not used in GREST.
+    """
+    return []
+
+
 def initialize_knowledge_base(force_refresh: bool = False, enable_web_scrape: bool = False) -> bool:
     """
     Initialize the knowledge base.
