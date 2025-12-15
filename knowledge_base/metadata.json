@@ -4,6 +4,11 @@
       "filename": "grest_product_catalog.txt",
       "type": "text",
       "chunks": 10
+    },
+    {
+      "filename": "grest_contact_info.txt",
+      "type": "text",
+      "chunks": 1
     }
   ],
   "last_scrape": "2025-12-15T17:32:02.875632",
