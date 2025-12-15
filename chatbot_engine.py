@@ -61,30 +61,84 @@ def is_rate_limit_error(exception: BaseException) -> bool:
     )
 
 
+def get_source_authority_level(source: str) -> tuple:
+    """
+    Assign authority level to sources. Lower number = higher authority.
+    Returns (authority_level, source_type_label).
+    
+    Authority Hierarchy:
+    1. GREST official policy documents (warranty, refund, shipping policies)
+    2. Official FAQ page
+    3. Contact info and about pages
+    4. Custom knowledge base documents (curated by admin)
+    5. Product collection pages
+    6. Individual product pages (least authoritative - may have simplified info)
+    """
+    source_lower = source.lower()
+    
+    # Level 1: Official policy documents (MOST AUTHORITATIVE)
+    if any(x in source_lower for x in ['warranty_policy', 'grest_warranty', 'refund_policy', 'shipping_policy']):
+        return (1, "OFFICIAL POLICY - HIGHEST AUTHORITY")
+    if '/policies/' in source_lower or '/pages/warranty' in source_lower:
+        return (1, "OFFICIAL POLICY - HIGHEST AUTHORITY")
+    
+    # Level 2: FAQ page (official answers)
+    if '/pages/faq' in source_lower or 'faqs' in source_lower:
+        return (2, "OFFICIAL FAQ")
+    
+    # Level 3: Contact and about pages
+    if any(x in source_lower for x in ['contact', 'about', 'grest_contact']):
+        return (3, "OFFICIAL INFO")
+    
+    # Level 4: Curated knowledge base docs
+    if source_lower.endswith('.txt') and 'grest_' in source_lower:
+        return (4, "CURATED DOCUMENT")
+    
+    # Level 5: Collection pages
+    if '/collections/' in source_lower:
+        return (5, "PRODUCT COLLECTION")
+    
+    # Level 6: Individual product pages (LEAST AUTHORITATIVE for policies)
+    if '/products/' in source_lower:
+        return (6, "PRODUCT PAGE - may contain simplified info")
+    
+    # Default: Unknown source
+    return (7, "GENERAL INFO")
+
+
 def format_context_from_docs(documents: List[dict]) -> str:
     """
     Format retrieved documents into context for the LLM.
-    Aggregates chunks by source URL to provide complete page context.
+    Aggregates chunks by source URL and sorts by authority level.
+    Higher authority sources appear first with clear labels.
     """
     if not documents:
         return "No relevant information found in the knowledge base."
     
-    # Aggregate chunks by source URL to provide complete context per page
-    source_content_map = {}
+    # Aggregate chunks by source URL with authority info
+    source_data = {}
     for doc in documents:
         source = doc.get("source", "Unknown source")
         content = doc.get("content", "")
         
-        if source not in source_content_map:
-            source_content_map[source] = []
-        source_content_map[source].append(content)
+        if source not in source_data:
+            authority_level, authority_label = get_source_authority_level(source)
+            source_data[source] = {
+                'contents': [],
+                'authority_level': authority_level,
+                'authority_label': authority_label
+            }
+        source_data[source]['contents'].append(content)
     
-    # Format aggregated content by source
+    # Sort by authority level (lower = more authoritative)
+    sorted_sources = sorted(source_data.items(), key=lambda x: x[1]['authority_level'])
+    
+    # Format with authority labels
     context_parts = []
-    for i, (source, contents) in enumerate(source_content_map.items(), 1):
-        # Join multiple chunks from same source
-        combined_content = "\n\n".join(contents)
-        context_parts.append(f"[Source {i}: {source}]\n{combined_content}")
+    for i, (source, data) in enumerate(sorted_sources, 1):
+        combined_content = "\n\n".join(data['contents'])
+        authority_label = data['authority_label']
+        context_parts.append(f"[Source {i} - {authority_label}: {source}]\n{combined_content}")
     
     return "\n\n---\n\n".join(context_parts)
 
@@ -315,11 +369,13 @@ The following information is from GREST's official website and documents. Multip
 {context}
 
 MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
-1. ALWAYS synthesize information from ALL relevant sources above - do not focus on just one source
-2. If multiple sources discuss the same topic (e.g., warranty on both FAQ page and warranty policy page), COMBINE the details into one comprehensive answer
-3. If sources have conflicting information, mention both and note the difference
-4. Include ALL relevant details from every applicable source
-5. At the end, cite ALL source URLs that contributed to your answer
+1. Sources are listed in ORDER OF AUTHORITY - "OFFICIAL POLICY" and "OFFICIAL FAQ" sources are MORE RELIABLE than "PRODUCT PAGE" sources
+2. If sources have CONFLICTING information (e.g., different warranty durations), ALWAYS TRUST the higher authority source
+   - Example: If warranty policy says "6 months" but product page says "12 months", USE "6 months" from the policy
+3. Synthesize information from ALL sources, but when conflicts exist, the HIGHEST AUTHORITY source wins
+4. For policies (warranty, refund, shipping), ONLY use information from "OFFICIAL POLICY" or "OFFICIAL FAQ" sources
+5. Product pages may contain simplified or outdated information - defer to official policies
+6. At the end, cite the primary authoritative source(s) that answered the question
 
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
@@ -450,11 +506,13 @@ The following information is from GREST's official website and documents. Multip
 {context}
 
 MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
-1. ALWAYS synthesize information from ALL relevant sources above - do not focus on just one source
-2. If multiple sources discuss the same topic (e.g., warranty on both FAQ page and warranty policy page), COMBINE the details into one comprehensive answer
-3. If sources have conflicting information, mention both and note the difference
-4. Include ALL relevant details from every applicable source
-5. At the end, cite ALL source URLs that contributed to your answer
+1. Sources are listed in ORDER OF AUTHORITY - "OFFICIAL POLICY" and "OFFICIAL FAQ" sources are MORE RELIABLE than "PRODUCT PAGE" sources
+2. If sources have CONFLICTING information (e.g., different warranty durations), ALWAYS TRUST the higher authority source
+   - Example: If warranty policy says "6 months" but product page says "12 months", USE "6 months" from the policy
+3. Synthesize information from ALL sources, but when conflicts exist, the HIGHEST AUTHORITY source wins
+4. For policies (warranty, refund, shipping), ONLY use information from "OFFICIAL POLICY" or "OFFICIAL FAQ" sources
+5. Product pages may contain simplified or outdated information - defer to official policies
+6. At the end, cite the primary authoritative source(s) that answered the question
 
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
