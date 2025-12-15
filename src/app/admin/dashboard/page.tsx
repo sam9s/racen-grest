@@ -253,7 +253,7 @@ export default function AdminDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Jovee Analytics</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">GRESTA Analytics</h1>
             <p className="text-gray-400">Sign in to access the dashboard</p>
           </div>
 
@@ -340,7 +340,7 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white">Jovee Analytics</h1>
+            <h1 className="text-3xl font-bold text-white">GRESTA Analytics</h1>
             <p className="text-gray-400 mt-1">Real-time chatbot performance dashboard</p>
           </div>
           <div className="flex items-center gap-4">
@@ -483,7 +483,7 @@ function AnalyticsView({ stats, loading }: { stats: DashboardStats | null; loadi
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
           <h3 className="text-xl font-semibold text-white mb-2">No Data Yet</h3>
-          <p className="text-gray-400">Start chatting with Jovee to see analytics here.</p>
+          <p className="text-gray-400">Start chatting with GRESTA to see analytics here.</p>
         </div>
       ) : (
         <>

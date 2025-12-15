@@ -5,9 +5,8 @@ import { authOptions } from '@/lib/auth';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
 
 const ALLOWED_ORIGINS = [
-  'https://jove.sam9scloud.in',
-  'https://joveheal.com',
-  'https://www.joveheal.com',
+  'https://grest.in',
+  'https://www.grest.in',
 ];
 
 function getCorsHeaders(origin: string | null) {
@@ -17,7 +16,7 @@ function getCorsHeaders(origin: string | null) {
     'Access-Control-Max-Age': '86400',
   };
   
-  if (origin && (ALLOWED_ORIGINS.includes(origin) || origin.includes('.kajabi.com') || origin.includes('.mykajabi.com'))) {
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
     headers['Access-Control-Allow-Origin'] = origin;
   } else if (origin && (origin.includes('replit.dev') || origin.includes('replit.app'))) {
     headers['Access-Control-Allow-Origin'] = origin;
