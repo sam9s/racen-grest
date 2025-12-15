@@ -14,6 +14,29 @@ The chatbot, named RACEN (Real-time Advisor for Coaching, Education & Navigation
 ### Technical Implementations
 The core system uses a Retrieval Augmented Generation (RAG) approach.
 - **SOMERA Coaching Assistant**: A separate empathetic coaching interface at `/somera` that uses Shweta's coaching content from video transcripts. Features streaming SSE responses, purple/pink themed UI, and independent sessions from Jove. Backend endpoints at `/api/somera` and `/api/somera/stream`.
+  
+  **SOMERA's Core Objective (Updated Dec 2024):**
+  SOMERA must behave like a COACH, not a suggestion agent. The goal is to be a compelling first-touch coaching experience that draws users toward Shweta's actual coaching services.
+  
+  **Coaching Behavior Model:**
+  1. NEVER jump straight to solutions - users don't want direct answers
+  2. Start with EMPATHY ("I hear you, that sounds difficult...")
+  3. Ask TRIAGE QUESTIONS to understand deeper ("Would you like to share more about what's happening?")
+  4. LISTEN and probe further before offering any guidance
+  5. Help users find THEIR OWN solution (they already know it, just need to realize it)
+  6. Use soft, permission-based language for US audience ("I'm sensing you might be feeling...")
+  
+  **Shweta's JoveHeal 4-Step Framework:**
+  | Step | Description |
+  |------|-------------|
+  | 1. Acknowledgement | Understand what they're going through, patterns, duration |
+  | 2. Decision | Help them decide: "Do you want to stay like this or change?" |
+  | 3. Release | Various modalities based on person's need (takes most time) |
+  | 4. Recalibration | Embodiment of future self without the problem |
+  
+  **Three Pillars:** Career, Relationship, Wellness
+  
+  **Key Principle:** "Coaching is all about listening. No one needs a solution - they need to be heard first."
 - **Persistent Conversation Memory**: Users can sign in with Google to save conversations to a PostgreSQL database, allowing RACEN to remember past interactions and provide personalized greetings and context-aware responses.
 - **Personalized Greetings**: For signed-in users, RACEN offers first-name addressing, welcome-back messages with context from previous conversations, and new user introductions.
 - **Smart Conversation Summaries**: LLM-powered summaries of conversations are generated and stored, enabling RACEN to recall specific topics and recommendations for returning users.
