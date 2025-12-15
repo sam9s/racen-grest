@@ -87,9 +87,13 @@ def format_coaching_context(documents: List[dict]) -> str:
 
 
 def format_conversation_history(messages: List[dict]) -> List[dict]:
-    """Format conversation history for the API call."""
+    """Format conversation history for the API call.
+    
+    Keeps up to 40 messages to maintain context in longer coaching conversations.
+    GPT-4o-mini supports ~128k tokens, so this is well within limits.
+    """
     formatted = []
-    for msg in messages[-8:]:
+    for msg in messages[-40:]:
         if msg.get("role") in ["user", "assistant", "system"]:
             formatted.append({
                 "role": msg["role"],
@@ -112,7 +116,7 @@ def build_contextual_search_query(user_message: str, conversation_history: List[
         return user_message
     
     recent_user_messages = []
-    for msg in conversation_history[-4:]:
+    for msg in conversation_history[-10:]:
         if msg.get("role") == "user":
             content = msg.get("content", "").strip()
             if content and len(content) > 10:
