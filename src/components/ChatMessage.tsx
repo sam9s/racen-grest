@@ -84,8 +84,8 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
         <div className="flex-shrink-0 mr-2 mt-1">
           <div className="w-7 h-7 rounded-full overflow-hidden bg-primary-500/20 border border-primary-500/30">
             <Image
-              src="/jovee-logo.png"
-              alt="Jovee"
+              src="/gresta-logo.png"
+              alt="GRESTA"
               width={28}
               height={28}
               className="w-full h-full object-cover"

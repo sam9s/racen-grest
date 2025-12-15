@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { ChatMessage } from '@/components/ChatMessage';
 import { ChatInput } from '@/components/ChatInput';
 import { Header } from '@/components/Header';
@@ -17,22 +16,14 @@ interface Message {
 }
 
 export default function Home() {
-  const { data: session, status } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (status === 'loading') {
-      return;
-    }
-    if (status === 'authenticated' && session?.user?.email) {
-      setSessionId(`user_${session.user.email}`);
-    } else if (status === 'unauthenticated') {
-      setSessionId(`guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-    }
-  }, [status, session]);
+    setSessionId(`guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -66,11 +57,7 @@ export default function Home() {
             role: m.role,
             content: m.content,
           })),
-          user: session?.user ? {
-            email: session.user.email,
-            name: session.user.name,
-            image: session.user.image,
-          } : null,
+          user: null,
         }),
       });
 
@@ -209,21 +196,10 @@ export default function Home() {
         body: JSON.stringify({ session_id: sessionId }),
       });
       setMessages([]);
-      if (status === 'authenticated' && session?.user?.email) {
-        setSessionId(`user_${session.user.email}_${Date.now()}`);
-      } else {
-        setSessionId(`guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-      }
+      setSessionId(`guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
     } catch (error) {
       console.error('Error resetting conversation:', error);
     }
-  };
-
-  const getUserFirstName = () => {
-    if (status === 'authenticated' && session?.user?.name) {
-      return session.user.name.split(' ')[0];
-    }
-    return null;
   };
 
   return (
@@ -236,20 +212,20 @@ export default function Home() {
             <div className="flex-1 flex items-center justify-center min-h-[50vh] md:min-h-[60vh]">
               <div className="text-center max-w-md px-4">
                 <p className="text-xl font-light text-theme-muted">
-                  {getUserFirstName() ? `Hi ${getUserFirstName()}, I'm Jovee` : "Hi, I'm Jovee"}
+                  Hi, I'm GRESTA
                 </p>
                 <p className="text-sm mt-2 text-theme-muted opacity-80">
-                  Your friendly wellness guide at JoveHeal
+                  Your trusted tech advisor at GREST
                 </p>
                 <div className="mt-6 text-left text-sm text-theme-muted opacity-70 space-y-1">
-                  <p className="font-medium opacity-90 mb-2">I can help you explore:</p>
-                  <p>• Program details (Balance Mastery+, Elevate 360)</p>
-                  <p>• Healing philosophy and approach</p>
-                  <p>• Membership and pricing info</p>
-                  <p>• How to get started</p>
+                  <p className="font-medium opacity-90 mb-2">I can help you with:</p>
+                  <p>• Refurbished iPhones (iPhone 11 to 16 Pro Max)</p>
+                  <p>• Refurbished MacBooks</p>
+                  <p>• Pricing, warranty & quality checks</p>
+                  <p>• Finding the right device for you</p>
                 </div>
                 <p className="text-sm mt-6 text-theme-muted opacity-60">
-                  What brings you here today?
+                  Aap kya dhundh rahe hain? / What are you looking for?
                 </p>
               </div>
             </div>

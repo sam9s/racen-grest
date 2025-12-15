@@ -11,16 +11,16 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          50: '#e6f7ff',
-          100: '#b3e5fc',
-          200: '#81d4fa',
-          300: '#4fc3f7',
-          400: '#29b6f6',
-          500: '#03a9f4',
-          600: '#039be5',
-          700: '#0288d1',
-          800: '#0277bd',
-          900: '#01579b',
+          50: '#ecfdf5',
+          100: '#d1fae5',
+          200: '#a7f3d0',
+          300: '#6ee7b7',
+          400: '#34d399',
+          500: '#10b981',
+          600: '#059669',
+          700: '#047857',
+          800: '#065f46',
+          900: '#064e3b',
         },
         dark: {
           50: '#f5f5f5',
@@ -40,8 +40,8 @@ const config: Config = {
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
       boxShadow: {
-        'glow': '0 0 20px rgba(3, 169, 244, 0.3)',
-        'glow-lg': '0 0 40px rgba(3, 169, 244, 0.4)',
+        'glow': '0 0 20px rgba(16, 185, 129, 0.3)',
+        'glow-lg': '0 0 40px rgba(16, 185, 129, 0.4)',
       },
     },
   },

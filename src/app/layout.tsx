@@ -3,8 +3,8 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
-  title: 'Jovee - JoveHeal Wellness Guide',
-  description: 'Your friendly wellness coaching assistant from JoveHeal',
+  title: 'GRESTA - GREST Tech Assistant',
+  description: 'Your trusted tech advisor for premium refurbished iPhones and MacBooks from GREST',
   manifest: '/manifest.json',
 };
 
@@ -17,10 +17,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#7c3aed" />
+        <meta name="theme-color" content="#10b981" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Jovee" />
+        <meta name="apple-mobile-web-app-title" content="GRESTA" />
       </head>
       <body className="font-sans">
         <Providers>

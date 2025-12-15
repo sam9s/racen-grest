@@ -54,21 +54,21 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(3, 169, 244, 0.5);
+  background: rgba(16, 185, 129, 0.5);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(3, 169, 244, 0.7);
+  background: rgba(16, 185, 129, 0.7);
 }
 
 /* Glowing effect */
 .glow {
-  box-shadow: 0 0 20px rgba(3, 169, 244, 0.3);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
 }
 
 .glow-text {
-  text-shadow: 0 0 10px rgba(3, 169, 244, 0.5);
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
 }
 
 /* Message animations */
@@ -115,19 +115,19 @@ body {
 
 /* Input focus glow */
 .input-glow:focus {
-  box-shadow: 0 0 0 2px rgba(3, 169, 244, 0.3);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
 }
 
 /* Gradient border */
 .gradient-border {
   position: relative;
-  background: linear-gradient(135deg, rgba(3, 169, 244, 0.1), rgba(3, 169, 244, 0.05));
-  border: 1px solid rgba(3, 169, 244, 0.3);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .light .gradient-border {
-  background: linear-gradient(135deg, rgba(3, 169, 244, 0.05), rgba(3, 169, 244, 0.02));
-  border: 1px solid rgba(3, 169, 244, 0.4);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(16, 185, 129, 0.02));
+  border: 1px solid rgba(16, 185, 129, 0.4);
 }
 
 .gradient-border::before {
@@ -136,7 +136,7 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(3, 169, 244, 0.3), transparent);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), transparent);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -147,26 +147,26 @@ body {
 /* Header style in light mode */
 .light .header-bg {
   background-color: rgba(255, 255, 255, 0.9);
-  border-bottom-color: rgba(3, 169, 244, 0.2);
+  border-bottom-color: rgba(16, 185, 129, 0.2);
 }
 
 /* Button styles */
 .btn-theme {
   background-color: rgba(var(--surface-rgb), 0.8);
-  border: 1px solid rgba(3, 169, 244, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.3);
   transition: all 0.2s ease;
 }
 
 .btn-theme:hover {
-  background-color: rgba(3, 169, 244, 0.1);
-  border-color: rgba(3, 169, 244, 0.5);
+  background-color: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.5);
 }
 
 .light .btn-theme {
   background-color: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(3, 169, 244, 0.4);
+  border: 1px solid rgba(16, 185, 129, 0.4);
 }
 
 .light .btn-theme:hover {
-  background-color: rgba(3, 169, 244, 0.1);
+  background-color: rgba(16, 185, 129, 0.1);
 }

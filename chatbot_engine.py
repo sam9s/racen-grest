@@ -1,10 +1,11 @@
 """
-Chatbot Engine for JoveHeal
+Chatbot Engine for GRESTA (GREST Real-time Engagement Support & Technology Assistant)
 
 This module handles the core chatbot logic:
 - Query processing with RAG
 - Integration with OpenAI for response generation
 - Context management for multi-turn conversations
+- Product pricing queries from PostgreSQL
 """
 
 import os
