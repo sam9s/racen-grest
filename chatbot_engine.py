@@ -62,15 +62,29 @@ def is_rate_limit_error(exception: BaseException) -> bool:
 
 
 def format_context_from_docs(documents: List[dict]) -> str:
-    """Format retrieved documents into context for the LLM."""
+    """
+    Format retrieved documents into context for the LLM.
+    Aggregates chunks by source URL to provide complete page context.
+    """
     if not documents:
         return "No relevant information found in the knowledge base."
     
-    context_parts = []
-    for i, doc in enumerate(documents, 1):
+    # Aggregate chunks by source URL to provide complete context per page
+    source_content_map = {}
+    for doc in documents:
         source = doc.get("source", "Unknown source")
         content = doc.get("content", "")
-        context_parts.append(f"[Source {i}: {source}]\n{content}")
+        
+        if source not in source_content_map:
+            source_content_map[source] = []
+        source_content_map[source].append(content)
+    
+    # Format aggregated content by source
+    context_parts = []
+    for i, (source, contents) in enumerate(source_content_map.items(), 1):
+        # Join multiple chunks from same source
+        combined_content = "\n\n".join(contents)
+        context_parts.append(f"[Source {i}: {source}]\n{combined_content}")
     
     return "\n\n---\n\n".join(context_parts)
 
@@ -218,7 +232,7 @@ Output: "hi how are you" (no changes needed)"""
 def generate_response(
     user_message: str,
     conversation_history: List[dict] = None,
-    n_context_docs: int = 5,
+    n_context_docs: int = 8,
     user_name: str = None,
     is_returning_user: bool = False,
     last_topic_summary: str = None
@@ -296,9 +310,16 @@ ONLY say something like: "Great to see you back! How can I help you today?"
 {personalization_context}
 
 KNOWLEDGE BASE CONTEXT:
-The following information is from GREST's official website and documents. Use this to answer the user's question accurately:
+The following information is from GREST's official website and documents. Multiple sources may contain relevant information about the same topic.
 
 {context}
+
+MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
+1. ALWAYS synthesize information from ALL relevant sources above - do not focus on just one source
+2. If multiple sources discuss the same topic (e.g., warranty on both FAQ page and warranty policy page), COMBINE the details into one comprehensive answer
+3. If sources have conflicting information, mention both and note the difference
+4. Include ALL relevant details from every applicable source
+5. At the end, cite ALL source URLs that contributed to your answer
 
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
@@ -361,7 +382,7 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
 def generate_response_stream(
     user_message: str,
     conversation_history: List[dict] = None,
-    n_context_docs: int = 5,
+    n_context_docs: int = 8,
     user_name: str = None,
     is_returning_user: bool = False,
     last_topic_summary: str = None
@@ -424,9 +445,16 @@ ONLY say something like: "Great to see you back! How can I help you today?"
 {personalization_context}
 
 KNOWLEDGE BASE CONTEXT:
-The following information is from GREST's official website and documents. Use this to answer the user's question accurately:
+The following information is from GREST's official website and documents. Multiple sources may contain relevant information about the same topic.
 
 {context}
+
+MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
+1. ALWAYS synthesize information from ALL relevant sources above - do not focus on just one source
+2. If multiple sources discuss the same topic (e.g., warranty on both FAQ page and warranty policy page), COMBINE the details into one comprehensive answer
+3. If sources have conflicting information, mention both and note the difference
+4. Include ALL relevant details from every applicable source
+5. At the end, cite ALL source URLs that contributed to your answer
 
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
