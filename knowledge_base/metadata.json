@@ -1,6 +1,12 @@
 {
-  "documents": [],
-  "last_scrape": "2025-12-15T15:49:41.303836",
-  "website_pages": 9,
-  "website_chunks": 133
+  "documents": [
+    {
+      "filename": "grest_product_catalog.txt",
+      "type": "text",
+      "chunks": 10
+    }
+  ],
+  "last_scrape": null,
+  "website_pages": 0,
+  "website_chunks": 0
 }
