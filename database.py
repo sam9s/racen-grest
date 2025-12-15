@@ -1,15 +1,16 @@
 """
-Database Models and Connection for JoveHeal Chatbot
+Database Models and Connection for GRESTA Chatbot
 
 PostgreSQL database for:
 - Conversation logs with analytics
 - User feedback on responses
 - Session tracking
+- GREST product pricing (source of truth for prices)
 """
 
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, Float, ForeignKey, UniqueConstraint
+from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, Float, ForeignKey, UniqueConstraint, Numeric
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from contextlib import contextmanager
 
@@ -118,6 +119,35 @@ class ConversationSummary(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     user = relationship("UserAccount")
+
+
+class GRESTProduct(Base):
+    """
+    GREST Product Pricing Table - Source of truth for product prices.
+    This table stores current pricing for all GREST products (iPhones, MacBooks).
+    Prices are updated here when they change, and GRESTA uses this as the authoritative source.
+    """
+    __tablename__ = "grest_products"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    sku = Column(String(100), unique=True, index=True, nullable=False)
+    name = Column(String(255), nullable=False, index=True)
+    category = Column(String(100), nullable=False, index=True)
+    variant = Column(String(255), nullable=True)
+    storage = Column(String(50), nullable=True)
+    color = Column(String(100), nullable=True)
+    condition = Column(String(100), nullable=True)
+    price = Column(Numeric(10, 2), nullable=False)
+    original_price = Column(Numeric(10, 2), nullable=True)
+    discount_percent = Column(Integer, nullable=True)
+    in_stock = Column(Boolean, default=True, index=True)
+    warranty_months = Column(Integer, default=12)
+    product_url = Column(String(500), nullable=True)
+    image_url = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
+    specifications = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 def init_database():
@@ -284,3 +314,213 @@ def upsert_conversation_summary(user_id: int, emotional_themes: str = None,
         
         db.commit()
         return True
+
+
+def get_all_products(category: str = None, in_stock_only: bool = True):
+    """
+    Get all GREST products, optionally filtered by category.
+    Returns list of product dictionaries.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        query = db.query(GRESTProduct)
+        
+        if category:
+            query = query.filter(GRESTProduct.category.ilike(f"%{category}%"))
+        
+        if in_stock_only:
+            query = query.filter(GRESTProduct.in_stock == True)
+        
+        products = query.order_by(GRESTProduct.category, GRESTProduct.name).all()
+        
+        return [
+            {
+                'id': p.id,
+                'sku': p.sku,
+                'name': p.name,
+                'category': p.category,
+                'variant': p.variant,
+                'storage': p.storage,
+                'color': p.color,
+                'condition': p.condition,
+                'price': float(p.price) if p.price else None,
+                'original_price': float(p.original_price) if p.original_price else None,
+                'discount_percent': p.discount_percent,
+                'in_stock': p.in_stock,
+                'warranty_months': p.warranty_months,
+                'product_url': p.product_url,
+                'image_url': p.image_url,
+                'description': p.description,
+                'specifications': p.specifications
+            }
+            for p in products
+        ]
+
+
+def get_product_by_name(name: str):
+    """
+    Search for products by name (case-insensitive partial match).
+    Returns list of matching products.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        products = db.query(GRESTProduct).filter(
+            GRESTProduct.name.ilike(f"%{name}%")
+        ).all()
+        
+        return [
+            {
+                'id': p.id,
+                'sku': p.sku,
+                'name': p.name,
+                'category': p.category,
+                'variant': p.variant,
+                'storage': p.storage,
+                'color': p.color,
+                'condition': p.condition,
+                'price': float(p.price) if p.price else None,
+                'original_price': float(p.original_price) if p.original_price else None,
+                'discount_percent': p.discount_percent,
+                'in_stock': p.in_stock,
+                'warranty_months': p.warranty_months,
+                'product_url': p.product_url
+            }
+            for p in products
+        ]
+
+
+def get_product_by_sku(sku: str):
+    """Get a single product by its SKU."""
+    with get_db_session() as db:
+        if db is None:
+            return None
+        
+        product = db.query(GRESTProduct).filter(
+            GRESTProduct.sku == sku
+        ).first()
+        
+        if product:
+            return {
+                'id': product.id,
+                'sku': product.sku,
+                'name': product.name,
+                'category': product.category,
+                'variant': product.variant,
+                'storage': product.storage,
+                'color': product.color,
+                'condition': product.condition,
+                'price': float(product.price) if product.price else None,
+                'original_price': float(product.original_price) if product.original_price else None,
+                'discount_percent': product.discount_percent,
+                'in_stock': product.in_stock,
+                'warranty_months': product.warranty_months,
+                'product_url': product.product_url,
+                'image_url': product.image_url,
+                'description': product.description,
+                'specifications': product.specifications
+            }
+        return None
+
+
+def upsert_product(sku: str, name: str, category: str, price: float, **kwargs):
+    """
+    Create or update a GREST product.
+    Used for syncing product data from external sources.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return False
+        
+        product = db.query(GRESTProduct).filter(
+            GRESTProduct.sku == sku
+        ).first()
+        
+        if product:
+            product.name = name
+            product.category = category
+            product.price = price
+            for key, value in kwargs.items():
+                if hasattr(product, key):
+                    setattr(product, key, value)
+            product.updated_at = datetime.utcnow()
+        else:
+            product = GRESTProduct(
+                sku=sku,
+                name=name,
+                category=category,
+                price=price,
+                **kwargs
+            )
+            db.add(product)
+        
+        db.commit()
+        return True
+
+
+def search_products_for_chatbot(query: str):
+    """
+    Search products for the chatbot to provide pricing info.
+    Returns formatted product info suitable for LLM context.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        search_terms = query.lower().split()
+        
+        products = db.query(GRESTProduct).filter(
+            GRESTProduct.in_stock == True
+        ).all()
+        
+        matching_products = []
+        for p in products:
+            product_text = f"{p.name} {p.category} {p.variant or ''} {p.storage or ''} {p.color or ''}".lower()
+            
+            if any(term in product_text for term in search_terms):
+                matching_products.append({
+                    'name': p.name,
+                    'category': p.category,
+                    'storage': p.storage,
+                    'color': p.color,
+                    'condition': p.condition,
+                    'price': float(p.price) if p.price else None,
+                    'original_price': float(p.original_price) if p.original_price else None,
+                    'discount_percent': p.discount_percent,
+                    'warranty_months': p.warranty_months,
+                    'product_url': p.product_url,
+                    'in_stock': p.in_stock
+                })
+        
+        return matching_products[:10]
+
+
+def get_price_range_by_category(category: str):
+    """
+    Get price range for a product category (e.g., 'iPhone 14', 'MacBook').
+    Returns min and max prices.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return None
+        
+        from sqlalchemy import func
+        
+        result = db.query(
+            func.min(GRESTProduct.price),
+            func.max(GRESTProduct.price)
+        ).filter(
+            GRESTProduct.category.ilike(f"%{category}%"),
+            GRESTProduct.in_stock == True
+        ).first()
+        
+        if result and result[0] is not None:
+            return {
+                'category': category,
+                'min_price': float(result[0]),
+                'max_price': float(result[1])
+            }
+        return None
