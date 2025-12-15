@@ -1,4 +1,4 @@
-package com.joveheal.jovee;
+package in.grest.gresta;
 
 import com.getcapacitor.BridgeActivity;
 
