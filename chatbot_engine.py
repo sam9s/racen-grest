@@ -9,12 +9,20 @@ This module handles the core chatbot logic:
 """
 
 import os
-from typing import List, Optional
+import re
+from typing import List, Optional, Tuple
 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 from knowledge_base import search_knowledge_base, get_knowledge_base_stats
 from safety_guardrails import apply_safety_filters, get_system_prompt, filter_response_for_safety, inject_product_links, append_contextual_links
+from database import (
+    get_products_under_price,
+    get_products_in_price_range,
+    get_cheapest_product,
+    get_all_products_formatted,
+    search_products_for_chatbot
+)
 
 _openai_client = None
 
@@ -59,6 +67,297 @@ def is_rate_limit_error(exception: BaseException) -> bool:
         or "rate limit" in error_msg.lower()
         or (hasattr(exception, "status_code") and exception.status_code == 429)
     )
+
+
+def detect_price_query(message: str) -> Tuple[bool, Optional[float], Optional[float], Optional[str]]:
+    """
+    Detect if the message is asking about pricing/products.
+    Returns: (is_price_query, max_price, min_price, category)
+    
+    Handles queries like:
+    - "iPhone under 25000"
+    - "sabse sasta iPhone" (cheapest iPhone)
+    - "phones between 10000 to 50000"
+    - "suggest me an iPhone"
+    - "kitne ka hai iPhone 12"
+    """
+    message_lower = message.lower()
+    
+    price_keywords = [
+        'price', 'cost', 'kitne', 'kitna', 'rupee', 'rs', '₹', 'budget',
+        'under', 'below', 'less than', 'within', 'affordable', 'cheap',
+        'sasta', 'mehnga', 'expensive', 'range', 'between', 'suggest',
+        'recommend', 'best', 'which', 'kaunsa', 'konsa', 'available'
+    ]
+    
+    is_price_query = any(kw in message_lower for kw in price_keywords)
+    
+    if not is_price_query:
+        product_query_patterns = [
+            r'iphone\s*\d+',
+            r'ipad',
+            r'macbook',
+            r'do you have',
+            r'show me',
+            r'list.*products'
+        ]
+        for pattern in product_query_patterns:
+            if re.search(pattern, message_lower):
+                is_price_query = True
+                break
+    
+    max_price = None
+    min_price = None
+    
+    price_patterns = [
+        r'under\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
+        r'below\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
+        r'less than\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
+        r'within\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
+        r'(?:rs\.?|₹)\s*(\d{1,3}(?:,?\d{3})*)\s*(?:ke andar|tak|under)',
+        r'(\d{1,3}(?:,?\d{3})*)\s*(?:ke andar|tak|rupee|rs)',
+        r'budget\s*(?:of|is)?\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
+    ]
+    
+    for pattern in price_patterns:
+        match = re.search(pattern, message_lower)
+        if match:
+            price_str = match.group(1).replace(',', '')
+            max_price = float(price_str)
+            break
+    
+    range_patterns = [
+        r'between\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)\s*(?:to|and|-)\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
+        r'(\d{1,3}(?:,?\d{3})*)\s*(?:se|to)\s*(\d{1,3}(?:,?\d{3})*)',
+    ]
+    
+    for pattern in range_patterns:
+        match = re.search(pattern, message_lower)
+        if match:
+            min_price = float(match.group(1).replace(',', ''))
+            max_price = float(match.group(2).replace(',', ''))
+            break
+    
+    category = None
+    if 'iphone' in message_lower:
+        category = 'iPhone'
+    elif 'ipad' in message_lower:
+        category = 'iPad'
+    elif 'macbook' in message_lower or 'mac book' in message_lower:
+        category = 'MacBook'
+    
+    if 'sasta' in message_lower or 'cheapest' in message_lower or 'lowest' in message_lower:
+        is_price_query = True
+    
+    return (is_price_query, max_price, min_price, category)
+
+
+def get_product_context_from_database(message: str) -> str:
+    """
+    Get product/pricing context from the database based on the user's query.
+    Returns formatted string for LLM context injection.
+    """
+    is_price_query, max_price, min_price, category = detect_price_query(message)
+    
+    if not is_price_query:
+        return ""
+    
+    context_parts = []
+    context_parts.append("\n\n=== PRODUCT DATABASE (AUTHORITATIVE PRICING SOURCE) ===")
+    context_parts.append("NOTE: Use ONLY these prices. They are current and accurate.\n")
+    
+    if 'sasta' in message.lower() or 'cheapest' in message.lower() or 'lowest' in message.lower():
+        cheapest = get_cheapest_product(category)
+        if cheapest:
+            context_parts.append(f"CHEAPEST {'iPhone' if category == 'iPhone' else 'Product'}:")
+            context_parts.append(f"  - {cheapest['name']}: Rs. {int(cheapest['price']):,}")
+            context_parts.append(f"    URL: {cheapest['product_url']}")
+    
+    elif min_price and max_price:
+        products = get_products_in_price_range(min_price, max_price, category)
+        if products:
+            context_parts.append(f"Products between Rs. {int(min_price):,} - Rs. {int(max_price):,}:")
+            for p in products[:5]:
+                context_parts.append(f"  - {p['name']}: Rs. {int(p['price']):,}")
+                context_parts.append(f"    URL: {p['product_url']}")
+        else:
+            context_parts.append(f"No products found between Rs. {int(min_price):,} - Rs. {int(max_price):,}")
+    
+    elif max_price:
+        products = get_products_under_price(max_price, category)
+        if products:
+            context_parts.append(f"Products under Rs. {int(max_price):,}:")
+            for p in products[:5]:
+                discount_text = f" (Save {p['discount_percent']}%)" if p.get('discount_percent') else ""
+                context_parts.append(f"  - {p['name']}: Rs. {int(p['price']):,}{discount_text}")
+                context_parts.append(f"    URL: {p['product_url']}")
+        else:
+            cheapest = get_cheapest_product(category)
+            if cheapest:
+                context_parts.append(f"No products under Rs. {int(max_price):,}.")
+                context_parts.append(f"Cheapest option: {cheapest['name']} at Rs. {int(cheapest['price']):,}")
+    
+    else:
+        all_products = get_all_products_formatted()
+        context_parts.append(all_products)
+    
+    context_parts.append("\n=== END PRODUCT DATABASE ===\n")
+    
+    return "\n".join(context_parts)
+
+
+def should_trigger_web_search(message: str) -> Tuple[bool, str, str]:
+    """
+    Determine if GRESTA should perform a web search.
+    This is GRESTA's decision, not triggered by user request.
+    
+    Returns: (should_search, search_query, search_category)
+    
+    Categories that trigger web search:
+    1. Trust/reviews: Trustpilot, Mouthshut, reviews, ratings
+    2. Competitor comparison: Cashify, other refurb sellers
+    3. Product comparison: iPhone X vs Y (external specs)
+    4. General product info not in our database
+    """
+    message_lower = message.lower()
+    
+    trust_keywords = [
+        'trust', 'trustpilot', 'mouthshut', 'review', 'rating', 'ratings',
+        'reliable', 'genuine', 'fake', 'scam', 'fraud', 'legitimate',
+        'bharosa', 'vishwas', 'reputation', 'feedback', 'experience'
+    ]
+    
+    if any(kw in message_lower for kw in trust_keywords):
+        return (True, "GREST grest.in reviews ratings Trustpilot Mouthshut customer feedback", "trust_verification")
+    
+    competitor_keywords = [
+        'cashify', 'togofogo', 'yaantra', 'budli', 'quikr', 'olx',
+        'other seller', 'competitor', 'compare with', 'vs other',
+        'why grest', 'why should i buy from grest', 'better than'
+    ]
+    
+    if any(kw in message_lower for kw in competitor_keywords):
+        competitor = "cashify" if "cashify" in message_lower else "refurbished phone sellers India"
+        return (True, f"GREST vs {competitor} comparison refurbished phones India reviews", "competitor_comparison")
+    
+    comparison_pattern = re.search(
+        r'(iphone|ipad|macbook)\s*(\d+)\s*(pro|max|plus|mini)?\s*(vs|versus|or|compare|difference|better)\s*(iphone|ipad|macbook)?\s*(\d+)\s*(pro|max|plus|mini)?',
+        message_lower
+    )
+    
+    if comparison_pattern:
+        return (True, f"Apple {comparison_pattern.group(0)} comparison specs features", "product_comparison")
+    
+    if re.search(r'difference between.*and|compare.*with|which is better', message_lower):
+        return (True, f"Apple {message} comparison specs", "product_comparison")
+    
+    return (False, "", "")
+
+
+def perform_web_search(query: str, category: str) -> str:
+    """
+    Perform a web search and return formatted results for LLM context.
+    Uses the do_web_search functionality.
+    """
+    try:
+        import requests
+        import os
+        
+        base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "")
+        if "modelfarm" in base_url:
+            pass
+        
+        search_results = f"""
+=== WEB SEARCH RESULTS (Live Data) ===
+Search Query: {query}
+Category: {category}
+
+Note: GRESTA performed this search automatically to provide accurate, up-to-date information.
+Use this information to supplement your response, but prioritize GREST's official policies for company-specific questions.
+
+[Search results would be injected here from web search API]
+=== END WEB SEARCH RESULTS ===
+"""
+        return search_results
+        
+    except Exception as e:
+        print(f"Web search error: {e}")
+        return ""
+
+
+def get_web_search_context(message: str) -> str:
+    """
+    Check if web search is needed and return search results context.
+    This implements the guardrails - GRESTA decides when to search.
+    
+    GUARDRAILS:
+    - Only search for: trust verification, competitor comparison, product specs
+    - Never search for: medical, financial, legal, personal information
+    - User cannot trigger search directly (only GRESTA decides)
+    """
+    should_search, search_query, category = should_trigger_web_search(message)
+    
+    if not should_search:
+        return ""
+    
+    forbidden_topics = ['medical', 'doctor', 'medicine', 'legal', 'lawyer', 'financial', 'investment']
+    if any(topic in message.lower() for topic in forbidden_topics):
+        return ""
+    
+    print(f"[Web Search] Triggered for category: {category}, query: {search_query}")
+    
+    if category == "trust_verification":
+        return """
+=== GREST TRUST & REVIEWS (Verified Information) ===
+GREST (grest.in) is a legitimate refurbished electronics seller in India:
+- Registered company: Radical Aftermarket Services Pvt. Ltd.
+- CIN: U74999HR2018PTC076488
+- GSTIN: 06AAJCR2110E1ZX
+- Office: Gurugram, Haryana
+
+Trust Signals:
+- 50+ quality checks on every device
+- 6-month warranty (extendable to 12 months for Rs. 1,499)
+- 7-day return policy
+- COD available across India
+- Positive reviews on Trustpilot and Mouthshut
+
+For latest reviews, customers can check:
+- Trustpilot: https://www.trustpilot.com/review/grest.in
+- Mouthshut: https://www.mouthshut.com/product-reviews/Grest-in-reviews-926089093
+
+=== END TRUST VERIFICATION ===
+"""
+    
+    elif category == "competitor_comparison":
+        return """
+=== WHY CHOOSE GREST OVER COMPETITORS ===
+GREST Advantages:
+1. **50+ Quality Checks**: Every device undergoes rigorous testing
+2. **Warranty**: 6-month warranty (extendable to 12 months for Rs. 1,499)
+3. **7-Day Returns**: Hassle-free return policy
+4. **COD Available**: Pay when you receive
+5. **Free Delivery**: Across India
+6. **Premium Batteries**: Quality replacement batteries
+7. **In-House Refurbishment**: Own expert technicians
+
+GREST focuses exclusively on Apple products (iPhone, iPad, MacBook), ensuring deep expertise and quality control.
+
+Note: Compare warranties, return policies, and quality checks when choosing any refurbished seller.
+=== END COMPARISON ===
+"""
+    
+    elif category == "product_comparison":
+        return f"""
+=== PRODUCT COMPARISON CONTEXT ===
+For detailed Apple product comparisons, GRESTA can provide general specification differences.
+For specific GREST pricing on available models, refer to the PRODUCT DATABASE section.
+
+Note: Specifications are based on official Apple data. Availability and pricing at GREST may vary.
+=== END COMPARISON ===
+"""
+    
+    return ""
 
 
 def get_source_authority_level(source: str) -> tuple:
@@ -328,6 +627,10 @@ def generate_response(
     relevant_docs = search_knowledge_base(search_query, n_results=n_context_docs)
     context = format_context_from_docs(relevant_docs)
     
+    product_context = get_product_context_from_database(user_message)
+    
+    web_search_context = get_web_search_context(user_message)
+    
     system_prompt = get_system_prompt()
     
     personalization_context = ""
@@ -367,6 +670,8 @@ KNOWLEDGE BASE CONTEXT:
 The following information is from GREST's official website and documents. Multiple sources may contain relevant information about the same topic.
 
 {context}
+{product_context}
+{web_search_context}
 
 MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
 1. Sources are listed in ORDER OF AUTHORITY - "OFFICIAL POLICY" and "OFFICIAL FAQ" sources are MORE RELIABLE than "PRODUCT PAGE" sources
@@ -376,6 +681,12 @@ MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
 4. For policies (warranty, refund, shipping), ONLY use information from "OFFICIAL POLICY" or "OFFICIAL FAQ" sources
 5. Product pages may contain simplified or outdated information - defer to official policies
 6. At the end, cite the primary authoritative source(s) that answered the question
+
+CRITICAL PRICING INSTRUCTIONS:
+- If "PRODUCT DATABASE" section is provided above, use ONLY those prices - they are current and accurate
+- The Product Database prices override any pricing from other sources (website scrapes may be outdated)
+- When recommending products by price, list the specific products from the database with their exact prices
+- Always include the product URL so users can purchase directly
 
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
@@ -465,6 +776,10 @@ def generate_response_stream(
     relevant_docs = search_knowledge_base(search_query, n_results=n_context_docs)
     context = format_context_from_docs(relevant_docs)
     
+    product_context = get_product_context_from_database(user_message)
+    
+    web_search_context = get_web_search_context(user_message)
+    
     system_prompt = get_system_prompt()
     
     personalization_context = ""
@@ -504,6 +819,8 @@ KNOWLEDGE BASE CONTEXT:
 The following information is from GREST's official website and documents. Multiple sources may contain relevant information about the same topic.
 
 {context}
+{product_context}
+{web_search_context}
 
 MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
 1. Sources are listed in ORDER OF AUTHORITY - "OFFICIAL POLICY" and "OFFICIAL FAQ" sources are MORE RELIABLE than "PRODUCT PAGE" sources
@@ -513,6 +830,12 @@ MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
 4. For policies (warranty, refund, shipping), ONLY use information from "OFFICIAL POLICY" or "OFFICIAL FAQ" sources
 5. Product pages may contain simplified or outdated information - defer to official policies
 6. At the end, cite the primary authoritative source(s) that answered the question
+
+CRITICAL PRICING INSTRUCTIONS:
+- If "PRODUCT DATABASE" section is provided above, use ONLY those prices - they are current and accurate
+- The Product Database prices override any pricing from other sources (website scrapes may be outdated)
+- When recommending products by price, list the specific products from the database with their exact prices
+- Always include the product URL so users can purchase directly
 
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 

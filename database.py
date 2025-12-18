@@ -524,3 +524,127 @@ def get_price_range_by_category(category: str):
                 'max_price': float(result[1])
             }
         return None
+
+
+def get_products_under_price(max_price: float, category: str = None):
+    """
+    Get all products under a certain price.
+    Optionally filter by category (iPhone, iPad, MacBook).
+    Returns list sorted by price ascending.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        query = db.query(GRESTProduct).filter(
+            GRESTProduct.price <= max_price,
+            GRESTProduct.in_stock == True
+        )
+        
+        if category:
+            query = query.filter(GRESTProduct.category.ilike(f"%{category}%"))
+        
+        products = query.order_by(GRESTProduct.price.asc()).all()
+        
+        return [
+            {
+                'name': p.name,
+                'price': float(p.price),
+                'original_price': float(p.original_price) if p.original_price else None,
+                'discount_percent': p.discount_percent,
+                'category': p.category,
+                'product_url': p.product_url,
+                'specifications': p.specifications
+            }
+            for p in products
+        ]
+
+
+def get_products_in_price_range(min_price: float, max_price: float, category: str = None):
+    """
+    Get products within a price range.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        query = db.query(GRESTProduct).filter(
+            GRESTProduct.price >= min_price,
+            GRESTProduct.price <= max_price,
+            GRESTProduct.in_stock == True
+        )
+        
+        if category:
+            query = query.filter(GRESTProduct.category.ilike(f"%{category}%"))
+        
+        products = query.order_by(GRESTProduct.price.asc()).all()
+        
+        return [
+            {
+                'name': p.name,
+                'price': float(p.price),
+                'original_price': float(p.original_price) if p.original_price else None,
+                'discount_percent': p.discount_percent,
+                'category': p.category,
+                'product_url': p.product_url
+            }
+            for p in products
+        ]
+
+
+def get_cheapest_product(category: str = None):
+    """
+    Get the cheapest product, optionally filtered by category.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return None
+        
+        query = db.query(GRESTProduct).filter(GRESTProduct.in_stock == True)
+        
+        if category:
+            query = query.filter(GRESTProduct.category.ilike(f"%{category}%"))
+        
+        product = query.order_by(GRESTProduct.price.asc()).first()
+        
+        if product:
+            return {
+                'name': product.name,
+                'price': float(product.price),
+                'original_price': float(product.original_price) if product.original_price else None,
+                'discount_percent': product.discount_percent,
+                'category': product.category,
+                'product_url': product.product_url,
+                'specifications': product.specifications
+            }
+        return None
+
+
+def get_all_products_formatted():
+    """
+    Get all products formatted for chatbot context.
+    Returns a string suitable for LLM context injection.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return "Product database not available."
+        
+        products = db.query(GRESTProduct).filter(
+            GRESTProduct.in_stock == True
+        ).order_by(GRESTProduct.price.asc()).all()
+        
+        if not products:
+            return "No products available."
+        
+        lines = ["GREST PRODUCT CATALOG (Current Prices):"]
+        lines.append("=" * 50)
+        
+        for p in products:
+            discount_text = f" (Save {p.discount_percent}%)" if p.discount_percent else ""
+            lines.append(f"- {p.name}: Rs. {int(p.price):,}{discount_text}")
+            lines.append(f"  URL: {p.product_url}")
+        
+        lines.append("=" * 50)
+        lines.append(f"Total: {len(products)} products | Prices start from Rs. {int(products[0].price):,}")
+        
+        return "\n".join(lines)
