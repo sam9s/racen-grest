@@ -251,37 +251,90 @@ def should_trigger_web_search(message: str) -> Tuple[bool, str, str]:
     if re.search(r'difference between.*and|compare.*with|which is better', message_lower):
         return (True, f"Apple {message} comparison specs", "product_comparison")
     
+    specs_pattern = re.search(
+        r'(iphone|ipad|macbook)\s*(\d+)\s*(pro|max|plus|mini)?\s*(specs?|specifications?|features?|camera|display|screen|battery|processor|chip|storage)',
+        message_lower
+    )
+    if specs_pattern:
+        return (True, f"Apple {specs_pattern.group(0)} specifications features", "product_specs")
+    
+    if re.search(r'(tell me about|what are the|how good is)\s*(the\s+)?(camera|display|battery|performance)', message_lower):
+        product_match = re.search(r'(iphone|ipad|macbook)\s*(\d+)\s*(pro|max|plus|mini)?', message_lower)
+        if product_match:
+            return (True, f"Apple {product_match.group(0)} specifications features", "product_specs")
+    
     return (False, "", "")
 
 
 def perform_web_search(query: str, category: str) -> str:
     """
-    Perform a web search and return formatted results for LLM context.
-    Uses the do_web_search functionality.
+    Perform a real web search using DuckDuckGo API and return formatted results.
+    DuckDuckGo API is free and doesn't require an API key.
     """
     try:
         import requests
-        import os
         
-        base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "")
-        if "modelfarm" in base_url:
-            pass
+        ddg_url = "https://api.duckduckgo.com/"
+        params = {
+            "q": query,
+            "format": "json",
+            "no_html": 1,
+            "skip_disambig": 1
+        }
+        
+        response = requests.get(ddg_url, params=params, timeout=10)
+        
+        if response.status_code not in [200, 202]:
+            print(f"[Web Search] DuckDuckGo API returned status {response.status_code}")
+            return ""
+        
+        data = response.json()
+        
+        results = []
+        
+        if data.get("Abstract"):
+            results.append(f"**Summary**: {data['Abstract']}")
+            if data.get("AbstractSource"):
+                results.append(f"Source: {data['AbstractSource']}")
+        
+        if data.get("Answer"):
+            results.append(f"**Direct Answer**: {data['Answer']}")
+        
+        related_topics = data.get("RelatedTopics", [])
+        if related_topics:
+            results.append("\n**Related Information**:")
+            for i, topic in enumerate(related_topics[:5]):
+                if isinstance(topic, dict) and topic.get("Text"):
+                    results.append(f"- {topic['Text'][:200]}")
+        
+        if data.get("Infobox") and data["Infobox"].get("content"):
+            results.append("\n**Quick Facts**:")
+            for item in data["Infobox"]["content"][:5]:
+                if item.get("label") and item.get("value"):
+                    results.append(f"- {item['label']}: {item['value']}")
+        
+        if not results:
+            print(f"[Web Search] No results from DuckDuckGo for: {query}")
+            return ""
         
         search_results = f"""
 === WEB SEARCH RESULTS (Live Data) ===
 Search Query: {query}
 Category: {category}
 
-Note: GRESTA performed this search automatically to provide accurate, up-to-date information.
-Use this information to supplement your response, but prioritize GREST's official policies for company-specific questions.
+{chr(10).join(results)}
 
-[Search results would be injected here from web search API]
+Note: GRESTA performed this search automatically. Prioritize GREST's official policies for company-specific questions.
 === END WEB SEARCH RESULTS ===
 """
+        print(f"[Web Search] Successfully retrieved results for: {query}")
         return search_results
         
+    except requests.exceptions.Timeout:
+        print(f"[Web Search] Timeout for query: {query}")
+        return ""
     except Exception as e:
-        print(f"Web search error: {e}")
+        print(f"[Web Search] Error: {e}")
         return ""
 
 
@@ -348,6 +401,9 @@ Note: Compare warranties, return policies, and quality checks when choosing any 
 """
     
     elif category == "product_comparison":
+        live_search = perform_web_search(search_query, category)
+        if live_search:
+            return live_search
         return f"""
 === PRODUCT COMPARISON CONTEXT ===
 For detailed Apple product comparisons, GRESTA can provide general specification differences.
@@ -356,6 +412,12 @@ For specific GREST pricing on available models, refer to the PRODUCT DATABASE se
 Note: Specifications are based on official Apple data. Availability and pricing at GREST may vary.
 === END COMPARISON ===
 """
+    
+    elif category == "product_specs":
+        live_search = perform_web_search(search_query, category)
+        if live_search:
+            return live_search
+        return ""
     
     return ""
 
