@@ -70,3 +70,23 @@ The architecture separates concerns into a Next.js frontend (port 5000), a Flask
 - **WhatsApp Integration**: Twilio SDK
 - **Instagram Integration**: Meta Graph API
 - **Data Analysis**: Pandas (for analytics dashboard)
+- **Web Search**: DuckDuckGo API (free, no key required)
+
+## Disaster Recovery
+
+See `DISASTER_RECOVERY.md` for full instructions. Quick reference:
+
+### Recovery Scripts
+- `init_database.py` - Creates all PostgreSQL tables
+- `scrape_grest_products.py` - Populates product database from Shopify
+- `backup.sh` - Pushes code to GitHub
+
+### What's Backed Up in Git
+- All source code (Python, TypeScript, configs)
+- Knowledge base documents (grest_*.txt)
+- Dependency manifests (package.json, pyproject.toml)
+
+### What Needs Recreation
+- ChromaDB embeddings (auto-rebuilds on startup)
+- PostgreSQL data (run init + scrape scripts)
+- Environment secrets (must set manually)
