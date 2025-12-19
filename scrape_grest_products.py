@@ -196,13 +196,11 @@ def parse_variant_options_single(variant):
 
 
 def populate_database():
-    """Fetch all products from Shopify Admin API and populate database.
-    AGGREGATES by (model, storage, condition) - keeps LOWEST price only.
-    """
+    """Fetch all products from Shopify Admin API and populate database with per-variant rows."""
     init_database()
     
     print("=" * 60)
-    print("GREST Product Sync - Shopify Admin API (Aggregated)")
+    print("GREST Product Sync - Shopify Admin API (Per-Variant)")
     print("=" * 60)
     print(f"Store: {SHOPIFY_STORE_URL}")
     print()
@@ -264,71 +262,51 @@ def populate_database():
             'price_range': f"Rs. {int(min_price):,} - Rs. {int(max_price):,}" if max_price and min_price and max_price != min_price else f"Rs. {int(min_price):,}" if min_price else ""
         })
         
-        aggregated = {}
-        
-        for variant in variants:
-            variant_price = None
-            try:
-                variant_price = float(variant.get('price', 0))
-            except:
-                pass
-            
-            if not variant_price or variant_price <= 0:
-                continue
-            
-            compare_price = None
-            try:
-                cp = variant.get('compare_at_price')
-                if cp:
-                    compare_price = float(cp)
-            except:
-                pass
-            
-            storage, color, condition = parse_variant_options_single(variant)
-            
-            inventory_qty = variant.get('inventory_quantity', 0)
-            inventory_policy = variant.get('inventory_policy', '')
-            variant_in_stock = inventory_qty > 0 or inventory_policy == 'continue'
-            
-            key = (storage or 'default', condition or 'default')
-            
-            if key not in aggregated:
-                aggregated[key] = {
-                    'price': variant_price,
-                    'compare_price': compare_price,
-                    'in_stock': variant_in_stock,
-                    'storage': storage,
-                    'condition': condition
-                }
-            else:
-                if variant_price < aggregated[key]['price']:
-                    aggregated[key]['price'] = variant_price
-                    aggregated[key]['compare_price'] = compare_price
-                if variant_in_stock:
-                    aggregated[key]['in_stock'] = True
-        
         with get_db_session() as db:
             if db is None:
                 print("Database not available!")
                 return
             
-            for key, data in aggregated.items():
-                storage = data['storage']
-                condition = data['condition']
-                variant_price = data['price']
-                compare_price = data['compare_price']
-                in_stock = data['in_stock']
+            for variant in variants:
+                variant_id = variant.get('id')
+                variant_price = None
+                try:
+                    variant_price = float(variant.get('price', 0))
+                except:
+                    pass
+                
+                if not variant_price or variant_price <= 0:
+                    continue
+                
+                compare_price = None
+                try:
+                    cp = variant.get('compare_at_price')
+                    if cp:
+                        compare_price = float(cp)
+                except:
+                    pass
                 
                 discount = None
                 if compare_price and variant_price and compare_price > variant_price:
                     discount = int(((compare_price - variant_price) / compare_price) * 100)
                 
-                sku = f"GREST_{title.replace(' ', '_')}_{storage or 'default'}_{condition or 'default'}"
-                product_url = base_product_url
+                storage, color, condition = parse_variant_options_single(variant)
+                
+                inventory_qty = variant.get('inventory_quantity', 0)
+                inventory_policy = variant.get('inventory_policy', '')
+                in_stock = inventory_qty > 0 or inventory_policy == 'continue'
+                
+                sku = f"SHOPIFY_{product_id}_{variant_id}"
+                product_url = f"{base_product_url}?variant={variant_id}"
+                
+                variant_title_parts = [title]
+                if storage:
+                    variant_title_parts.append(storage)
+                if condition:
+                    variant_title_parts.append(condition)
+                variant_name = ' - '.join(variant_title_parts) if len(variant_title_parts) > 1 else title
                 
                 existing = db.query(GRESTProduct).filter(GRESTProduct.sku == sku).first()
-                
-                variant_name = f"{title} - {storage or ''} {condition or ''}".strip()
                 
                 if existing:
                     existing.name = title
@@ -337,7 +315,7 @@ def populate_database():
                     existing.discount_percent = discount
                     existing.category = category
                     existing.storage = storage
-                    existing.color = None
+                    existing.color = color
                     existing.condition = condition
                     existing.variant = variant_name
                     existing.specifications = specs_json
@@ -352,7 +330,7 @@ def populate_database():
                         category=category,
                         variant=variant_name,
                         storage=storage,
-                        color=None,
+                        color=color,
                         condition=condition,
                         price=variant_price,
                         original_price=compare_price,
@@ -366,11 +344,11 @@ def populate_database():
                     db.add(new_variant)
                     variants_added += 1
         
-        print(f"  Processed: {title[:40]} ({len(aggregated)} aggregated variants)")
+        print(f"  Processed: {title[:40]} ({len(variants)} variants)")
     
     print()
     print("=" * 60)
-    print("SYNC COMPLETE (Aggregated by Model/Storage/Condition)")
+    print("SYNC COMPLETE (Per-Variant)")
     print("=" * 60)
     print(f"Variants Added: {variants_added}")
     print(f"Variants Updated: {variants_updated}")
