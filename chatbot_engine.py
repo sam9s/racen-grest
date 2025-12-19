@@ -437,6 +437,31 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) ->
             if cheapest:
                 context_parts.append(f"\n  Cheapest available: {cheapest['name']} at Rs. {int(cheapest['price']):,}")
     
+    elif query_type == 'general' and (model or condition):
+        if model:
+            product = search_product_by_specs(model, storage, condition)
+            if product:
+                context_parts.append(f"PRODUCT MATCH:")
+                context_parts.append(f"  Model: {product['name']}")
+                context_parts.append(f"  Storage: {product.get('storage', 'N/A')}")
+                context_parts.append(f"  Condition: {product.get('condition', 'N/A')}")
+                context_parts.append(f"  PRICE: Rs. {int(product['price']):,} (USE THIS EXACT PRICE)")
+                context_parts.append(f"  URL: {product['product_url']}")
+                if condition:
+                    context_parts.append(f"\n  NOTE: User asked for {condition} condition - show this condition in response.")
+            else:
+                context_parts.append(f"Product not found: {model}")
+                if condition:
+                    context_parts.append(f"  Requested condition: {condition}")
+        elif condition:
+            products = get_products_under_price(500000, None)
+            products = [p for p in products if p.get('condition', '').lower() == condition.lower()]
+            if products:
+                context_parts.append(f"PRODUCTS IN {condition.upper()} CONDITION:")
+                for p in products[:5]:
+                    context_parts.append(f"  - {p['name']} ({p.get('storage', 'N/A')}): Rs. {int(p['price']):,}")
+                    context_parts.append(f"    URL: {p['product_url']}")
+    
     else:
         return get_product_context_from_database(message)
     
@@ -1074,7 +1099,17 @@ def generate_response(
     
     parsed_intent = parse_query_with_llm(user_message)
     
-    if parsed_intent and parsed_intent.get('is_price_query'):
+    should_use_hybrid = (
+        parsed_intent and (
+            parsed_intent.get('is_price_query') or
+            parsed_intent.get('condition') or
+            parsed_intent.get('budget_max') or
+            parsed_intent.get('budget_min') or
+            parsed_intent.get('is_cheapest_query')
+        )
+    )
+    
+    if should_use_hybrid:
         product_context = get_product_context_with_parsed_intent(user_message, parsed_intent)
     else:
         product_context = get_product_context_from_database(user_message)
@@ -1228,7 +1263,17 @@ def generate_response_stream(
     
     parsed_intent = parse_query_with_llm(user_message)
     
-    if parsed_intent and parsed_intent.get('is_price_query'):
+    should_use_hybrid = (
+        parsed_intent and (
+            parsed_intent.get('is_price_query') or
+            parsed_intent.get('condition') or
+            parsed_intent.get('budget_max') or
+            parsed_intent.get('budget_min') or
+            parsed_intent.get('is_cheapest_query')
+        )
+    )
+    
+    if should_use_hybrid:
         product_context = get_product_context_with_parsed_intent(user_message, parsed_intent)
     else:
         product_context = get_product_context_from_database(user_message)

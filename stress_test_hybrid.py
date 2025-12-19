@@ -203,16 +203,30 @@ def extract_prices(text):
 
 
 def extract_conditions(text):
-    """Extract condition mentions from response."""
+    """Extract condition mentions from response, including Hinglish synonyms."""
     conditions = []
     text_lower = text.lower()
-    if 'superb' in text_lower:
-        conditions.append('Superb')
-    if 'good' in text_lower and 'good condition' in text_lower:
-        conditions.append('Good')
-    if 'fair' in text_lower:
-        conditions.append('Fair')
-    return conditions
+    
+    superb_indicators = ['superb', 'ekdum', 'mast', 'premium', 'zabardast', 'shandar', 'first class', 'a1']
+    good_indicators = ['good', 'acchi', 'accha', 'badhiya', 'decent', 'normal']
+    fair_indicators = ['fair', 'theek', 'basic', 'sasti', 'budget', 'chalega', 'kam price']
+    
+    for indicator in superb_indicators:
+        if indicator in text_lower:
+            conditions.append('Superb')
+            break
+    
+    for indicator in good_indicators:
+        if indicator in text_lower:
+            conditions.append('Good')
+            break
+    
+    for indicator in fair_indicators:
+        if indicator in text_lower:
+            conditions.append('Fair')
+            break
+    
+    return list(set(conditions))
 
 
 def run_test(test):
