@@ -603,119 +603,139 @@ def should_trigger_web_search(message: str) -> Tuple[bool, str, str]:
     
     Categories that trigger web search:
     1. Trust/reviews: Trustpilot, Mouthshut, reviews, ratings
-    2. Competitor comparison: Cashify, other refurb sellers
-    3. Product comparison: iPhone X vs Y (external specs)
-    4. General product info not in our database
+    2. Competitor comparison: Cashify, other refurb sellers, why GREST
+    3. Product comparison with NON-GREST products: iPhone vs Realme, Samsung, OnePlus, etc.
+    4. Specifications of non-Apple products
     """
     message_lower = message.lower()
+    
+    non_apple_brands = [
+        'realme', 'samsung', 'oneplus', 'one plus', 'xiaomi', 'redmi', 'poco',
+        'vivo', 'oppo', 'motorola', 'moto', 'nokia', 'google pixel', 'pixel',
+        'nothing', 'iqoo', 'tecno', 'infinix', 'asus', 'rog', 'huawei', 'honor',
+        'mi ', 'note ', 'galaxy', 'a52', 'a53', 'a54', 's21', 's22', 's23', 's24'
+    ]
+    
+    has_non_apple = any(brand in message_lower for brand in non_apple_brands)
+    
+    if has_non_apple:
+        if re.search(r'(vs|versus|compare|comparison|difference|better|or)\b', message_lower):
+            return (True, f"{message} comparison specifications features India", "external_product_comparison")
+        
+        if re.search(r'(spec|specification|feature|camera|display|battery|price)', message_lower):
+            return (True, f"{message} specifications features India 2024", "external_product_specs")
     
     trust_keywords = [
         'trust', 'trustpilot', 'mouthshut', 'review', 'rating', 'ratings',
         'reliable', 'genuine', 'fake', 'scam', 'fraud', 'legitimate',
-        'bharosa', 'vishwas', 'reputation', 'feedback', 'experience'
+        'bharosa', 'vishwas', 'reputation', 'feedback', 'experience',
+        'safe to buy', 'is grest good', 'grest review'
     ]
     
     if any(kw in message_lower for kw in trust_keywords):
-        return (True, "GREST grest.in reviews ratings Trustpilot Mouthshut customer feedback", "trust_verification")
+        return (True, "GREST grest.in reviews ratings customer feedback India 2024", "trust_verification")
     
     competitor_keywords = [
         'cashify', 'togofogo', 'yaantra', 'budli', 'quikr', 'olx',
-        'other seller', 'competitor', 'compare with', 'vs other',
-        'why grest', 'why should i buy from grest', 'better than'
+        'other seller', 'competitor', 'vs other', 'dusra seller',
+        'why grest', 'why should i buy from grest', 'better than',
+        'kyon grest', 'grest kyun', 'grest se kyun', 'why not'
     ]
     
     if any(kw in message_lower for kw in competitor_keywords):
-        competitor = "cashify" if "cashify" in message_lower else "refurbished phone sellers India"
-        return (True, f"GREST vs {competitor} comparison refurbished phones India reviews", "competitor_comparison")
+        competitor = "cashify" if "cashify" in message_lower else "refurbished phone sellers"
+        return (True, f"GREST vs {competitor} comparison refurbished phones India reviews 2024", "competitor_comparison")
     
-    comparison_pattern = re.search(
-        r'(iphone|ipad|macbook)\s*(\d+)\s*(pro|max|plus|mini)?\s*(vs|versus|or|compare|difference|better)\s*(iphone|ipad|macbook)?\s*(\d+)\s*(pro|max|plus|mini)?',
-        message_lower
-    )
-    
-    if comparison_pattern:
-        return (True, f"Apple {comparison_pattern.group(0)} comparison specs features", "product_comparison")
+    if re.search(r'(iphone|ipad|macbook).*(vs|versus|compare|difference|better).*(iphone|ipad|macbook)', message_lower):
+        return (True, f"{message} comparison specifications features", "apple_product_comparison")
     
     if re.search(r'difference between.*and|compare.*with|which is better', message_lower):
-        return (True, f"Apple {message} comparison specs", "product_comparison")
+        return (True, f"{message} comparison specifications", "product_comparison")
     
-    specs_pattern = re.search(
-        r'(iphone|ipad|macbook)\s*(\d+)\s*(pro|max|plus|mini)?\s*(specs?|specifications?|features?|camera|display|screen|battery|processor|chip|storage)',
+    non_grest_specs = re.search(
+        r'(specs?|specifications?|features?)\s*(of|for)?\s*(realme|samsung|oneplus|xiaomi|redmi|poco|vivo|oppo|motorola|nokia|pixel)',
         message_lower
     )
-    if specs_pattern:
-        return (True, f"Apple {specs_pattern.group(0)} specifications features", "product_specs")
-    
-    if re.search(r'(tell me about|what are the|how good is)\s*(the\s+)?(camera|display|battery|performance)', message_lower):
-        product_match = re.search(r'(iphone|ipad|macbook)\s*(\d+)\s*(pro|max|plus|mini)?', message_lower)
-        if product_match:
-            return (True, f"Apple {product_match.group(0)} specifications features", "product_specs")
+    if non_grest_specs:
+        return (True, f"{message} specifications features India 2024", "external_product_specs")
     
     return (False, "", "")
 
 
 def perform_web_search(query: str, category: str) -> str:
     """
-    Perform a real web search using DuckDuckGo API and return formatted results.
-    DuckDuckGo API is free and doesn't require an API key.
+    Perform a real web search using Serper.dev API.
+    Returns formatted search results for LLM context.
+    
+    Use Cases:
+    1. Product comparison with non-GREST products (iPhone vs Realme, Samsung, etc.)
+    2. Specifications of products not in GREST database
+    3. Competitor comparisons (GREST vs Cashify, Togofogo, etc.)
+    4. External reviews and trust verification
     """
     try:
         import requests
         
-        ddg_url = "https://api.duckduckgo.com/"
-        params = {
+        api_key = os.environ.get("SERPER_API_KEY")
+        if not api_key:
+            print("[Web Search] SERPER_API_KEY not configured")
+            return ""
+        
+        url = "https://google.serper.dev/search"
+        headers = {
+            "X-API-KEY": api_key,
+            "Content-Type": "application/json"
+        }
+        payload = {
             "q": query,
-            "format": "json",
-            "no_html": 1,
-            "skip_disambig": 1
+            "gl": "in",
+            "hl": "en",
+            "num": 5
         }
         
-        response = requests.get(ddg_url, params=params, timeout=10)
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
         
-        if response.status_code not in [200, 202]:
-            print(f"[Web Search] DuckDuckGo API returned status {response.status_code}")
+        if response.status_code != 200:
+            print(f"[Web Search] Serper API returned status {response.status_code}: {response.text}")
             return ""
         
         data = response.json()
-        
         results = []
         
-        if data.get("Abstract"):
-            results.append(f"**Summary**: {data['Abstract']}")
-            if data.get("AbstractSource"):
-                results.append(f"Source: {data['AbstractSource']}")
+        if data.get("answerBox"):
+            box = data["answerBox"]
+            if box.get("answer"):
+                results.append(f"**Quick Answer**: {box['answer']}")
+            elif box.get("snippet"):
+                results.append(f"**Quick Answer**: {box['snippet']}")
         
-        if data.get("Answer"):
-            results.append(f"**Direct Answer**: {data['Answer']}")
-        
-        related_topics = data.get("RelatedTopics", [])
-        if related_topics:
-            results.append("\n**Related Information**:")
-            for i, topic in enumerate(related_topics[:5]):
-                if isinstance(topic, dict) and topic.get("Text"):
-                    results.append(f"- {topic['Text'][:200]}")
-        
-        if data.get("Infobox") and data["Infobox"].get("content"):
-            results.append("\n**Quick Facts**:")
-            for item in data["Infobox"]["content"][:5]:
-                if item.get("label") and item.get("value"):
-                    results.append(f"- {item['label']}: {item['value']}")
+        organic = data.get("organic", [])
+        if organic:
+            results.append("\n**Search Results**:")
+            for i, item in enumerate(organic[:5], 1):
+                title = item.get("title", "")
+                snippet = item.get("snippet", "")
+                link = item.get("link", "")
+                results.append(f"{i}. **{title}**")
+                results.append(f"   {snippet}")
+                if link:
+                    results.append(f"   Source: {link}")
         
         if not results:
-            print(f"[Web Search] No results from DuckDuckGo for: {query}")
+            print(f"[Web Search] No results from Serper for: {query}")
             return ""
         
         search_results = f"""
-=== WEB SEARCH RESULTS (Live Data) ===
+=== WEB SEARCH RESULTS (Live from Google) ===
 Search Query: {query}
 Category: {category}
 
 {chr(10).join(results)}
 
-Note: GRESTA performed this search automatically. Prioritize GREST's official policies for company-specific questions.
+Note: GRESTA searched this automatically to help answer your question. For GREST-specific policies, refer to our official information.
 === END WEB SEARCH RESULTS ===
 """
-        print(f"[Web Search] Successfully retrieved results for: {query}")
+        print(f"[Web Search] Successfully retrieved {len(organic)} results for: {query}")
         return search_results
         
     except requests.exceptions.Timeout:
@@ -748,8 +768,8 @@ def get_web_search_context(message: str) -> str:
     print(f"[Web Search] Triggered for category: {category}, query: {search_query}")
     
     if category == "trust_verification":
-        return """
-=== GREST TRUST & REVIEWS (Verified Information) ===
+        grest_info = """
+=== GREST OFFICIAL INFORMATION (VERIFIED) ===
 GREST (grest.in) is a legitimate refurbished electronics seller in India:
 - Registered company: Radical Aftermarket Services Pvt. Ltd.
 - CIN: U74999HR2018PTC076488
@@ -761,34 +781,32 @@ Trust Signals:
 - 6-month warranty (extendable to 12 months for Rs. 1,499)
 - 7-day return policy
 - COD available across India
-- Positive reviews on Trustpilot and Mouthshut
 
-For latest reviews, customers can check:
+Review Links:
 - Trustpilot: https://www.trustpilot.com/review/grest.in
 - Mouthshut: https://www.mouthshut.com/product-reviews/Grest-in-reviews-926089093
-
-=== END TRUST VERIFICATION ===
+=== END OFFICIAL INFO ===
 """
+        live_search = perform_web_search(search_query, category)
+        return grest_info + (live_search if live_search else "")
     
     elif category == "competitor_comparison":
-        return """
-=== WHY CHOOSE GREST OVER COMPETITORS ===
-GREST Advantages:
-1. **50+ Quality Checks**: Every device undergoes rigorous testing
-2. **Warranty**: 6-month warranty (extendable to 12 months for Rs. 1,499)
-3. **7-Day Returns**: Hassle-free return policy
-4. **COD Available**: Pay when you receive
-5. **Free Delivery**: Across India
-6. **Premium Batteries**: Quality replacement batteries
-7. **In-House Refurbishment**: Own expert technicians
-
-GREST focuses exclusively on Apple products (iPhone, iPad, MacBook), ensuring deep expertise and quality control.
-
-Note: Compare warranties, return policies, and quality checks when choosing any refurbished seller.
-=== END COMPARISON ===
+        grest_advantages = """
+=== GREST ADVANTAGES (OFFICIAL) ===
+1. 50+ Quality Checks on every device
+2. 6-month warranty (extendable to 12 months for Rs. 1,499)
+3. 7-day hassle-free return policy
+4. COD available across India
+5. Free delivery
+6. Premium replacement batteries
+7. In-house expert technicians
+8. Focus exclusively on Apple products (deep expertise)
+=== END GREST ADVANTAGES ===
 """
+        live_search = perform_web_search(search_query, category)
+        return grest_advantages + (live_search if live_search else "")
     
-    elif category == "product_comparison":
+    elif category in ["external_product_comparison", "external_product_specs", "apple_product_comparison", "product_comparison"]:
         live_search = perform_web_search(search_query, category)
         if live_search:
             return live_search
