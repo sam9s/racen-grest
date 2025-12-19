@@ -214,6 +214,238 @@ def detect_variant_query(message: str) -> Tuple[Optional[str], Optional[str], Op
     return (model_name, storage, condition)
 
 
+def parse_query_with_llm(message: str) -> dict:
+    """
+    Use LLM to parse natural language queries into structured product intent.
+    
+    This handles Hinglish, synonyms, and natural language that deterministic
+    regex cannot handle:
+    - "theek si condition" → Fair
+    - "acchi wali" → Good
+    - "ekdum mast" → Superb
+    - "20000 ke budget mein" → budget_max: 20000
+    - "30 se 40 hazar" → budget_min: 30000, budget_max: 40000
+    
+    Returns:
+        dict with keys: model, storage, condition, budget_min, budget_max, is_price_query
+    """
+    client = get_openai_client()
+    if client is None:
+        return None
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are a query parser for GREST, an Indian refurbished iPhone/MacBook store.
+
+Extract structured intent from user queries. Output ONLY valid JSON, nothing else.
+
+CONDITION MAPPINGS (Indian/Hinglish to English):
+- Fair: theek, theek si, ok ok, chalega, basic, sasti, budget wali, kam price
+- Good: acchi, accha, badhiya, decent, theek thaak, normal
+- Superb: ekdum, mast, best, top, premium, zabardast, shandar, first class, A1
+
+MODEL MAPPINGS:
+- iPhone 11, 12, 13, 14, 15 (with Pro, Pro Max, Plus, mini variants)
+- MacBook Air, MacBook Pro
+- iPad, iPad Pro, iPad Air
+
+STORAGE: 64GB, 128GB, 256GB, 512GB, 1TB
+
+BUDGET PARSING:
+- "20000 ke andar" → budget_max: 20000
+- "30 se 40 hazar" → budget_min: 30000, budget_max: 40000
+- "25k tak" → budget_max: 25000
+- "lakh" = 100000, "hazar/k" = 1000
+
+OUTPUT FORMAT (JSON only):
+{
+  "model": "iPhone 12" or null,
+  "storage": "128 GB" or null,
+  "condition": "Fair" or "Good" or "Superb" or null,
+  "budget_min": 30000 or null,
+  "budget_max": 40000 or null,
+  "is_price_query": true/false,
+  "is_cheapest_query": true/false,
+  "query_type": "specific_price" | "budget_search" | "cheapest" | "comparison" | "general" | "other"
+}
+
+EXAMPLES:
+Query: "20000 ke budget mein koi superb condition ka phone hai"
+{"model": null, "storage": null, "condition": "Superb", "budget_min": null, "budget_max": 20000, "is_price_query": true, "is_cheapest_query": false, "query_type": "budget_search"}
+
+Query: "eak theek si condition ka iphone 30, 40000 ka hai koi"
+{"model": null, "storage": null, "condition": "Fair", "budget_min": 30000, "budget_max": 40000, "is_price_query": true, "is_cheapest_query": false, "query_type": "budget_search"}
+
+Query: "iPhone 12 128GB superb price"
+{"model": "iPhone 12", "storage": "128 GB", "condition": "Superb", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "query_type": "specific_price"}
+
+Query: "sabse sasta iPhone dikhao"
+{"model": null, "storage": null, "condition": null, "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": true, "query_type": "cheapest"}
+
+Query: "acchi condition mein kaunsa phone milega 25000 tak"
+{"model": null, "storage": null, "condition": "Good", "budget_min": null, "budget_max": 25000, "is_price_query": true, "is_cheapest_query": false, "query_type": "budget_search"}
+
+Query: "iPhone 13 Pro Max kitne ka hai"
+{"model": "iPhone 13 Pro Max", "storage": null, "condition": null, "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "query_type": "specific_price"}
+
+Query: "what warranty do you offer"
+{"model": null, "storage": null, "condition": null, "budget_min": null, "budget_max": null, "is_price_query": false, "is_cheapest_query": false, "query_type": "other"}"""
+                },
+                {
+                    "role": "user",
+                    "content": message
+                }
+            ],
+            max_tokens=200,
+            temperature=0
+        )
+        
+        result = response.choices[0].message.content.strip()
+        
+        if result.startswith('```'):
+            result = result.split('```')[1]
+            if result.startswith('json'):
+                result = result[4:]
+        result = result.strip()
+        
+        import json
+        parsed = json.loads(result)
+        print(f"[Query Parser] '{message}' -> {parsed}")
+        return parsed
+        
+    except Exception as e:
+        print(f"[Query Parser] Error: {e}, falling back to regex")
+        return None
+
+
+def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) -> str:
+    """
+    Get product context using LLM-parsed intent for accurate pricing.
+    This is the hybrid approach: LLM understands, database provides prices.
+    """
+    if not parsed_intent:
+        return get_product_context_from_database(message)
+    
+    context_parts = []
+    context_parts.append("\n\n=== PRODUCT DATABASE (AUTHORITATIVE PRICING SOURCE) ===")
+    context_parts.append("NOTE: Use ONLY these prices. They are current and accurate.")
+    context_parts.append("IMPORTANT: You MUST use the EXACT prices shown below. Do not estimate or round.\n")
+    
+    model = parsed_intent.get('model')
+    storage = parsed_intent.get('storage')
+    condition = parsed_intent.get('condition')
+    budget_min = parsed_intent.get('budget_min')
+    budget_max = parsed_intent.get('budget_max')
+    is_cheapest = parsed_intent.get('is_cheapest_query', False)
+    query_type = parsed_intent.get('query_type', 'other')
+    
+    if query_type == 'specific_price' and model:
+        product = search_product_by_specs(model, storage, condition)
+        
+        if product:
+            condition_shown = product.get('condition') or 'Unknown'
+            storage_shown = product.get('storage') or ''
+            is_starting_price = not storage and not condition
+            
+            if is_starting_price:
+                context_parts.append(f"STARTING PRICE (Lowest in-stock variant):")
+            else:
+                context_parts.append(f"EXACT MATCH FOUND:")
+            context_parts.append(f"  Model: {product['name']}")
+            context_parts.append(f"  Storage: {storage_shown}")
+            context_parts.append(f"  Condition: {condition_shown}")
+            context_parts.append(f"  PRICE: Rs. {int(product['price']):,} (USE THIS EXACT PRICE)")
+            context_parts.append(f"  URL: {product['product_url']}")
+            if product.get('image_url'):
+                context_parts.append(f"  IMAGE: {product['image_url']}")
+            
+            if storage and not condition:
+                variants = get_product_variants(model, storage)
+                if len(variants) > 1:
+                    context_parts.append(f"\n  ALL CONDITIONS FOR {storage}:")
+                    for v in variants:
+                        context_parts.append(f"    - {v.get('condition', 'Unknown')}: Rs. {int(v['price']):,}")
+            elif not storage:
+                storage_options = get_storage_options_for_model(model)
+                if storage_options:
+                    context_parts.append(f"\n  STORAGE OPTIONS AVAILABLE:")
+                    context_parts.append(f"    {', '.join(storage_options)}")
+        else:
+            context_parts.append(f"Product not found: {model}")
+            if storage:
+                context_parts.append(f"  Requested storage: {storage}")
+            if condition:
+                context_parts.append(f"  Requested condition: {condition}")
+            storage_options = get_storage_options_for_model(model) if model else []
+            if storage_options:
+                context_parts.append(f"  Available storage: {', '.join(storage_options)}")
+    
+    elif query_type == 'cheapest' or is_cheapest:
+        category = 'iPhone' if not model or 'iphone' in (model or '').lower() else None
+        cheapest = get_cheapest_product(category)
+        if cheapest:
+            context_parts.append(f"CHEAPEST {'iPhone' if category else 'Product'} AVAILABLE:")
+            context_parts.append(f"  Model: {cheapest['name']}")
+            context_parts.append(f"  Storage: {cheapest.get('storage', 'N/A')}")
+            context_parts.append(f"  Condition: {cheapest.get('condition', 'N/A')}")
+            context_parts.append(f"  PRICE: Rs. {int(cheapest['price']):,} (USE THIS EXACT PRICE)")
+            context_parts.append(f"  URL: {cheapest['product_url']}")
+    
+    elif query_type == 'budget_search':
+        if budget_min and budget_max:
+            products = get_products_in_price_range(budget_min, budget_max, None)
+        elif budget_max:
+            products = get_products_under_price(budget_max, None)
+        else:
+            products = []
+        
+        if condition:
+            products = [p for p in products if p.get('condition', '').lower() == condition.lower()]
+        
+        if products:
+            context_parts.append(f"PRODUCTS MATCHING YOUR CRITERIA:")
+            if condition:
+                context_parts.append(f"  Condition filter: {condition}")
+            if budget_max:
+                context_parts.append(f"  Budget: Up to Rs. {int(budget_max):,}")
+            if budget_min:
+                context_parts.append(f"  Minimum: Rs. {int(budget_min):,}")
+            context_parts.append("")
+            
+            for p in products[:8]:
+                variant_info = ""
+                if p.get('storage') or p.get('condition'):
+                    parts = []
+                    if p.get('storage'):
+                        parts.append(p['storage'])
+                    if p.get('condition'):
+                        parts.append(p['condition'])
+                    variant_info = f" ({', '.join(parts)})"
+                context_parts.append(f"  - {p['name']}{variant_info}: Rs. {int(p['price']):,}")
+                context_parts.append(f"    URL: {p['product_url']}")
+        else:
+            context_parts.append(f"No products found matching criteria.")
+            if condition:
+                context_parts.append(f"  Condition: {condition}")
+            if budget_max:
+                context_parts.append(f"  Budget: Rs. {int(budget_max):,}")
+            cheapest = get_cheapest_product(None)
+            if cheapest:
+                context_parts.append(f"\n  Cheapest available: {cheapest['name']} at Rs. {int(cheapest['price']):,}")
+    
+    else:
+        return get_product_context_from_database(message)
+    
+    context_parts.append("\n=== END PRODUCT DATABASE ===")
+    context_parts.append("REMINDER: Use the EXACT prices above. Do not estimate or use old prices.\n")
+    
+    return "\n".join(context_parts)
+
+
 def get_product_context_from_database(message: str) -> str:
     """
     Get product/pricing context from the database based on the user's query.
@@ -840,7 +1072,12 @@ def generate_response(
     relevant_docs = search_knowledge_base(search_query, n_results=n_context_docs)
     context = format_context_from_docs(relevant_docs)
     
-    product_context = get_product_context_from_database(user_message)
+    parsed_intent = parse_query_with_llm(user_message)
+    
+    if parsed_intent and parsed_intent.get('is_price_query'):
+        product_context = get_product_context_with_parsed_intent(user_message, parsed_intent)
+    else:
+        product_context = get_product_context_from_database(user_message)
     
     web_search_context = get_web_search_context(user_message)
     
@@ -989,7 +1226,12 @@ def generate_response_stream(
     relevant_docs = search_knowledge_base(search_query, n_results=n_context_docs)
     context = format_context_from_docs(relevant_docs)
     
-    product_context = get_product_context_from_database(user_message)
+    parsed_intent = parse_query_with_llm(user_message)
+    
+    if parsed_intent and parsed_intent.get('is_price_query'):
+        product_context = get_product_context_with_parsed_intent(user_message, parsed_intent)
+    else:
+        product_context = get_product_context_from_database(user_message)
     
     web_search_context = get_web_search_context(user_message)
     
