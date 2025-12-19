@@ -532,6 +532,7 @@ def search_products_for_chatbot(query: str):
                     'discount_percent': p.discount_percent,
                     'warranty_months': p.warranty_months,
                     'product_url': p.product_url,
+                    'image_url': p.image_url,
                     'in_stock': p.in_stock
                 })
         
@@ -594,6 +595,7 @@ def get_products_under_price(max_price: float, category: str = None):
                 'discount_percent': p.discount_percent,
                 'category': p.category,
                 'product_url': p.product_url,
+                'image_url': p.image_url,
                 'specifications': p.specifications
             }
             for p in products
@@ -626,7 +628,8 @@ def get_products_in_price_range(min_price: float, max_price: float, category: st
                 'original_price': float(p.original_price) if p.original_price else None,
                 'discount_percent': p.discount_percent,
                 'category': p.category,
-                'product_url': p.product_url
+                'product_url': p.product_url,
+                'image_url': p.image_url
             }
             for p in products
         ]
@@ -655,6 +658,7 @@ def get_cheapest_product(category: str = None):
                 'discount_percent': product.discount_percent,
                 'category': product.category,
                 'product_url': product.product_url,
+                'image_url': product.image_url,
                 'specifications': product.specifications
             }
         return None

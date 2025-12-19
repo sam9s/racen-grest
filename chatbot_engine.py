@@ -172,6 +172,8 @@ def get_product_context_from_database(message: str) -> str:
             context_parts.append(f"CHEAPEST {'iPhone' if category == 'iPhone' else 'Product'}:")
             context_parts.append(f"  - {cheapest['name']}: Rs. {int(cheapest['price']):,}")
             context_parts.append(f"    URL: {cheapest['product_url']}")
+            if cheapest.get('image_url'):
+                context_parts.append(f"    IMAGE: {cheapest['image_url']}")
     
     elif min_price and max_price:
         products = get_products_in_price_range(min_price, max_price, category)
@@ -180,6 +182,8 @@ def get_product_context_from_database(message: str) -> str:
             for p in products[:5]:
                 context_parts.append(f"  - {p['name']}: Rs. {int(p['price']):,}")
                 context_parts.append(f"    URL: {p['product_url']}")
+                if p.get('image_url'):
+                    context_parts.append(f"    IMAGE: {p['image_url']}")
         else:
             context_parts.append(f"No products found between Rs. {int(min_price):,} - Rs. {int(max_price):,}")
     
@@ -191,6 +195,8 @@ def get_product_context_from_database(message: str) -> str:
                 discount_text = f" (Save {p['discount_percent']}%)" if p.get('discount_percent') else ""
                 context_parts.append(f"  - {p['name']}: Rs. {int(p['price']):,}{discount_text}")
                 context_parts.append(f"    URL: {p['product_url']}")
+                if p.get('image_url'):
+                    context_parts.append(f"    IMAGE: {p['image_url']}")
         else:
             cheapest = get_cheapest_product(category)
             if cheapest:

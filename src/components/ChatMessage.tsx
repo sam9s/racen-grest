@@ -17,29 +17,53 @@ interface ChatMessageProps {
   onFeedback: (messageId: string, feedback: 'up' | 'down', comment?: string) => void;
 }
 
-function renderMarkdownLinks(text: string): React.ReactNode[] {
-  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+function renderMarkdownContent(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
+  
+  const combinedRegex = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*/g;
   let lastIndex = 0;
   let match;
+  let keyCounter = 0;
 
-  while ((match = linkRegex.exec(text)) !== null) {
+  while ((match = combinedRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
     
-    const [, linkText, url] = match;
-    parts.push(
-      <a
-        key={match.index}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors"
-      >
-        {linkText}
-      </a>
-    );
+    if (match[1] !== undefined || match[2] !== undefined) {
+      const altText = match[1] || 'Product image';
+      const imageUrl = match[2];
+      parts.push(
+        <div key={`img-${keyCounter++}`} className="my-2">
+          <img
+            src={imageUrl}
+            alt={altText}
+            className="max-w-[200px] max-h-[200px] rounded-lg border border-primary-500/20 object-contain"
+            loading="lazy"
+          />
+        </div>
+      );
+    } else if (match[3] !== undefined) {
+      const linkText = match[3];
+      const url = match[4];
+      parts.push(
+        <a
+          key={`link-${keyCounter++}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors"
+        >
+          {linkText}
+        </a>
+      );
+    } else if (match[5] !== undefined) {
+      parts.push(
+        <strong key={`bold-${keyCounter++}`} className="font-semibold text-primary-300">
+          {match[5]}
+        </strong>
+      );
+    }
     
     lastIndex = match.index + match[0].length;
   }
@@ -102,7 +126,7 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
         }`}
       >
         <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed">
-          {renderMarkdownLinks(message.content)}
+          {renderMarkdownContent(message.content)}
         </div>
         
         {!isUser && (
