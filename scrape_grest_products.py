@@ -174,12 +174,33 @@ def parse_variant_options(variants):
     
     return list(storage_options), list(colors), list(conditions)
 
+def parse_variant_options_single(variant):
+    """Extract storage, color, and condition from a single variant."""
+    storage = None
+    color = None
+    condition = None
+    
+    for opt_key in ['option1', 'option2', 'option3']:
+        opt = variant.get(opt_key, '')
+        if opt:
+            opt_lower = opt.lower().strip()
+            if 'gb' in opt_lower or 'tb' in opt_lower:
+                storage = opt.strip()
+            elif opt_lower in ['fair', 'good', 'superb', 'excellent', 'like new', 'refurbished']:
+                condition = opt.strip()
+            elif opt_lower not in ['', 'default', 'title', 'random']:
+                if not color:
+                    color = opt.strip()
+    
+    return storage, color, condition
+
+
 def populate_database():
-    """Fetch all products from Shopify Admin API and populate database."""
+    """Fetch all products from Shopify Admin API and populate database with per-variant rows."""
     init_database()
     
     print("=" * 60)
-    print("GREST Product Sync - Shopify Admin API")
+    print("GREST Product Sync - Shopify Admin API (Per-Variant)")
     print("=" * 60)
     print(f"Store: {SHOPIFY_STORE_URL}")
     print()
@@ -193,8 +214,8 @@ def populate_database():
     print(f"\nProcessing {len(all_products)} products...")
     print("-" * 60)
     
-    products_added = 0
-    products_updated = 0
+    variants_added = 0
+    variants_updated = 0
     products_skipped = 0
     
     for product in all_products:
@@ -215,39 +236,20 @@ def populate_database():
             continue
         
         variants = product.get('variants', [])
-        min_price, max_price = get_price_range(variants)
-        
-        if not min_price or min_price <= 0:
-            print(f"  Skipping (no price): {title[:50]}")
+        if not variants:
+            print(f"  Skipping (no variants): {title[:50]}")
             products_skipped += 1
             continue
         
-        first_variant = variants[0] if variants else {}
-        compare_price = None
-        try:
-            cp = first_variant.get('compare_at_price')
-            if cp:
-                compare_price = float(cp)
-        except:
-            pass
-        
-        discount = None
-        if compare_price and min_price and compare_price > min_price:
-            discount = int(((compare_price - min_price) / compare_price) * 100)
-        
         specs = extract_specs_from_body(product.get('body_html', ''))
-        metafield_specs = fetch_product_metafields(product_id)
-        specs.update(metafield_specs)
-        storage_options, colors, conditions = parse_variant_options(variants)
         
         images = product.get('images', [])
         image_url = images[0].get('src', '') if images else None
         
-        product_url = f"https://grest.in/products/{handle}"
-        sku = f"SHOPIFY_{product_id}"
+        base_product_url = f"https://grest.in/products/{handle}"
         
-        total_inventory = sum(v.get('inventory_quantity', 0) for v in variants)
-        in_stock = total_inventory > 0 or any(v.get('inventory_policy') == 'continue' for v in variants)
+        min_price, max_price = get_price_range(variants)
+        storage_options, colors, conditions = parse_variant_options(variants)
         
         specs_json = json.dumps({
             'specs': specs,
@@ -255,10 +257,9 @@ def populate_database():
             'colors': colors,
             'conditions': conditions,
             'variant_count': len(variants),
-            'total_inventory': total_inventory,
             'product_type': product_type,
             'tags': product.get('tags', ''),
-            'price_range': f"Rs. {int(min_price):,} - Rs. {int(max_price):,}" if max_price != min_price else f"Rs. {int(min_price):,}"
+            'price_range': f"Rs. {int(min_price):,} - Rs. {int(max_price):,}" if max_price and min_price and max_price != min_price else f"Rs. {int(min_price):,}" if min_price else ""
         })
         
         with get_db_session() as db:
@@ -266,66 +267,133 @@ def populate_database():
                 print("Database not available!")
                 return
             
-            existing = db.query(GRESTProduct).filter(GRESTProduct.sku == sku).first()
-            
-            if existing:
-                existing.name = title
-                existing.price = min_price
-                existing.original_price = compare_price
-                existing.discount_percent = discount
-                existing.category = category
-                existing.specifications = specs_json
-                existing.product_url = product_url
-                existing.image_url = image_url
-                existing.in_stock = in_stock
-                products_updated += 1
-                print(f"  Updated: {title[:40]} - Rs. {int(min_price):,}")
-            else:
-                new_product = GRESTProduct(
-                    sku=sku,
-                    name=title,
-                    category=category,
-                    price=min_price,
-                    original_price=compare_price,
-                    discount_percent=discount,
-                    in_stock=in_stock,
-                    warranty_months=6,
-                    product_url=product_url,
-                    image_url=image_url,
-                    specifications=specs_json,
-                )
-                db.add(new_product)
-                products_added += 1
-                print(f"  Added: {title[:40]} - Rs. {int(min_price):,}")
+            for variant in variants:
+                variant_id = variant.get('id')
+                variant_price = None
+                try:
+                    variant_price = float(variant.get('price', 0))
+                except:
+                    pass
+                
+                if not variant_price or variant_price <= 0:
+                    continue
+                
+                compare_price = None
+                try:
+                    cp = variant.get('compare_at_price')
+                    if cp:
+                        compare_price = float(cp)
+                except:
+                    pass
+                
+                discount = None
+                if compare_price and variant_price and compare_price > variant_price:
+                    discount = int(((compare_price - variant_price) / compare_price) * 100)
+                
+                storage, color, condition = parse_variant_options_single(variant)
+                
+                inventory_qty = variant.get('inventory_quantity', 0)
+                inventory_policy = variant.get('inventory_policy', '')
+                in_stock = inventory_qty > 0 or inventory_policy == 'continue'
+                
+                sku = f"SHOPIFY_{product_id}_{variant_id}"
+                product_url = f"{base_product_url}?variant={variant_id}"
+                
+                variant_title_parts = [title]
+                if storage:
+                    variant_title_parts.append(storage)
+                if condition:
+                    variant_title_parts.append(condition)
+                variant_name = ' - '.join(variant_title_parts) if len(variant_title_parts) > 1 else title
+                
+                existing = db.query(GRESTProduct).filter(GRESTProduct.sku == sku).first()
+                
+                if existing:
+                    existing.name = title
+                    existing.price = variant_price
+                    existing.original_price = compare_price
+                    existing.discount_percent = discount
+                    existing.category = category
+                    existing.storage = storage
+                    existing.color = color
+                    existing.condition = condition
+                    existing.variant = variant_name
+                    existing.specifications = specs_json
+                    existing.product_url = product_url
+                    existing.image_url = image_url
+                    existing.in_stock = in_stock
+                    variants_updated += 1
+                else:
+                    new_variant = GRESTProduct(
+                        sku=sku,
+                        name=title,
+                        category=category,
+                        variant=variant_name,
+                        storage=storage,
+                        color=color,
+                        condition=condition,
+                        price=variant_price,
+                        original_price=compare_price,
+                        discount_percent=discount,
+                        in_stock=in_stock,
+                        warranty_months=12,
+                        product_url=product_url,
+                        image_url=image_url,
+                        specifications=specs_json,
+                    )
+                    db.add(new_variant)
+                    variants_added += 1
+        
+        print(f"  Processed: {title[:40]} ({len(variants)} variants)")
     
     print()
     print("=" * 60)
-    print("SYNC COMPLETE")
+    print("SYNC COMPLETE (Per-Variant)")
     print("=" * 60)
-    print(f"Added: {products_added}")
-    print(f"Updated: {products_updated}")
-    print(f"Skipped: {products_skipped}")
+    print(f"Variants Added: {variants_added}")
+    print(f"Variants Updated: {variants_updated}")
+    print(f"Products Skipped: {products_skipped}")
     print()
     
     with get_db_session() as db:
         if db:
             total = db.query(GRESTProduct).count()
-            print(f"Total products in database: {total}")
+            print(f"Total variants in database: {total}")
             
-            print("\nProducts by category:")
+            print("\nVariants by category:")
             categories = db.query(GRESTProduct.category).distinct().all()
             for (cat,) in categories:
                 count = db.query(GRESTProduct).filter(GRESTProduct.category == cat).count()
                 print(f"  - {cat}: {count}")
             
-            print("\nPrice range samples:")
-            cheapest = db.query(GRESTProduct).filter(GRESTProduct.category == 'iPhone').order_by(GRESTProduct.price).first()
-            if cheapest:
-                print(f"  Cheapest iPhone: {cheapest.name} - Rs. {int(cheapest.price):,}")
+            print("\nVariants by condition:")
+            conditions = db.query(GRESTProduct.condition).distinct().all()
+            for (cond,) in conditions:
+                count = db.query(GRESTProduct).filter(GRESTProduct.condition == cond).count()
+                print(f"  - {cond or 'Unknown'}: {count}")
             
-            expensive = db.query(GRESTProduct).order_by(GRESTProduct.price.desc()).first()
-            if expensive:
-                print(f"  Most expensive: {expensive.name} - Rs. {int(expensive.price):,}")
+            print("\nVariants by storage:")
+            storages = db.query(GRESTProduct.storage).distinct().all()
+            for (stor,) in storages:
+                count = db.query(GRESTProduct).filter(GRESTProduct.storage == stor).count()
+                print(f"  - {stor or 'Unknown'}: {count}")
+            
+            print("\nPrice samples:")
+            sample = db.query(GRESTProduct).filter(
+                GRESTProduct.name.ilike('%iPhone 12%'),
+                GRESTProduct.storage == '128 GB',
+                GRESTProduct.condition == 'Fair'
+            ).first()
+            if sample:
+                print(f"  iPhone 12 128GB Fair: Rs. {int(sample.price):,}")
+            
+            sample2 = db.query(GRESTProduct).filter(
+                GRESTProduct.name.ilike('%iPhone 12%'),
+                GRESTProduct.storage == '256 GB',
+                GRESTProduct.condition == 'Superb'
+            ).first()
+            if sample2:
+                print(f"  iPhone 12 256GB Superb: Rs. {int(sample2.price):,}")
 
 if __name__ == "__main__":
     populate_database()
