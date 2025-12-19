@@ -760,8 +760,6 @@ def search_product_by_specs(model_name: str, storage: str = None, condition: str
         
         if condition:
             query = query.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
-        else:
-            query = query.filter(GRESTProduct.condition.ilike("%Fair%"))
         
         product = query.order_by(GRESTProduct.price.asc()).first()
         

@@ -231,21 +231,28 @@ def get_product_context_from_database(message: str) -> str:
     context_parts = []
     context_parts.append("\n\n=== PRODUCT DATABASE (AUTHORITATIVE PRICING SOURCE) ===")
     context_parts.append("NOTE: Use ONLY these prices. They are current and accurate.")
-    context_parts.append("IMPORTANT: When no condition specified, show Fair condition price (lowest tier).\n")
+    context_parts.append("IMPORTANT: Show the LOWEST in-stock price. Clearly state storage & condition of the shown price.\n")
     
     if model_name and (storage or 'price' in message.lower() or 'kitna' in message.lower() or 'cost' in message.lower()):
         product = search_product_by_specs(model_name, storage, condition)
         
         if product:
-            condition_shown = product.get('condition') or 'Fair'
+            condition_shown = product.get('condition') or 'Unknown'
             storage_shown = product.get('storage') or ''
             
-            context_parts.append(f"SPECIFIC PRODUCT MATCH:")
+            is_starting_price = not storage and not condition
+            
+            if is_starting_price:
+                context_parts.append(f"STARTING PRICE (Lowest in-stock variant):")
+            else:
+                context_parts.append(f"SPECIFIC PRODUCT MATCH:")
             context_parts.append(f"  Model: {product['name']}")
-            if storage_shown:
-                context_parts.append(f"  Storage: {storage_shown}")
+            context_parts.append(f"  Storage: {storage_shown}")
             context_parts.append(f"  Condition: {condition_shown}")
-            context_parts.append(f"  Price: Rs. {int(product['price']):,}")
+            if is_starting_price:
+                context_parts.append(f"  Starting Price: Rs. {int(product['price']):,}")
+            else:
+                context_parts.append(f"  Price: Rs. {int(product['price']):,}")
             context_parts.append(f"  URL: {product['product_url']}")
             if product.get('image_url'):
                 context_parts.append(f"  IMAGE: {product['image_url']}")
