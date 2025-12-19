@@ -711,11 +711,11 @@ def get_all_products_formatted():
         return "\n".join(lines)
 
 
-def search_product_by_specs(model_name: str, storage: str = None, condition: str = None):
+def search_product_by_specs(model_name: str, storage: str = None, condition: str = None, include_out_of_stock: bool = False):
     """
     Search for a specific product variant by model name, storage, and condition.
-    If condition is not specified, defaults to 'Fair' (lowest price tier).
-    Returns the cheapest matching variant.
+    If condition is not specified, returns the cheapest in-stock variant.
+    If specific condition is requested but out of stock, returns it with out_of_stock flag.
     
     Matching priority:
     1. Exact name match (e.g., "iPhone 12" matches "Apple iPhone 12" but NOT "Apple iPhone 12 mini")
@@ -744,24 +744,34 @@ def search_product_by_specs(model_name: str, storage: str = None, condition: str
             if 'max' in exclude_suffixes:
                 exclude_suffixes.remove('max')
         
-        query = db.query(GRESTProduct).filter(
-            GRESTProduct.name.ilike(f"%{model_normalized}%"),
-            GRESTProduct.in_stock == True
-        )
+        def build_base_query(in_stock_only=True):
+            q = db.query(GRESTProduct).filter(
+                GRESTProduct.name.ilike(f"%{model_normalized}%")
+            )
+            if in_stock_only:
+                q = q.filter(GRESTProduct.in_stock == True)
+            
+            for suffix in exclude_suffixes:
+                q = q.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
+            
+            if storage:
+                storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
+                if 'GB' not in storage_clean and 'TB' not in storage_clean:
+                    storage_clean = f"{storage} GB"
+                q = q.filter(GRESTProduct.storage.ilike(f"%{storage_clean.strip()}%"))
+            
+            if condition:
+                q = q.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
+            
+            return q
         
-        for suffix in exclude_suffixes:
-            query = query.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
+        product = build_base_query(in_stock_only=True).order_by(GRESTProduct.price.asc()).first()
+        out_of_stock = False
         
-        if storage:
-            storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
-            if 'GB' not in storage_clean and 'TB' not in storage_clean:
-                storage_clean = f"{storage} GB"
-            query = query.filter(GRESTProduct.storage.ilike(f"%{storage_clean.strip()}%"))
-        
-        if condition:
-            query = query.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
-        
-        product = query.order_by(GRESTProduct.price.asc()).first()
+        if not product and condition:
+            product = build_base_query(in_stock_only=False).order_by(GRESTProduct.price.asc()).first()
+            if product:
+                out_of_stock = True
         
         if product:
             return {
@@ -775,7 +785,9 @@ def search_product_by_specs(model_name: str, storage: str = None, condition: str
                 'category': product.category,
                 'product_url': product.product_url,
                 'image_url': product.image_url,
-                'variant': product.variant
+                'variant': product.variant,
+                'in_stock': not out_of_stock,
+                'out_of_stock': out_of_stock
             }
         return None
 

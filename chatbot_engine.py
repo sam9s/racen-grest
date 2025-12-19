@@ -350,16 +350,30 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) ->
             condition_shown = product.get('condition') or 'Unknown'
             storage_shown = product.get('storage') or ''
             is_starting_price = not storage and not condition
+            is_out_of_stock = product.get('out_of_stock', False)
             
-            if is_starting_price:
+            if is_out_of_stock:
+                context_parts.append(f"PRODUCT FOUND (CURRENTLY OUT OF STOCK):")
+                context_parts.append(f"  Model: {product['name']}")
+                context_parts.append(f"  Storage: {storage_shown}")
+                context_parts.append(f"  Condition: {condition_shown}")
+                context_parts.append(f"  PRICE: Rs. {int(product['price']):,}")
+                context_parts.append(f"  STATUS: OUT OF STOCK - Tell user to check grest.in for availability")
+                context_parts.append(f"  URL: {product['product_url']}")
+            elif is_starting_price:
                 context_parts.append(f"STARTING PRICE (Lowest in-stock variant):")
+                context_parts.append(f"  Model: {product['name']}")
+                context_parts.append(f"  Storage: {storage_shown}")
+                context_parts.append(f"  Condition: {condition_shown}")
+                context_parts.append(f"  PRICE: Rs. {int(product['price']):,} (USE THIS EXACT PRICE)")
+                context_parts.append(f"  URL: {product['product_url']}")
             else:
                 context_parts.append(f"EXACT MATCH FOUND:")
-            context_parts.append(f"  Model: {product['name']}")
-            context_parts.append(f"  Storage: {storage_shown}")
-            context_parts.append(f"  Condition: {condition_shown}")
-            context_parts.append(f"  PRICE: Rs. {int(product['price']):,} (USE THIS EXACT PRICE)")
-            context_parts.append(f"  URL: {product['product_url']}")
+                context_parts.append(f"  Model: {product['name']}")
+                context_parts.append(f"  Storage: {storage_shown}")
+                context_parts.append(f"  Condition: {condition_shown}")
+                context_parts.append(f"  PRICE: Rs. {int(product['price']):,} (USE THIS EXACT PRICE)")
+                context_parts.append(f"  URL: {product['product_url']}")
             if product.get('image_url'):
                 context_parts.append(f"  IMAGE: {product['image_url']}")
             
@@ -375,14 +389,14 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) ->
                     context_parts.append(f"\n  STORAGE OPTIONS AVAILABLE:")
                     context_parts.append(f"    {', '.join(storage_options)}")
         else:
-            context_parts.append(f"Product not found: {model}")
-            if storage:
-                context_parts.append(f"  Requested storage: {storage}")
-            if condition:
-                context_parts.append(f"  Requested condition: {condition}")
-            storage_options = get_storage_options_for_model(model) if model else []
-            if storage_options:
-                context_parts.append(f"  Available storage: {', '.join(storage_options)}")
+            context_parts.append(f"\n*** CRITICAL: PRODUCT NOT IN DATABASE ***")
+            context_parts.append(f"Product: {model}")
+            context_parts.append(f"Status: NOT AVAILABLE at GREST")
+            context_parts.append(f"\n*** YOU MUST TELL THE USER: ***")
+            context_parts.append(f"'Sorry, {model} is not currently available on GREST. Please check grest.in for the latest inventory.'")
+            context_parts.append(f"DO NOT invent or guess any price or specifications.")
+            context_parts.append(f"DO NOT use your training data for this product's price.")
+            context_parts.append(f"*** END CRITICAL INSTRUCTION ***\n")
     
     elif query_type == 'cheapest' or is_cheapest:
         category = 'iPhone' if not model or 'iphone' in (model or '').lower() else None
@@ -450,9 +464,11 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) ->
                 if condition:
                     context_parts.append(f"\n  NOTE: User asked for {condition} condition - show this condition in response.")
             else:
-                context_parts.append(f"Product not found: {model}")
-                if condition:
-                    context_parts.append(f"  Requested condition: {condition}")
+                context_parts.append(f"\n*** CRITICAL: PRODUCT NOT AVAILABLE ***")
+                context_parts.append(f"Product: {model}")
+                context_parts.append(f"Status: NOT IN STOCK or NOT AVAILABLE at GREST")
+                context_parts.append(f"*** YOU MUST SAY: 'Sorry, {model} is not currently available. Check grest.in for latest inventory.' ***")
+                context_parts.append(f"DO NOT guess price. DO NOT use training data.")
         elif condition:
             products = get_products_under_price(500000, None)
             products = [p for p in products if p.get('condition', '').lower() == condition.lower()]
@@ -527,12 +543,11 @@ def get_product_context_from_database(message: str) -> str:
                     context_parts.append(f"\n  STORAGE OPTIONS AVAILABLE:")
                     context_parts.append(f"    {', '.join(storage_options)}")
         else:
-            context_parts.append(f"Product not found: {model_name}")
-            if storage:
-                context_parts.append(f"  Requested storage: {storage}")
-            storage_options = get_storage_options_for_model(model_name)
-            if storage_options:
-                context_parts.append(f"  Available storage options: {', '.join(storage_options)}")
+            context_parts.append(f"\n*** CRITICAL: PRODUCT NOT AVAILABLE ***")
+            context_parts.append(f"Product: {model_name}")
+            context_parts.append(f"Status: NOT IN STOCK or NOT AVAILABLE at GREST")
+            context_parts.append(f"*** YOU MUST SAY: 'Sorry, {model_name} is not currently available. Check grest.in for latest inventory.' ***")
+            context_parts.append(f"DO NOT guess price. DO NOT use training data.")
     
     elif 'sasta' in message.lower() or 'cheapest' in message.lower() or 'lowest' in message.lower():
         cheapest = get_cheapest_product(category)
