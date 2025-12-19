@@ -9,9 +9,14 @@ if [ -z "$GITHUB_TOKEN" ]; then
     exit 1
 fi
 
-# Remove existing github remote if exists, then add fresh
-git remote remove github 2>/dev/null
-git remote add github "https://sam9s:${GITHUB_TOKEN}@github.com/sam9s/racen-grest.git"
+REPO_URL="https://sam9s:${GITHUB_TOKEN}@github.com/sam9s/racen-grest.git"
+
+# Set remote URL (works whether remote exists or not)
+if git remote get-url github >/dev/null 2>&1; then
+    git remote set-url github "$REPO_URL"
+else
+    git remote add github "$REPO_URL"
+fi
 
 # Get commit message (use default if not provided)
 MESSAGE="${1:-GREST Backup $(date '+%Y-%m-%d %H:%M')}"
