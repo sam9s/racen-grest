@@ -729,15 +729,20 @@ def search_product_by_specs(model_name: str, storage: str = None, condition: str
         
         model_normalized = model_name.strip()
         
+        model_lower = model_normalized.lower()
+        
+        all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'new', 'max', 'air']
+        
         exclude_suffixes = []
-        if 'mini' not in model_normalized.lower():
-            exclude_suffixes.append('mini')
-        if 'pro max' not in model_normalized.lower() and 'pro' not in model_normalized.lower():
-            exclude_suffixes.extend(['pro', 'pro max'])
-        if 'pro max' not in model_normalized.lower() and 'max' not in model_normalized.lower():
-            pass
-        if 'new' not in model_normalized.lower():
-            exclude_suffixes.append('new')
+        for suffix in all_suffixes:
+            if suffix not in model_lower:
+                exclude_suffixes.append(suffix)
+        
+        if 'pro max' in model_lower:
+            if 'pro' in exclude_suffixes:
+                exclude_suffixes.remove('pro')
+            if 'max' in exclude_suffixes:
+                exclude_suffixes.remove('max')
         
         query = db.query(GRESTProduct).filter(
             GRESTProduct.name.ilike(f"%{model_normalized}%"),
@@ -745,7 +750,7 @@ def search_product_by_specs(model_name: str, storage: str = None, condition: str
         )
         
         for suffix in exclude_suffixes:
-            query = query.filter(~GRESTProduct.name.ilike(f"%{suffix}%"))
+            query = query.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
         
         if storage:
             storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
@@ -789,14 +794,20 @@ def get_product_variants(model_name: str, storage: str = None):
         from sqlalchemy import func
         
         model_normalized = model_name.strip()
+        model_lower = model_normalized.lower()
+        
+        all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'new', 'max', 'air']
         
         exclude_suffixes = []
-        if 'mini' not in model_normalized.lower():
-            exclude_suffixes.append('mini')
-        if 'pro max' not in model_normalized.lower() and 'pro' not in model_normalized.lower():
-            exclude_suffixes.extend(['pro', 'pro max'])
-        if 'new' not in model_normalized.lower():
-            exclude_suffixes.append('new')
+        for suffix in all_suffixes:
+            if suffix not in model_lower:
+                exclude_suffixes.append(suffix)
+        
+        if 'pro max' in model_lower:
+            if 'pro' in exclude_suffixes:
+                exclude_suffixes.remove('pro')
+            if 'max' in exclude_suffixes:
+                exclude_suffixes.remove('max')
         
         query = db.query(GRESTProduct).filter(
             GRESTProduct.name.ilike(f"%{model_normalized}%"),
@@ -804,7 +815,7 @@ def get_product_variants(model_name: str, storage: str = None):
         )
         
         for suffix in exclude_suffixes:
-            query = query.filter(~GRESTProduct.name.ilike(f"%{suffix}%"))
+            query = query.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
         
         if storage:
             storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
@@ -851,14 +862,20 @@ def get_storage_options_for_model(model_name: str):
         from sqlalchemy import distinct
         
         model_normalized = model_name.strip()
+        model_lower = model_normalized.lower()
+        
+        all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'new', 'max', 'air']
         
         exclude_suffixes = []
-        if 'mini' not in model_normalized.lower():
-            exclude_suffixes.append('mini')
-        if 'pro max' not in model_normalized.lower() and 'pro' not in model_normalized.lower():
-            exclude_suffixes.extend(['pro', 'pro max'])
-        if 'new' not in model_normalized.lower():
-            exclude_suffixes.append('new')
+        for suffix in all_suffixes:
+            if suffix not in model_lower:
+                exclude_suffixes.append(suffix)
+        
+        if 'pro max' in model_lower:
+            if 'pro' in exclude_suffixes:
+                exclude_suffixes.remove('pro')
+            if 'max' in exclude_suffixes:
+                exclude_suffixes.remove('max')
         
         query = db.query(distinct(GRESTProduct.storage)).filter(
             GRESTProduct.name.ilike(f"%{model_normalized}%"),
@@ -867,7 +884,7 @@ def get_storage_options_for_model(model_name: str):
         )
         
         for suffix in exclude_suffixes:
-            query = query.filter(~GRESTProduct.name.ilike(f"%{suffix}%"))
+            query = query.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
         
         storages = query.all()
         

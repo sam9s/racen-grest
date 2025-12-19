@@ -165,10 +165,11 @@ def detect_variant_query(message: str) -> Tuple[Optional[str], Optional[str], Op
     - "iPhone 12 256GB Superb kya price hai"
     - "iPhone 13 Pro Max 512GB Good condition"
     - "iPad Pro 256GB price"
+    - "iPhone 12 Pro Max 128GB"
     """
     message_lower = message.lower()
     
-    model_pattern = r'(iphone|ipad|macbook)\s*(pro\s*max|pro|mini|air)?\s*(\d+)?'
+    model_pattern = r'(iphone|ipad|macbook)\s*(\d+)?\s*(pro\s*max|pro|mini|air|plus|ultra|se)?'
     model_match = re.search(model_pattern, message_lower)
     
     if not model_match:
@@ -184,20 +185,23 @@ def detect_variant_query(message: str) -> Tuple[Optional[str], Optional[str], Op
         device = 'MacBook'
     model_parts.append(device)
     
-    if model_match.group(3):
-        model_parts.append(model_match.group(3))
-    
     if model_match.group(2):
-        variant_type = model_match.group(2).replace('  ', ' ').title()
+        model_parts.append(model_match.group(2))
+    
+    if model_match.group(3):
+        variant_type = model_match.group(3).replace('  ', ' ').title()
         model_parts.append(variant_type)
     
     model_name = ' '.join(model_parts)
     
     storage_pattern = r'(\d+)\s*(gb|tb)'
-    storage_match = re.search(storage_pattern, message_lower)
+    storage_matches = re.findall(storage_pattern, message_lower)
     storage = None
-    if storage_match:
-        storage = f"{storage_match.group(1)} {storage_match.group(2).upper()}"
+    if storage_matches:
+        for num, unit in storage_matches:
+            if num not in model_name:
+                storage = f"{num} {unit.upper()}"
+                break
     
     condition = None
     if 'superb' in message_lower:
