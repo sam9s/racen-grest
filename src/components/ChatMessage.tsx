@@ -71,13 +71,19 @@ function renderMarkdownContent(text: string): React.ReactNode[] {
     } else if (match[3] !== undefined) {
       const linkText = match[3];
       const url = match[4];
+      console.log('[ChatMessage] Rendering link:', linkText, '->', url);
       parts.push(
         <a
           key={`link-${keyCounter++}`}
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors cursor-pointer"
+          className="inline-block text-emerald-400 hover:text-emerald-300 underline decoration-emerald-400 underline-offset-2 font-medium cursor-pointer"
+          style={{ pointerEvents: 'auto' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }}
         >
           {linkText}
         </a>
