@@ -594,6 +594,9 @@ def get_products_under_price(max_price: float, category: str = None):
                 'original_price': float(p.original_price) if p.original_price else None,
                 'discount_percent': p.discount_percent,
                 'category': p.category,
+                'storage': p.storage,
+                'condition': p.condition,
+                'color': p.color,
                 'product_url': p.product_url,
                 'image_url': p.image_url,
                 'specifications': p.specifications
@@ -628,6 +631,9 @@ def get_products_in_price_range(min_price: float, max_price: float, category: st
                 'original_price': float(p.original_price) if p.original_price else None,
                 'discount_percent': p.discount_percent,
                 'category': p.category,
+                'storage': p.storage,
+                'condition': p.condition,
+                'color': p.color,
                 'product_url': p.product_url,
                 'image_url': p.image_url
             }
@@ -657,6 +663,9 @@ def get_cheapest_product(category: str = None):
                 'original_price': float(product.original_price) if product.original_price else None,
                 'discount_percent': product.discount_percent,
                 'category': product.category,
+                'storage': product.storage,
+                'condition': product.condition,
+                'color': product.color,
                 'product_url': product.product_url,
                 'image_url': product.image_url,
                 'specifications': product.specifications
@@ -685,10 +694,181 @@ def get_all_products_formatted():
         
         for p in products:
             discount_text = f" (Save {p.discount_percent}%)" if p.discount_percent else ""
-            lines.append(f"- {p.name}: Rs. {int(p.price):,}{discount_text}")
+            variant_info = ""
+            if p.storage or p.condition:
+                parts = []
+                if p.storage:
+                    parts.append(p.storage)
+                if p.condition:
+                    parts.append(p.condition)
+                variant_info = f" ({', '.join(parts)})"
+            lines.append(f"- {p.name}{variant_info}: Rs. {int(p.price):,}{discount_text}")
             lines.append(f"  URL: {p.product_url}")
         
         lines.append("=" * 50)
         lines.append(f"Total: {len(products)} products | Prices start from Rs. {int(products[0].price):,}")
         
         return "\n".join(lines)
+
+
+def search_product_by_specs(model_name: str, storage: str = None, condition: str = None):
+    """
+    Search for a specific product variant by model name, storage, and condition.
+    If condition is not specified, defaults to 'Fair' (lowest price tier).
+    Returns the cheapest matching variant.
+    
+    Matching priority:
+    1. Exact name match (e.g., "iPhone 12" matches "Apple iPhone 12" but NOT "Apple iPhone 12 mini")
+    2. Contains match as fallback
+    """
+    with get_db_session() as db:
+        if db is None:
+            return None
+        
+        from sqlalchemy import func, case
+        
+        model_normalized = model_name.strip()
+        
+        exclude_suffixes = []
+        if 'mini' not in model_normalized.lower():
+            exclude_suffixes.append('mini')
+        if 'pro max' not in model_normalized.lower() and 'pro' not in model_normalized.lower():
+            exclude_suffixes.extend(['pro', 'pro max'])
+        if 'pro max' not in model_normalized.lower() and 'max' not in model_normalized.lower():
+            pass
+        if 'new' not in model_normalized.lower():
+            exclude_suffixes.append('new')
+        
+        query = db.query(GRESTProduct).filter(
+            GRESTProduct.name.ilike(f"%{model_normalized}%"),
+            GRESTProduct.in_stock == True
+        )
+        
+        for suffix in exclude_suffixes:
+            query = query.filter(~GRESTProduct.name.ilike(f"%{suffix}%"))
+        
+        if storage:
+            storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
+            if 'GB' not in storage_clean and 'TB' not in storage_clean:
+                storage_clean = f"{storage} GB"
+            query = query.filter(GRESTProduct.storage.ilike(f"%{storage_clean.strip()}%"))
+        
+        if condition:
+            query = query.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
+        else:
+            query = query.filter(GRESTProduct.condition.ilike("%Fair%"))
+        
+        product = query.order_by(GRESTProduct.price.asc()).first()
+        
+        if product:
+            return {
+                'name': product.name,
+                'storage': product.storage,
+                'color': product.color,
+                'condition': product.condition,
+                'price': float(product.price),
+                'original_price': float(product.original_price) if product.original_price else None,
+                'discount_percent': product.discount_percent,
+                'category': product.category,
+                'product_url': product.product_url,
+                'image_url': product.image_url,
+                'variant': product.variant
+            }
+        return None
+
+
+def get_product_variants(model_name: str, storage: str = None):
+    """
+    Get all condition variants for a product model (optionally filtered by storage).
+    Returns list sorted by condition (Fair, Good, Superb).
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        from sqlalchemy import func
+        
+        model_normalized = model_name.strip()
+        
+        exclude_suffixes = []
+        if 'mini' not in model_normalized.lower():
+            exclude_suffixes.append('mini')
+        if 'pro max' not in model_normalized.lower() and 'pro' not in model_normalized.lower():
+            exclude_suffixes.extend(['pro', 'pro max'])
+        if 'new' not in model_normalized.lower():
+            exclude_suffixes.append('new')
+        
+        query = db.query(GRESTProduct).filter(
+            GRESTProduct.name.ilike(f"%{model_normalized}%"),
+            GRESTProduct.in_stock == True
+        )
+        
+        for suffix in exclude_suffixes:
+            query = query.filter(~GRESTProduct.name.ilike(f"%{suffix}%"))
+        
+        if storage:
+            storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
+            if 'GB' not in storage_clean and 'TB' not in storage_clean:
+                storage_clean = f"{storage} GB"
+            query = query.filter(GRESTProduct.storage.ilike(f"%{storage_clean.strip()}%"))
+        
+        condition_order = {'Fair': 1, 'Good': 2, 'Superb': 3}
+        products = query.all()
+        
+        result = {}
+        for p in products:
+            key = (p.storage, p.condition)
+            if key not in result or p.price < result[key]['price']:
+                result[key] = {
+                    'name': p.name,
+                    'storage': p.storage,
+                    'color': p.color,
+                    'condition': p.condition,
+                    'price': float(p.price),
+                    'original_price': float(p.original_price) if p.original_price else None,
+                    'discount_percent': p.discount_percent,
+                    'product_url': p.product_url,
+                    'image_url': p.image_url
+                }
+        
+        sorted_variants = sorted(
+            result.values(),
+            key=lambda x: (x['storage'] or '', condition_order.get(x['condition'], 99))
+        )
+        
+        return sorted_variants
+
+
+def get_storage_options_for_model(model_name: str):
+    """
+    Get all available storage options for a product model.
+    Returns distinct storage values.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        from sqlalchemy import distinct
+        
+        model_normalized = model_name.strip()
+        
+        exclude_suffixes = []
+        if 'mini' not in model_normalized.lower():
+            exclude_suffixes.append('mini')
+        if 'pro max' not in model_normalized.lower() and 'pro' not in model_normalized.lower():
+            exclude_suffixes.extend(['pro', 'pro max'])
+        if 'new' not in model_normalized.lower():
+            exclude_suffixes.append('new')
+        
+        query = db.query(distinct(GRESTProduct.storage)).filter(
+            GRESTProduct.name.ilike(f"%{model_normalized}%"),
+            GRESTProduct.in_stock == True,
+            GRESTProduct.storage.isnot(None)
+        )
+        
+        for suffix in exclude_suffixes:
+            query = query.filter(~GRESTProduct.name.ilike(f"%{suffix}%"))
+        
+        storages = query.all()
+        
+        return [s[0] for s in storages if s[0]]

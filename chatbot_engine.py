@@ -21,7 +21,10 @@ from database import (
     get_products_in_price_range,
     get_cheapest_product,
     get_all_products_formatted,
-    search_products_for_chatbot
+    search_products_for_chatbot,
+    search_product_by_specs,
+    get_product_variants,
+    get_storage_options_for_model
 )
 
 _openai_client = None
@@ -152,21 +155,118 @@ def detect_price_query(message: str) -> Tuple[bool, Optional[float], Optional[fl
     return (is_price_query, max_price, min_price, category)
 
 
+def detect_variant_query(message: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Detect if the message is asking about a specific product variant.
+    Returns: (model_name, storage, condition)
+    
+    Handles queries like:
+    - "iPhone 12 128GB price"
+    - "iPhone 12 256GB Superb kya price hai"
+    - "iPhone 13 Pro Max 512GB Good condition"
+    - "iPad Pro 256GB price"
+    """
+    message_lower = message.lower()
+    
+    model_pattern = r'(iphone|ipad|macbook)\s*(pro\s*max|pro|mini|air)?\s*(\d+)?'
+    model_match = re.search(model_pattern, message_lower)
+    
+    if not model_match:
+        return (None, None, None)
+    
+    model_parts = []
+    device = model_match.group(1).capitalize()
+    if device == 'Iphone':
+        device = 'iPhone'
+    elif device == 'Ipad':
+        device = 'iPad'
+    elif device == 'Macbook':
+        device = 'MacBook'
+    model_parts.append(device)
+    
+    if model_match.group(3):
+        model_parts.append(model_match.group(3))
+    
+    if model_match.group(2):
+        variant_type = model_match.group(2).replace('  ', ' ').title()
+        model_parts.append(variant_type)
+    
+    model_name = ' '.join(model_parts)
+    
+    storage_pattern = r'(\d+)\s*(gb|tb)'
+    storage_match = re.search(storage_pattern, message_lower)
+    storage = None
+    if storage_match:
+        storage = f"{storage_match.group(1)} {storage_match.group(2).upper()}"
+    
+    condition = None
+    if 'superb' in message_lower:
+        condition = 'Superb'
+    elif 'good' in message_lower:
+        condition = 'Good'
+    elif 'fair' in message_lower:
+        condition = 'Fair'
+    
+    return (model_name, storage, condition)
+
+
 def get_product_context_from_database(message: str) -> str:
     """
     Get product/pricing context from the database based on the user's query.
     Returns formatted string for LLM context injection.
-    """
-    is_price_query, max_price, min_price, category = detect_price_query(message)
     
-    if not is_price_query:
-        return ""
+    Priority order:
+    1. Specific variant queries (iPhone 12 128GB Superb)
+    2. Cheapest product queries (sabse sasta iPhone)
+    3. Price range queries (iPhone under 25000)
+    4. General product listing
+    """
+    model_name, storage, condition = detect_variant_query(message)
+    is_price_query, max_price, min_price, category = detect_price_query(message)
     
     context_parts = []
     context_parts.append("\n\n=== PRODUCT DATABASE (AUTHORITATIVE PRICING SOURCE) ===")
-    context_parts.append("NOTE: Use ONLY these prices. They are current and accurate.\n")
+    context_parts.append("NOTE: Use ONLY these prices. They are current and accurate.")
+    context_parts.append("IMPORTANT: When no condition specified, show Fair condition price (lowest tier).\n")
     
-    if 'sasta' in message.lower() or 'cheapest' in message.lower() or 'lowest' in message.lower():
+    if model_name and (storage or 'price' in message.lower() or 'kitna' in message.lower() or 'cost' in message.lower()):
+        product = search_product_by_specs(model_name, storage, condition)
+        
+        if product:
+            condition_shown = product.get('condition') or 'Fair'
+            storage_shown = product.get('storage') or ''
+            
+            context_parts.append(f"SPECIFIC PRODUCT MATCH:")
+            context_parts.append(f"  Model: {product['name']}")
+            if storage_shown:
+                context_parts.append(f"  Storage: {storage_shown}")
+            context_parts.append(f"  Condition: {condition_shown}")
+            context_parts.append(f"  Price: Rs. {int(product['price']):,}")
+            context_parts.append(f"  URL: {product['product_url']}")
+            if product.get('image_url'):
+                context_parts.append(f"  IMAGE: {product['image_url']}")
+            
+            if storage:
+                variants = get_product_variants(model_name, storage)
+                if len(variants) > 1:
+                    context_parts.append(f"\n  OTHER CONDITIONS AVAILABLE FOR {storage}:")
+                    for v in variants:
+                        if v.get('condition') != condition_shown:
+                            context_parts.append(f"    - {v.get('condition', 'Unknown')}: Rs. {int(v['price']):,}")
+            else:
+                storage_options = get_storage_options_for_model(model_name)
+                if storage_options:
+                    context_parts.append(f"\n  STORAGE OPTIONS AVAILABLE:")
+                    context_parts.append(f"    {', '.join(storage_options)}")
+        else:
+            context_parts.append(f"Product not found: {model_name}")
+            if storage:
+                context_parts.append(f"  Requested storage: {storage}")
+            storage_options = get_storage_options_for_model(model_name)
+            if storage_options:
+                context_parts.append(f"  Available storage options: {', '.join(storage_options)}")
+    
+    elif 'sasta' in message.lower() or 'cheapest' in message.lower() or 'lowest' in message.lower():
         cheapest = get_cheapest_product(category)
         if cheapest:
             context_parts.append(f"CHEAPEST {'iPhone' if category == 'iPhone' else 'Product'}:")
@@ -180,10 +280,16 @@ def get_product_context_from_database(message: str) -> str:
         if products:
             context_parts.append(f"Products between Rs. {int(min_price):,} - Rs. {int(max_price):,}:")
             for p in products[:5]:
-                context_parts.append(f"  - {p['name']}: Rs. {int(p['price']):,}")
+                variant_info = ""
+                if p.get('storage') or p.get('condition'):
+                    parts = []
+                    if p.get('storage'):
+                        parts.append(p['storage'])
+                    if p.get('condition'):
+                        parts.append(p['condition'])
+                    variant_info = f" ({', '.join(parts)})"
+                context_parts.append(f"  - {p['name']}{variant_info}: Rs. {int(p['price']):,}")
                 context_parts.append(f"    URL: {p['product_url']}")
-                if p.get('image_url'):
-                    context_parts.append(f"    IMAGE: {p['image_url']}")
         else:
             context_parts.append(f"No products found between Rs. {int(min_price):,} - Rs. {int(max_price):,}")
     
@@ -193,19 +299,27 @@ def get_product_context_from_database(message: str) -> str:
             context_parts.append(f"Products under Rs. {int(max_price):,}:")
             for p in products[:5]:
                 discount_text = f" (Save {p['discount_percent']}%)" if p.get('discount_percent') else ""
-                context_parts.append(f"  - {p['name']}: Rs. {int(p['price']):,}{discount_text}")
+                variant_info = ""
+                if p.get('storage') or p.get('condition'):
+                    parts = []
+                    if p.get('storage'):
+                        parts.append(p['storage'])
+                    if p.get('condition'):
+                        parts.append(p['condition'])
+                    variant_info = f" ({', '.join(parts)})"
+                context_parts.append(f"  - {p['name']}{variant_info}: Rs. {int(p['price']):,}{discount_text}")
                 context_parts.append(f"    URL: {p['product_url']}")
-                if p.get('image_url'):
-                    context_parts.append(f"    IMAGE: {p['image_url']}")
         else:
             cheapest = get_cheapest_product(category)
             if cheapest:
                 context_parts.append(f"No products under Rs. {int(max_price):,}.")
                 context_parts.append(f"Cheapest option: {cheapest['name']} at Rs. {int(cheapest['price']):,}")
     
-    else:
+    elif is_price_query:
         all_products = get_all_products_formatted()
         context_parts.append(all_products)
+    else:
+        return ""
     
     context_parts.append("\n=== END PRODUCT DATABASE ===\n")
     
