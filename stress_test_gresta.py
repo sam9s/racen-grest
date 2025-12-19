@@ -310,7 +310,7 @@ def run_stress_test():
     print("\n" + "=" * 70)
     print("STRESS TEST COMPLETE")
     print(f"Passed: {passed} | Failed: {failed} | Warnings: {warnings}")
-    print("Report saved to: stress_test_report.md")
+    print("Report saved to: stress_test/stress_test_md_output/stress_test_report.md")
     print("=" * 70)
     
     return results, passed, failed, warnings
@@ -423,7 +423,7 @@ This stress test validates GRESTA's pricing accuracy across multiple query permu
 Review any failed tests and warnings to ensure database and chatbot logic are aligned.
 """
     
-    with open('stress_test_report.md', 'w') as f:
+    with open('stress_test/stress_test_md_output/stress_test_report.md', 'w') as f:
         f.write(report)
 
 
