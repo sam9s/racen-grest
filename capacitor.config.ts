@@ -1,11 +1,11 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.joveheal.jovee',
-  appName: 'Jovee',
+  appId: 'in.grest.gresta',
+  appName: 'GRESTA',
   webDir: 'out',
   server: {
-    url: 'https://jove.sam9scloud.in',
+    url: 'https://grest.in',
     cleartext: true
   },
   plugins: {
@@ -13,7 +13,7 @@ const config: CapacitorConfig = {
       launchShowDuration: 2000,
       launchAutoHide: true,
       launchFadeOutDuration: 500,
-      backgroundColor: '#1e1b4b',
+      backgroundColor: '#10b981',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,

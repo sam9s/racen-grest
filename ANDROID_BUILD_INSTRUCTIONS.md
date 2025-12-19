@@ -1,4 +1,4 @@
-# Jovee Android App - Build Instructions
+# GRESTA Android App - Build Instructions
 
 ## Prerequisites
 - **Android Studio** (latest version)
@@ -61,7 +61,7 @@ If you only downloaded the `android/` folder without the other files:
 ---
 
 ## What This App Does
-Jovee is a mobile wrapper for the JoveHeal wellness chatbot. It opens the web app (https://jove.sam9scloud.in) inside a native Android container with:
-- Splash screen with Jovee branding
+GRESTA is a mobile wrapper for the GREST e-commerce chatbot. It opens the web app (https://grest.in) inside a native Android container with:
+- Splash screen with GREST branding
 - Native app icon on home screen
 - Full-screen experience

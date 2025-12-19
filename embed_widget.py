@@ -165,6 +165,6 @@ if prompt := st.chat_input("Type your question..."):
 
 st.markdown("""
 <div class="powered-by">
-    Powered by <a href="https://www.joveheal.com" target="_blank">JoveHeal</a>
+    Powered by <a href="https://grest.in" target="_blank">GREST</a>
 </div>
 """, unsafe_allow_html=True)

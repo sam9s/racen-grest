@@ -240,7 +240,7 @@ def scrape_grest_website(max_pages: int = 50) -> list:
     return documents
 
 
-def scrape_joveheal_website(max_pages: int = 50) -> list:
+def scrape_grest_website_legacy(max_pages: int = 50) -> list:
     """Legacy function - redirects to scrape_grest_website for backwards compatibility."""
     return scrape_grest_website(max_pages)
 
