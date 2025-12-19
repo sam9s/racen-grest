@@ -110,13 +110,13 @@ def detect_price_query(message: str) -> Tuple[bool, Optional[float], Optional[fl
     min_price = None
     
     price_patterns = [
-        r'under\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
-        r'below\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
-        r'less than\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
-        r'within\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
-        r'(?:rs\.?|₹)\s*(\d{1,3}(?:,?\d{3})*)\s*(?:ke andar|tak|under)',
-        r'(\d{1,3}(?:,?\d{3})*)\s*(?:ke andar|tak|rupee|rs)',
-        r'budget\s*(?:of|is)?\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
+        r'under\s*(?:rs\.?|₹)?\s*(\d[\d,]*)',
+        r'below\s*(?:rs\.?|₹)?\s*(\d[\d,]*)',
+        r'less than\s*(?:rs\.?|₹)?\s*(\d[\d,]*)',
+        r'within\s*(?:rs\.?|₹)?\s*(\d[\d,]*)',
+        r'(?:rs\.?|₹)\s*(\d[\d,]*)\s*(?:ke andar|tak|under)',
+        r'(\d[\d,]*)\s*(?:ke andar|tak|rupee|rs)',
+        r'budget\s*(?:of|is)?\s*(?:rs\.?|₹)?\s*(\d[\d,]*)',
     ]
     
     for pattern in price_patterns:
@@ -127,8 +127,8 @@ def detect_price_query(message: str) -> Tuple[bool, Optional[float], Optional[fl
             break
     
     range_patterns = [
-        r'between\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)\s*(?:to|and|-)\s*(?:rs\.?|₹)?\s*(\d{1,3}(?:,?\d{3})*)',
-        r'(\d{1,3}(?:,?\d{3})*)\s*(?:se|to)\s*(\d{1,3}(?:,?\d{3})*)',
+        r'between\s*(?:rs\.?|₹)?\s*(\d[\d,]*)\s*(?:to|and|-)\s*(?:rs\.?|₹)?\s*(\d[\d,]*)',
+        r'(\d[\d,]*)\s*(?:se|to)\s*(\d[\d,]*)',
     ]
     
     for pattern in range_patterns:

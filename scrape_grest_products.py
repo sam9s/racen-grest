@@ -1,47 +1,65 @@
 """
-GREST Product Scraper - Uses Shopify JSON API to populate PostgreSQL database.
+GREST Product Scraper - Uses Shopify Admin API to populate PostgreSQL database.
 Run this script to update product pricing and specifications.
+
+Requires environment variables:
+- SHOPIFY_ACCESS_TOKEN: Admin API access token
+- SHOPIFY_STORE_URL: Store URL (e.g., grestmobile.myshopify.com)
 """
 
+import os
 import json
 import requests
 from database import get_db_session, GRESTProduct, init_database
 
-PRODUCT_SLUGS = [
-    "iphone-16",
-    "iphone-15",
-    "refurbished-apple-iphone-14",
-    "refurbished-apple-iphone-14-plus",
-    "refurbished-apple-iphone-14-pro",
-    "refurbished-apple-iphone-14-pro-max",
-    "refurbished-apple-iphone-13",
-    "refurbished-apple-iphone-13-mini",
-    "refurbished-iphone-13-pro",
-    "apple-iphone-13-pro-max",
-    "refurbished-apple-iphone-12",
-    "refurbished-iphone-12-mini",
-    "refurbished-apple-iphone-12-pro",
-    "refurbished-apple-iphone-12-pro-max",
-    "refurbished-iphone-11",
-    "refurbished-apple-iphone-11-pro",
-    "refurbished-apple-iphone-11-pro-max",
-    "apple-ipad-a2602-a13-bionic-9th-gen-wifi202164gb10-2",
-    "apple-ipad-pro-a1934-a12x-bionic-1st-gen-wifi-cellular-201864gb11-1",
-]
+SHOPIFY_STORE_URL = os.environ.get('SHOPIFY_STORE_URL', 'grestmobile.myshopify.com')
+SHOPIFY_ACCESS_TOKEN = os.environ.get('SHOPIFY_ACCESS_TOKEN')
+API_VERSION = '2024-10'
 
-def fetch_product_json(slug):
-    """Fetch product data from Shopify JSON API."""
-    url = f"https://grest.in/products/{slug}.json"
-    try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-        return response.json().get('product', {})
-    except Exception as e:
-        print(f"Error fetching {slug}: {e}")
-        return None
+def get_shopify_headers():
+    """Get headers for Shopify Admin API requests."""
+    return {
+        'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+        'Content-Type': 'application/json'
+    }
+
+def fetch_all_products():
+    """Fetch ALL products from Shopify Admin API with pagination."""
+    if not SHOPIFY_ACCESS_TOKEN:
+        print("ERROR: SHOPIFY_ACCESS_TOKEN not set!")
+        return []
+    
+    all_products = []
+    base_url = f"https://{SHOPIFY_STORE_URL}/admin/api/{API_VERSION}/products.json"
+    
+    params = {'limit': 250}
+    
+    while True:
+        response = requests.get(base_url, headers=get_shopify_headers(), params=params)
+        
+        if response.status_code != 200:
+            print(f"API Error: {response.status_code} - {response.text[:200]}")
+            break
+        
+        data = response.json()
+        products = data.get('products', [])
+        all_products.extend(products)
+        
+        print(f"Fetched {len(products)} products (total: {len(all_products)})")
+        
+        link_header = response.headers.get('Link', '')
+        if 'rel="next"' in link_header:
+            import re
+            next_match = re.search(r'<([^>]+)>; rel="next"', link_header)
+            if next_match:
+                base_url = next_match.group(1)
+                params = {}
+            else:
+                break
+        else:
+            break
+    
+    return all_products
 
 def extract_specs_from_body(body_html):
     """Extract specifications from product body HTML."""
@@ -49,29 +67,47 @@ def extract_specs_from_body(body_html):
     if not body_html:
         return specs
     
-    from bs4 import BeautifulSoup
-    soup = BeautifulSoup(body_html, 'html.parser')
-    
-    rows = soup.find_all('tr')
-    for row in rows:
-        cells = row.find_all(['td', 'th'])
-        if len(cells) >= 2:
-            key = cells[0].get_text(strip=True)
-            value = cells[1].get_text(strip=True)
-            if key and value:
-                specs[key] = value
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(body_html, 'html.parser')
+        
+        rows = soup.find_all('tr')
+        for row in rows:
+            cells = row.find_all(['td', 'th'])
+            if len(cells) >= 2:
+                key = cells[0].get_text(strip=True)
+                value = cells[1].get_text(strip=True)
+                if key and value:
+                    specs[key] = value
+        
+        for text in soup.stripped_strings:
+            if ':' in text and len(text) < 100:
+                parts = text.split(':', 1)
+                if len(parts) == 2:
+                    key, value = parts[0].strip(), parts[1].strip()
+                    if key and value and key not in specs:
+                        specs[key] = value
+    except Exception as e:
+        print(f"  Spec extraction error: {e}")
     
     return specs
 
-def get_category(title):
-    """Determine product category from title."""
-    title_lower = title.lower()
-    if 'ipad' in title_lower:
+def get_category(title, product_type=''):
+    """Determine product category from title and product_type."""
+    combined = f"{title} {product_type}".lower()
+    
+    if 'ipad' in combined:
         return 'iPad'
-    elif 'macbook' in title_lower:
+    elif 'macbook' in combined:
         return 'MacBook'
-    elif 'iphone' in title_lower:
+    elif 'iphone' in combined:
         return 'iPhone'
+    elif 'watch' in combined:
+        return 'Apple Watch'
+    elif 'airpod' in combined:
+        return 'AirPods'
+    elif 'protection' in combined or 'damage' in combined or 'warranty' in combined:
+        return 'Protection Plan'
     return 'Other'
 
 def get_price_range(variants):
@@ -89,39 +125,80 @@ def get_price_range(variants):
         return min(prices), max(prices)
     return None, None
 
+def parse_variant_options(variants):
+    """Extract storage, colors, and conditions from variants."""
+    storage_options = set()
+    colors = set()
+    conditions = set()
+    
+    for v in variants:
+        for opt_key in ['option1', 'option2', 'option3']:
+            opt = v.get(opt_key, '')
+            if opt:
+                opt_lower = opt.lower()
+                if 'gb' in opt_lower or 'tb' in opt_lower:
+                    storage_options.add(opt)
+                elif opt_lower in ['fair', 'good', 'superb', 'excellent', 'like new', 'refurbished']:
+                    conditions.add(opt)
+                elif opt_lower not in ['', 'default', 'title']:
+                    colors.add(opt)
+    
+    return list(storage_options), list(colors), list(conditions)
+
 def populate_database():
-    """Fetch all products from Shopify API and populate database."""
+    """Fetch all products from Shopify Admin API and populate database."""
     init_database()
     
-    print(f"Fetching {len(PRODUCT_SLUGS)} products from Shopify API...")
+    print("=" * 60)
+    print("GREST Product Sync - Shopify Admin API")
+    print("=" * 60)
+    print(f"Store: {SHOPIFY_STORE_URL}")
+    print()
+    
+    all_products = fetch_all_products()
+    
+    if not all_products:
+        print("No products fetched. Check API credentials.")
+        return
+    
+    print(f"\nProcessing {len(all_products)} products...")
+    print("-" * 60)
     
     products_added = 0
     products_updated = 0
+    products_skipped = 0
     
-    for slug in PRODUCT_SLUGS:
-        print(f"Fetching: {slug}")
-        product = fetch_product_json(slug)
+    for product in all_products:
+        title = product.get('title', '')
+        product_id = product.get('id')
+        handle = product.get('handle', '')
+        product_type = product.get('product_type', '')
         
-        if not product:
-            print(f"  -> Failed to fetch")
+        if not title or not product_id:
+            products_skipped += 1
             continue
         
-        title = product.get('title', '')
-        if not title:
-            print(f"  -> No title found")
+        category = get_category(title, product_type)
+        
+        if category == 'Protection Plan':
+            print(f"  Skipping protection plan: {title[:50]}")
+            products_skipped += 1
             continue
         
         variants = product.get('variants', [])
         min_price, max_price = get_price_range(variants)
         
-        if not min_price:
-            print(f"  -> No price found")
+        if not min_price or min_price <= 0:
+            print(f"  Skipping (no price): {title[:50]}")
+            products_skipped += 1
             continue
         
         first_variant = variants[0] if variants else {}
         compare_price = None
         try:
-            compare_price = float(first_variant.get('compare_at_price', 0))
+            cp = first_variant.get('compare_at_price')
+            if cp:
+                compare_price = float(cp)
         except:
             pass
         
@@ -130,48 +207,28 @@ def populate_database():
             discount = int(((compare_price - min_price) / compare_price) * 100)
         
         specs = extract_specs_from_body(product.get('body_html', ''))
-        
-        storage_options = set()
-        colors = set()
-        conditions = set()
-        
-        for v in variants:
-            opt1 = v.get('option1', '')
-            opt2 = v.get('option2', '')
-            opt3 = v.get('option3', '')
-            
-            for opt in [opt1, opt2, opt3]:
-                if opt:
-                    opt_lower = opt.lower()
-                    if 'gb' in opt_lower or 'tb' in opt_lower:
-                        storage_options.add(opt)
-                    elif opt_lower in ['fair', 'good', 'superb', 'excellent']:
-                        conditions.add(opt)
-                    elif opt_lower not in ['', 'default']:
-                        colors.add(opt)
+        storage_options, colors, conditions = parse_variant_options(variants)
         
         images = product.get('images', [])
         image_url = images[0].get('src', '') if images else None
         
-        category = get_category(title)
-        product_url = f"https://grest.in/products/{slug}"
-        sku = slug.upper().replace('-', '_')[:50]
+        product_url = f"https://grest.in/products/{handle}"
+        sku = f"SHOPIFY_{product_id}"
         
-        product_data = {
-            'name': title,
-            'min_price': min_price,
-            'max_price': max_price,
-            'compare_price': compare_price,
-            'discount': discount,
-            'category': category,
-            'storage_options': list(storage_options),
-            'colors': list(colors),
-            'conditions': list(conditions),
-            'variant_count': len(variants),
+        total_inventory = sum(v.get('inventory_quantity', 0) for v in variants)
+        in_stock = total_inventory > 0 or any(v.get('inventory_policy') == 'continue' for v in variants)
+        
+        specs_json = json.dumps({
             'specs': specs,
-            'image_url': image_url,
-            'product_url': product_url,
-        }
+            'storage_options': storage_options,
+            'colors': colors,
+            'conditions': conditions,
+            'variant_count': len(variants),
+            'total_inventory': total_inventory,
+            'product_type': product_type,
+            'tags': product.get('tags', ''),
+            'price_range': f"Rs. {int(min_price):,} - Rs. {int(max_price):,}" if max_price != min_price else f"Rs. {int(min_price):,}"
+        })
         
         with get_db_session() as db:
             if db is None:
@@ -179,15 +236,6 @@ def populate_database():
                 return
             
             existing = db.query(GRESTProduct).filter(GRESTProduct.sku == sku).first()
-            
-            specs_json = json.dumps({
-                'specs': specs,
-                'storage_options': list(storage_options),
-                'colors': list(colors),
-                'conditions': list(conditions),
-                'variant_count': len(variants),
-                'price_range': f"Rs. {int(min_price):,} - Rs. {int(max_price):,}" if max_price != min_price else f"Rs. {int(min_price):,}"
-            })
             
             if existing:
                 existing.name = title
@@ -198,9 +246,9 @@ def populate_database():
                 existing.specifications = specs_json
                 existing.product_url = product_url
                 existing.image_url = image_url
-                existing.in_stock = True
+                existing.in_stock = in_stock
                 products_updated += 1
-                print(f"  -> Updated: {title} - Starting Rs. {int(min_price):,}")
+                print(f"  Updated: {title[:40]} - Rs. {int(min_price):,}")
             else:
                 new_product = GRESTProduct(
                     sku=sku,
@@ -209,7 +257,7 @@ def populate_database():
                     price=min_price,
                     original_price=compare_price,
                     discount_percent=discount,
-                    in_stock=True,
+                    in_stock=in_stock,
                     warranty_months=6,
                     product_url=product_url,
                     image_url=image_url,
@@ -217,21 +265,36 @@ def populate_database():
                 )
                 db.add(new_product)
                 products_added += 1
-                print(f"  -> Added: {title} - Starting Rs. {int(min_price):,}")
+                print(f"  Added: {title[:40]} - Rs. {int(min_price):,}")
     
-    print(f"\n{'='*50}")
-    print(f"Summary: {products_added} added, {products_updated} updated")
-    print(f"{'='*50}")
+    print()
+    print("=" * 60)
+    print("SYNC COMPLETE")
+    print("=" * 60)
+    print(f"Added: {products_added}")
+    print(f"Updated: {products_updated}")
+    print(f"Skipped: {products_skipped}")
+    print()
     
     with get_db_session() as db:
         if db:
             total = db.query(GRESTProduct).count()
             print(f"Total products in database: {total}")
             
-            print("\nSample products:")
-            products = db.query(GRESTProduct).order_by(GRESTProduct.price).limit(5).all()
-            for p in products:
-                print(f"  - {p.name}: Rs. {int(p.price):,} ({p.category})")
+            print("\nProducts by category:")
+            categories = db.query(GRESTProduct.category).distinct().all()
+            for (cat,) in categories:
+                count = db.query(GRESTProduct).filter(GRESTProduct.category == cat).count()
+                print(f"  - {cat}: {count}")
+            
+            print("\nPrice range samples:")
+            cheapest = db.query(GRESTProduct).filter(GRESTProduct.category == 'iPhone').order_by(GRESTProduct.price).first()
+            if cheapest:
+                print(f"  Cheapest iPhone: {cheapest.name} - Rs. {int(cheapest.price):,}")
+            
+            expensive = db.query(GRESTProduct).order_by(GRESTProduct.price.desc()).first()
+            if expensive:
+                print(f"  Most expensive: {expensive.name} - Rs. {int(expensive.price):,}")
 
 if __name__ == "__main__":
     populate_database()
