@@ -29,7 +29,7 @@ function extractProductUrl(text: string, imageIndex: number): string | null {
 function renderMarkdownContent(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   
-  const combinedRegex = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*/g;
+  const combinedRegex = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|(https?:\/\/[^\s\)]+)/g;
   let lastIndex = 0;
   let match;
   let keyCounter = 0;
@@ -71,7 +71,6 @@ function renderMarkdownContent(text: string): React.ReactNode[] {
     } else if (match[3] !== undefined) {
       const linkText = match[3];
       const url = match[4];
-      console.log('[ChatMessage] Rendering link:', linkText, '->', url);
       parts.push(
         <a
           key={`link-${keyCounter++}`}
@@ -93,6 +92,29 @@ function renderMarkdownContent(text: string): React.ReactNode[] {
         <strong key={`bold-${keyCounter++}`} className="font-semibold text-primary-300">
           {match[5]}
         </strong>
+      );
+    } else if (match[6] !== undefined) {
+      const rawUrl = match[6];
+      const displayText = rawUrl.includes('/products/') 
+        ? 'View Product' 
+        : rawUrl.includes('/collections/') 
+          ? 'Browse Collection' 
+          : 'Visit Link';
+      parts.push(
+        <a
+          key={`rawlink-${keyCounter++}`}
+          href={rawUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-emerald-400 hover:text-emerald-300 underline decoration-emerald-400 underline-offset-2 font-medium cursor-pointer"
+          style={{ pointerEvents: 'auto' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(rawUrl, '_blank', 'noopener,noreferrer');
+          }}
+        >
+          {displayText}
+        </a>
       );
     }
     
