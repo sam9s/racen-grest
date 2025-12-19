@@ -17,6 +17,15 @@ interface ChatMessageProps {
   onFeedback: (messageId: string, feedback: 'up' | 'down', comment?: string) => void;
 }
 
+function extractProductUrl(text: string, imageIndex: number): string | null {
+  const linkRegex = /\[([^\]]+)\]\((https:\/\/grest\.in\/products\/[^)]+)\)/g;
+  let match;
+  while ((match = linkRegex.exec(text)) !== null) {
+    return match[2];
+  }
+  return null;
+}
+
 function renderMarkdownContent(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   
@@ -24,6 +33,8 @@ function renderMarkdownContent(text: string): React.ReactNode[] {
   let lastIndex = 0;
   let match;
   let keyCounter = 0;
+  
+  const productUrl = extractProductUrl(text, 0);
 
   while ((match = combinedRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
@@ -33,16 +44,30 @@ function renderMarkdownContent(text: string): React.ReactNode[] {
     if (match[1] !== undefined || match[2] !== undefined) {
       const altText = match[1] || 'Product image';
       const imageUrl = match[2];
-      parts.push(
-        <div key={`img-${keyCounter++}`} className="my-2">
-          <img
-            src={imageUrl}
-            alt={altText}
-            className="max-w-[200px] max-h-[200px] rounded-lg border border-primary-500/20 object-contain"
-            loading="lazy"
-          />
-        </div>
+      const imageElement = (
+        <img
+          src={imageUrl}
+          alt={altText}
+          className="max-w-[200px] max-h-[200px] rounded-lg border border-primary-500/20 object-contain cursor-pointer hover:border-primary-500/50 transition-all"
+          loading="lazy"
+        />
       );
+      
+      if (productUrl) {
+        parts.push(
+          <div key={`img-${keyCounter++}`} className="my-2">
+            <a href={productUrl} target="_blank" rel="noopener noreferrer">
+              {imageElement}
+            </a>
+          </div>
+        );
+      } else {
+        parts.push(
+          <div key={`img-${keyCounter++}`} className="my-2">
+            {imageElement}
+          </div>
+        );
+      }
     } else if (match[3] !== undefined) {
       const linkText = match[3];
       const url = match[4];
@@ -52,7 +77,7 @@ function renderMarkdownContent(text: string): React.ReactNode[] {
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors"
+          className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors cursor-pointer"
         >
           {linkText}
         </a>
