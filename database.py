@@ -393,6 +393,46 @@ def get_product_by_name(name: str):
         ]
 
 
+def get_product_with_specs(product_name: str):
+    """
+    Get product with full specifications by name (case-insensitive).
+    Returns first match with specs parsed from JSON.
+    """
+    import json
+    with get_db_session() as db:
+        if db is None:
+            return None
+        
+        product = db.query(GRESTProduct).filter(
+            GRESTProduct.name.ilike(f"%{product_name}%")
+        ).first()
+        
+        if product:
+            specs = {}
+            if product.specifications:
+                try:
+                    spec_data = json.loads(product.specifications) if isinstance(product.specifications, str) else product.specifications
+                    specs = spec_data.get('specs', {})
+                    specs['Storage Options'] = ', '.join(spec_data.get('storage_options', []))
+                    specs['Colors Available'] = ', '.join(spec_data.get('colors', []))
+                    specs['Conditions'] = ', '.join(spec_data.get('conditions', []))
+                    specs['Price Range'] = spec_data.get('price_range', '')
+                except:
+                    pass
+            
+            return {
+                'name': product.name,
+                'category': product.category,
+                'price': float(product.price) if product.price else None,
+                'original_price': float(product.original_price) if product.original_price else None,
+                'discount_percent': product.discount_percent,
+                'warranty_months': product.warranty_months,
+                'product_url': product.product_url,
+                'specs': specs
+            }
+        return None
+
+
 def get_product_by_sku(sku: str):
     """Get a single product by its SKU."""
     with get_db_session() as db:

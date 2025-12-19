@@ -92,6 +92,35 @@ def extract_specs_from_body(body_html):
     
     return specs
 
+def fetch_product_metafields(product_id):
+    """Fetch metafields for a specific product from Shopify Admin API."""
+    if not SHOPIFY_ACCESS_TOKEN:
+        return {}
+    
+    url = f"https://{SHOPIFY_STORE_URL}/admin/api/{API_VERSION}/products/{product_id}/metafields.json"
+    
+    try:
+        response = requests.get(url, headers=get_shopify_headers())
+        if response.status_code == 200:
+            metafields = response.json().get('metafields', [])
+            specs = {}
+            for mf in metafields:
+                namespace = mf.get('namespace', '')
+                key = mf.get('key', '')
+                value = mf.get('value', '')
+                
+                if namespace == 'custom' and value:
+                    spec_name = key.replace('_', ' ').title()
+                    specs[spec_name] = value
+                elif namespace == 'global' and key == 'description_tag':
+                    specs['Meta Description'] = value
+            
+            return specs
+    except Exception as e:
+        print(f"  Metafield fetch error: {e}")
+    
+    return {}
+
 def get_category(title, product_type=''):
     """Determine product category from title and product_type."""
     combined = f"{title} {product_type}".lower()
@@ -207,6 +236,8 @@ def populate_database():
             discount = int(((compare_price - min_price) / compare_price) * 100)
         
         specs = extract_specs_from_body(product.get('body_html', ''))
+        metafield_specs = fetch_product_metafields(product_id)
+        specs.update(metafield_specs)
         storage_options, colors, conditions = parse_variant_options(variants)
         
         images = product.get('images', [])

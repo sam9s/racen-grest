@@ -414,6 +414,26 @@ Note: Specifications are based on official Apple data. Availability and pricing 
 """
     
     elif category == "product_specs":
+        from database import get_product_with_specs
+        product = get_product_with_specs(search_query)
+        if product and product.get('specs'):
+            specs = product['specs']
+            context = f"""
+=== PRODUCT SPECIFICATIONS FROM GREST DATABASE (AUTHORITATIVE) ===
+Product: {product['name']}
+Price: Rs. {int(product['price']):,} (MRP: Rs. {int(product['original_price']):,}) - Save {product.get('discount_percent', 0)}%
+URL: {product.get('product_url', '')}
+Warranty: {product.get('warranty_months', 6)} months
+
+SPECIFICATIONS:
+"""
+            ignore_keys = ['Case', 'Charging', 'Screenprotector', 'Protection Variant', 'Meta Description']
+            for key, value in specs.items():
+                if key not in ignore_keys and value and not str(value).isdigit():
+                    context += f"  - {key}: {value}\n"
+            context += "\n=== END SPECIFICATIONS ===\n"
+            return context
+        
         live_search = perform_web_search(search_query, category)
         if live_search:
             return live_search
