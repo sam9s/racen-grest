@@ -1,5 +1,5 @@
 """
-JoveHeal Chatbot - Embeddable Widget
+GREST Chatbot - Embeddable Widget
 
 A lightweight version of the chatbot designed for embedding on external websites.
 Provides a simpler interface focused on the chat functionality.
@@ -15,8 +15,8 @@ from conversation_logger import log_conversation
 from database import init_database, is_database_available
 
 st.set_page_config(
-    page_title="JoveHeal Chat",
-    page_icon="🌿",
+    page_title="GREST Chat",
+    page_icon="📱",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -45,7 +45,7 @@ st.markdown("""
     .widget-header {
         text-align: center;
         padding: 0.5rem;
-        background: linear-gradient(135deg, #4a7c59 0%, #2d5a3d 100%);
+        background: linear-gradient(135deg, #10b981 0%, #047857 100%);
         color: white;
         border-radius: 8px;
         margin-bottom: 1rem;
@@ -76,7 +76,7 @@ st.markdown("""
     }
     
     .powered-by a {
-        color: #4a7c59;
+        color: #10b981;
         text-decoration: none;
     }
 </style>
@@ -84,8 +84,8 @@ st.markdown("""
 
 st.markdown("""
 <div class="widget-header">
-    <p class="widget-title">JoveHeal Assistant</p>
-    <p class="widget-subtitle">Ask me about our wellness programs</p>
+    <p class="widget-title">GREST Assistant</p>
+    <p class="widget-subtitle">Ask me about refurbished iPhones & MacBooks</p>
 </div>
 """, unsafe_allow_html=True)
 

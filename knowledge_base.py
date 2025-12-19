@@ -398,11 +398,6 @@ def clear_knowledge_base():
         except Exception:
             pass
         
-        try:
-            client.delete_collection("joveheal_knowledge")
-        except Exception:
-            pass
-        
         metadata = {"documents": [], "last_scrape": None}
         save_metadata(metadata)
         

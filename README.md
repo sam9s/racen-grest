@@ -1,65 +1,25 @@
-# Jovee - JoveHeal Wellness Chatbot
+# GRESTA - GREST E-commerce Chatbot
 
-A RAG-based web chatbot for JoveHeal wellness coaching business. Jovee serves as a front-line information bot for website visitors, answering questions about programs, services, and offerings.
-
-## Mobile App (Android/iOS)
-
-This project includes Capacitor for building native mobile apps.
-
-### Quick Start (Clone & Build)
-
-```bash
-# 1. Clone the repo
-git clone <your-repo-url>
-cd <project-folder>
-
-# 2. Install dependencies
-npm install
-
-# 3. Sync Capacitor with Android
-npx cap sync android
-
-# 4. Open in Android Studio
-# Navigate to the 'android' folder and open it in Android Studio
-# Build → Build Bundle(s) / APK(s) → Build APK(s)
-```
-
-### For iOS (requires Mac + Xcode)
-```bash
-npx cap add ios
-npx cap sync ios
-# Open ios/ folder in Xcode
-```
-
-## Live Demo
-
-- **Production**: https://jove.sam9scloud.in
-- **Replit**: https://jove-heal-chatbot--sam9s.replit.app
+A RAG-based chatbot for GREST, India's premium refurbished iPhone and MacBook e-commerce platform. GRESTA serves as a front-line customer engagement tool, answering questions about products, pricing, warranty, and policies.
 
 ## Features
 
-### RACEN AI Assistant
-- Warm, empathetic conversational AI
-- Multi-turn conversation with context awareness
-- Automatic program link injection
-- Safety guardrails for medical/mental health topics
+### GRESTA AI Assistant
+- Bilingual support (English + Hinglish)
+- Accurate pricing from PostgreSQL database
+- Product recommendations based on budget
+- Streaming responses for real-time display
 
-### Knowledge Base
-- Website content from 7+ JoveHeal pages
-- PDF and text document ingestion
-- ChromaDB vector storage for semantic search
+### Product Database
+- 569 product variants synced from Shopify
+- Per-variant pricing (model × storage × condition × color)
+- Automatic sync from GREST Shopify store
 
 ### Multi-Channel Support
 - Web chat interface (Next.js)
 - WhatsApp via Twilio
 - Instagram via Meta Graph API
-- REST API for custom integrations
-
-### Admin Panel
-- Conversation logs and analytics
-- Knowledge base management
-- Feedback tracking
-- Channel configuration
+- Embeddable widget for external websites
 
 ## Tech Stack
 
@@ -67,11 +27,9 @@ npx cap sync ios
 |-----------|------------|
 | Frontend | Next.js 14, TypeScript, Tailwind CSS |
 | Backend API | Flask (Python) |
-| Admin Panel | Streamlit |
-| LLM | OpenAI GPT-4o-mini |
-| Vector DB | ChromaDB |
 | Database | PostgreSQL |
-| Messaging | Twilio (WhatsApp) |
+| Vector DB | ChromaDB |
+| LLM | OpenAI GPT-4o-mini |
 
 ## Project Structure
 
@@ -79,12 +37,12 @@ npx cap sync ios
 ├── src/                    # Next.js frontend
 │   ├── app/               # App router pages
 │   └── components/        # React components
-├── app.py                 # Streamlit admin panel
 ├── chatbot_engine.py      # Core RAG chatbot logic
 ├── webhook_server.py      # Flask API server
-├── safety_guardrails.py   # Safety filters & RACEN persona
+├── safety_guardrails.py   # GRESTA persona & safety filters
 ├── knowledge_base.py      # Vector storage
 ├── database.py            # SQLAlchemy models
+├── scrape_grest_products.py # Shopify product sync
 └── channel_handlers.py    # Multi-channel handlers
 ```
 
@@ -92,31 +50,21 @@ npx cap sync ios
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/chat` | POST | Send message, get response |
-| `/api/chat/reset` | POST | Reset conversation |
+| `/api/chat/stream` | POST | Streaming chat (SSE) |
+| `/api/chat` | POST | Non-streaming chat |
 | `/health` | GET | Health check |
 | `/webhook/whatsapp` | POST | Twilio webhook |
 | `/webhook/instagram` | GET/POST | Meta webhook |
 
-## JoveHeal Programs
+## Development
 
-RACEN provides information about:
-- Balance Mastery (3-month 1:1 coaching)
-- Inner Mastery Lounge (membership community)
-- Elevate 360 (5-month group program)
-- Relationship Healing
-- Career Healing
-- Beyond the Hustle
-- Inner Reset
-- Shed & Shine
+```bash
+# Start Flask backend
+python webhook_server.py
 
-## Safety Guidelines
-
-The chatbot follows strict safety policies:
-- No medical, psychological, or therapeutic advice
-- No diagnosis or treatment recommendations
-- Safe redirection for crisis/distress situations
-- Stays within mindset coaching boundaries
+# Start Next.js frontend
+npx next dev -p 5000 -H 0.0.0.0
+```
 
 ## Environment Variables
 
@@ -126,17 +74,6 @@ Required secrets:
 - `TWILIO_*` - For WhatsApp integration
 - `INSTAGRAM_*` - For Instagram integration
 
-## Development
-
-```bash
-# Start development servers
-python webhook_server.py  # Flask API on port 8080
-npx next dev -p 5000      # Next.js on port 5000
-
-# Admin panel
-streamlit run app.py --server.port 5001
-```
-
 ## Backup
 
 ```bash
@@ -145,7 +82,7 @@ bash backup.sh  # Push to GitHub
 
 ## License
 
-Private - JoveHeal Wellness Coaching
+Private - GREST India
 
 ---
 

@@ -20,7 +20,6 @@ from channel_handlers import (
     get_channel_status
 )
 from chatbot_engine import generate_response, generate_response_stream, generate_conversation_summary, fix_typos_with_llm
-from somera_engine import generate_somera_response, generate_somera_response_stream
 from conversation_logger import log_feedback, log_conversation, ensure_session_exists
 from database import get_or_create_user, get_user_conversation_history, get_conversation_summary, upsert_conversation_summary
 from knowledge_base import initialize_knowledge_base, get_knowledge_base_stats
@@ -394,110 +393,6 @@ def api_chat_stream():
                     )
             except Exception as e:
                 print(f"Error updating conversation summary: {e}")
-    
-    return Response(
-        generate(),
-        mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no'
-        }
-    )
-
-
-# ============================================================================
-# SOMERA ENDPOINTS - Empathetic Coaching Assistant
-# ============================================================================
-
-somera_conversation_histories = {}
-
-@app.route("/api/somera", methods=["POST"])
-def api_somera():
-    """SOMERA coaching endpoint - empathetic responses using Shweta's coaching style."""
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    
-    message = data.get("message")
-    session_id = data.get("session_id", "anonymous")
-    user_name = data.get("user_name")
-    
-    if not message:
-        return jsonify({"error": "Message is required"}), 400
-    
-    message = fix_typos_with_llm(message)
-    
-    if session_id not in somera_conversation_histories:
-        somera_conversation_histories[session_id] = []
-    
-    result = generate_somera_response(
-        message, 
-        somera_conversation_histories[session_id],
-        user_name=user_name
-    )
-    
-    answer = result.get("response", "I'm here to support you. Could you tell me more?")
-    sources = result.get("sources", [])
-    
-    somera_conversation_histories[session_id].append({"role": "user", "content": message})
-    somera_conversation_histories[session_id].append({"role": "assistant", "content": answer})
-    
-    if len(somera_conversation_histories[session_id]) > 50:
-        somera_conversation_histories[session_id] = somera_conversation_histories[session_id][-50:]
-    
-    return jsonify({
-        "response": answer,
-        "sources": sources,
-        "session_id": session_id
-    })
-
-
-@app.route("/api/somera/stream", methods=["POST"])
-def api_somera_stream():
-    """Streaming SOMERA coaching endpoint using Server-Sent Events."""
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    
-    message = data.get("message")
-    session_id = data.get("session_id", "anonymous")
-    user_name = data.get("user_name")
-    
-    if not message:
-        return jsonify({"error": "Message is required"}), 400
-    
-    message = fix_typos_with_llm(message)
-    
-    if session_id not in somera_conversation_histories:
-        somera_conversation_histories[session_id] = []
-    
-    def generate():
-        full_response = ""
-        sources = []
-        
-        for chunk in generate_somera_response_stream(
-            message, 
-            somera_conversation_histories[session_id],
-            user_name=user_name
-        ):
-            if chunk["type"] == "content":
-                full_response += chunk["content"]
-                yield f"data: {json.dumps(chunk)}\n\n"
-            elif chunk["type"] == "done":
-                sources = chunk.get("sources", [])
-                full_response = chunk.get("full_response", full_response)
-                yield f"data: {json.dumps(chunk)}\n\n"
-            elif chunk["type"] == "error":
-                yield f"data: {json.dumps(chunk)}\n\n"
-        
-        somera_conversation_histories[session_id].append({"role": "user", "content": message})
-        somera_conversation_histories[session_id].append({"role": "assistant", "content": full_response})
-        
-        if len(somera_conversation_histories[session_id]) > 50:
-            somera_conversation_histories[session_id] = somera_conversation_histories[session_id][-50:]
     
     return Response(
         generate(),

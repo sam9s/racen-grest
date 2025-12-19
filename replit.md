@@ -1,92 +1,86 @@
-# JoveHeal Wellness Chatbot
+# GRESTA - GREST E-commerce Chatbot
 
 ## Overview
-The JoveHeal Wellness Chatbot is a RAG-based web chatbot designed for the JoveHeal wellness coaching business. Its primary purpose is to act as a front-line information source for website visitors, answering questions about programs, services, and offerings by leveraging a knowledge base derived from website content and uploaded documents. This MVP aims to enhance user engagement and provide immediate, accurate information about JoveHeal's services.
+GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and MacBook e-commerce platform. The chatbot serves as a front-line customer engagement tool, answering questions about products, pricing, warranty, and policies with bilingual support (English + Hinglish).
 
 ## User Preferences
-I want the agent to focus on high-level features and architectural decisions, avoiding granular implementation specifics unless directly related to a core architectural choice. Please consolidate redundant information and prioritize clarity and conciseness. I prefer a clear, direct communication style. Do not make changes to the existing file structure without explicit approval.
+Focus on high-level features and architectural decisions. Prioritize clarity and conciseness. Direct communication style preferred. Do not make changes to existing file structure without explicit approval.
 
 ## System Architecture
 
-### UI/UX Decisions
-The chatbot, named RACEN (Real-time Advisor for Coaching, Education & Navigation), has a defined personality: warm, empathetic, and guide-like, using plain, human-friendly language. Responses are formatted for readability (short sentences, 2-5 sentences for facts) with empathy prioritized for emotional queries. The frontend is built with Next.js 14, TypeScript, and Tailwind CSS, featuring a branded R.A.C.E.N interface. Streaming responses are implemented using Server-Sent Events (SSE) for a real-time, ChatGPT-like user experience. Clickable links are automatically generated for mentioned JoveHeal programs and pages.
+### Technical Stack
+| Component | Technology |
+|-----------|------------|
+| Frontend | Next.js 14, TypeScript, Tailwind CSS |
+| Backend API | Flask (Python) on port 8080 |
+| Database | PostgreSQL (product data, conversations, users) |
+| Vector DB | ChromaDB (knowledge base embeddings) |
+| LLM | OpenAI GPT-4o-mini via Replit AI Integrations |
 
-### Technical Implementations
-The core system uses a Retrieval Augmented Generation (RAG) approach.
-- **SOMERA Coaching Assistant**: A separate empathetic coaching interface at `/somera` that uses Shweta's coaching content from video transcripts. Features streaming SSE responses, purple/pink themed UI, and independent sessions from Jove. Backend endpoints at `/api/somera` and `/api/somera/stream`.
-  
-  **SOMERA's Core Objective (Updated Dec 2024):**
-  SOMERA must behave like a COACH, not a suggestion agent. The goal is to be a compelling first-touch coaching experience that draws users toward Shweta's actual coaching services.
-  
-  **Coaching Behavior Model:**
-  1. NEVER jump straight to solutions - users don't want direct answers
-  2. Start with EMPATHY ("I hear you, that sounds difficult...")
-  3. Ask TRIAGE QUESTIONS to understand deeper ("Would you like to share more about what's happening?")
-  4. LISTEN and probe further before offering any guidance
-  5. Help users find THEIR OWN solution (they already know it, just need to realize it)
-  6. Use soft, permission-based language for US audience ("I'm sensing you might be feeling...")
-  
-  **Shweta's JoveHeal 4-Step Framework:**
-  | Step | Description |
-  |------|-------------|
-  | 1. Acknowledgement | Understand what they're going through, patterns, duration |
-  | 2. Decision | Help them decide: "Do you want to stay like this or change?" |
-  | 3. Release | Various modalities based on person's need (takes most time) |
-  | 4. Recalibration | Embodiment of future self without the problem |
-  
-  **Three Pillars:** Career, Relationship, Wellness
-  
-  **Key Principle:** "Coaching is all about listening. No one needs a solution - they need to be heard first."
-- **Persistent Conversation Memory**: Users can sign in with Google to save conversations to a PostgreSQL database, allowing RACEN to remember past interactions and provide personalized greetings and context-aware responses.
-- **Personalized Greetings**: For signed-in users, RACEN offers first-name addressing, welcome-back messages with context from previous conversations, and new user introductions.
-- **Smart Conversation Summaries**: LLM-powered summaries of conversations are generated and stored, enabling RACEN to recall specific topics and recommendations for returning users.
-- **LLM-Powered Typo Fixer**: Utilizes GPT-4o-mini to correct user typos before RAG retrieval, ensuring accurate search results from the ChromaDB vector store.
-- **Knowledge Base**: Supports PDF and text document uploads, and ingests website content. ChromaDB is used for vector storage to enable semantic search.
-- **Safety Guardrails**: Includes strict filtering for medical/mental health content, crisis keyword detection with safe redirection, and logging of flagged conversations.
-- **Multi-Channel Support**: Integrates with WhatsApp (via Twilio) and Instagram (via Meta Graph API), along with a direct API for custom integrations, maintaining session management and unified logging across channels.
-- **Embeddable Widget**: A standalone JavaScript widget (`/widget.js`) that can be embedded on external websites (like Kajabi) with a single script tag. Features a floating chat bubble, streaming responses, and XSS-safe rendering. CORS headers configured for joveheal.com and Kajabi domains.
-- **Google OAuth Authentication**: Implemented using NextAuth.js for user sign-in, linking conversations to user accounts in PostgreSQL. Server-side session verification and an internal API key secure communication between Next.js and Flask.
-- **Production Reliability**: Includes retry logic on the frontend, a robust startup script (`start_production.sh`) to ensure Flask is healthy before Next.js, a Flask `/health` endpoint, and an auto-rebuild mechanism for the ChromaDB knowledge base on cold starts to ensure data persistence.
+### Key Features
+- **Hybrid Pricing System**: LLM + PostgreSQL database for accurate pricing (98% accuracy target)
+- **Bilingual Support**: English and Hinglish responses based on user language
+- **Streaming Responses**: SSE-based real-time response display
+- **Product Database**: 569 variants synced from Shopify with per-variant pricing
+- **Embeddable Widget**: JavaScript widget for external websites
+- **Multi-Channel Ready**: WhatsApp (Twilio), Instagram (Meta API) integration
 
-### Feature Specifications
-- Natural language Q&A with multi-turn context awareness.
-- Source attribution for answers.
-- User feedback (thumbs up/down with comments).
-- Admin Panel for knowledge base management, document upload, conversation logs, analytics, and multi-channel configuration.
-- Strict safety policies: no medical/psychological advice, crisis redirection.
+### Database Tables
+- `grest_products` - Product variants with pricing (model, storage, condition, color, price)
+- `user_accounts` - User data from OAuth
+- `chat_sessions` - Session management
+- `conversations` - Chat logs
+- `response_feedback` - User feedback
 
-### System Design Choices
-The architecture separates concerns into a Next.js frontend (port 5000), a Flask backend for webhooks and chat API (port 8080), and a Streamlit admin panel (port 5001). PostgreSQL is the chosen relational database for persistent storage, with SQLAlchemy ORM for data modeling. OpenAI's `gpt-4o-mini` is used as the primary LLM via Replit AI Integrations. ChromaDB handles vector storage. The system is designed to be resilient to Replit's autoscale features through robust startup procedures and knowledge base re-initialization.
+### Branding
+- Primary Color: Emerald Green (#10b981)
+- Bot Name: GRESTA
+- Business: GREST (grest.in)
 
 ## External Dependencies
-- **LLM Provider**: OpenAI (via Replit AI Integrations, specifically `gpt-4o-mini`)
-- **Vector Database**: ChromaDB
-- **Relational Database**: PostgreSQL
-- **Frontend Framework**: Next.js (with React, TypeScript, Tailwind CSS)
-- **Backend Framework**: Flask
-- **Admin Panel Framework**: Streamlit
-- **Authentication**: NextAuth.js (with Google OAuth provider)
-- **PDF Processing**: PyPDF
-- **WhatsApp Integration**: Twilio SDK
-- **Instagram Integration**: Meta Graph API
-- **Data Analysis**: Pandas (for analytics dashboard)
-- **Web Search**: DuckDuckGo API (free, no key required)
+- OpenAI (via Replit AI Integrations)
+- PostgreSQL (Replit managed)
+- ChromaDB (local vector storage)
+- Twilio (WhatsApp - optional)
+- Meta Graph API (Instagram - optional)
+
+## Key Files
+| File | Purpose |
+|------|---------|
+| `chatbot_engine.py` | Core RAG logic, LLM calls, hybrid pricing |
+| `webhook_server.py` | Flask API server |
+| `safety_guardrails.py` | GRESTA persona, safety filters |
+| `knowledge_base.py` | ChromaDB operations |
+| `database.py` | PostgreSQL models and queries |
+| `scrape_grest_products.py` | Shopify product sync |
 
 ## Disaster Recovery
+See `DISASTER_RECOVERY.md` for full instructions:
+1. Clone from `github.com/sam9s/racen-grest`
+2. Run `init_database.py` to create tables
+3. Run `scrape_grest_products.py` to populate products
+4. ChromaDB auto-rebuilds on startup
 
-See `DISASTER_RECOVERY.md` for full instructions. Quick reference:
+## API Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/chat/stream` | POST | Streaming chat (SSE) |
+| `/api/chat` | POST | Non-streaming chat |
+| `/api/chat/manychat` | POST | ManyChat integration |
+| `/health` | GET | Health check |
+| `/webhook/whatsapp` | POST | Twilio webhook |
+| `/webhook/instagram` | GET/POST | Meta webhook |
 
-### Recovery Scripts
-- `init_database.py` - Creates all PostgreSQL tables
-- `scrape_grest_products.py` - Populates product database from Shopify
-- `backup.sh` - Pushes code to GitHub
+## Development
+```bash
+# Flask backend
+python webhook_server.py
 
-### What's Backed Up in Git
-- All source code (Python, TypeScript, configs)
-- Knowledge base documents (grest_*.txt)
-- Dependency manifests (package.json, pyproject.toml)
+# Next.js frontend
+npx next dev -p 5000 -H 0.0.0.0
+```
 
-### What Needs Recreation
-- ChromaDB embeddings (auto-rebuilds on startup)
-- PostgreSQL data (run init + scrape scripts)
-- Environment secrets (must set manually)
+## Backup
+```bash
+bash backup.sh  # Push to GitHub (racen-grest repo)
+```

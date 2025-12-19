@@ -40,8 +40,8 @@ SERPER_API_KEY=xxx (if using Serper for web search)
 
 ### Step 1: Clone the Repository
 ```bash
-git clone https://github.com/sam9s/racen-joveheal.git
-cd racen-joveheal
+git clone https://github.com/sam9s/racen-grest.git
+cd racen-grest
 ```
 
 ### Step 2: Install Dependencies
