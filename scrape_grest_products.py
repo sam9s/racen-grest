@@ -131,6 +131,41 @@ def extract_specs_from_body(body_html):
     return specs
 
 
+def fetch_product_metafields(product_id):
+    """Fetch metafields for a specific product from Shopify API."""
+    if not SHOPIFY_ACCESS_TOKEN:
+        return {}
+    
+    url = f"https://{SHOPIFY_STORE_URL}/admin/api/{API_VERSION}/products/{product_id}/metafields.json"
+    
+    try:
+        response = requests.get(url, headers=get_shopify_headers())
+        if response.status_code != 200:
+            return {}
+        
+        metafields = response.json().get('metafields', [])
+        specs = {}
+        
+        for mf in metafields:
+            namespace = mf.get('namespace', '')
+            key = mf.get('key', '')
+            value = mf.get('value', '')
+            
+            # Extract custom namespace metafields as specs (these contain product specs)
+            if namespace == 'custom' and value:
+                # Convert key from snake_case to Title Case for display
+                display_key = key.replace('_', ' ').title()
+                # Clean up the value (remove leading/trailing whitespace)
+                clean_value = str(value).strip()
+                if clean_value and display_key not in ['Protection Variant', 'Charging', 'Case', 'Screenprotector']:
+                    specs[display_key] = clean_value
+        
+        return specs
+    except Exception as e:
+        print(f"Error fetching metafields for product {product_id}: {e}")
+        return {}
+
+
 def get_price_range(variants):
     """Get min and max price from variants."""
     prices = []
@@ -204,7 +239,12 @@ def _prepare_product_variants(product):
     if not variants:
         return []
     
-    specs = extract_specs_from_body(product.get('body_html', ''))
+    # Fetch specs from metafields (canonical source for product specifications)
+    specs = fetch_product_metafields(product_id)
+    # Fallback to body_html if no metafields found
+    if not specs:
+        specs = extract_specs_from_body(product.get('body_html', ''))
+    
     images = product.get('images', [])
     image_url = images[0].get('src', '') if images else None
     
