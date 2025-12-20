@@ -4,6 +4,9 @@
 GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and MacBook e-commerce platform. The chatbot serves as a front-line customer engagement tool, answering questions about products, pricing, warranty, and policies with bilingual support (English + Hinglish).
 
 ## Recent Updates (Dec 20, 2025)
+- **DATABASE-FIRST SPECS**: All product specs now come from database (Shopify metafields), not hardcoded
+- **SCRAPER ENHANCED**: Fetches metafields from Shopify API for accurate specs (display, processor, camera, etc.)
+- **CANONICAL PIPELINE**: Shopify API → Scraper → Database → Chatbot (no hardcoded product data)
 - **MULTI-TURN CONVERSATIONS**: Now correctly handles follow-up queries like "1TB variant for same product"
 - **Session Context Tracking**: Stores product model across conversation turns, resolves co-references
 - **100% ACCURACY ACHIEVED**: 21/21 tests passed (including multi-turn) - exceeds 95% target
@@ -11,7 +14,6 @@ GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and 
 - **Fair Pricing Restored**: Base queries return cheapest Fair condition (₹95,399 for iPhone 16 Pro Max)
 - **Specs Display Restored**: Product responses include Display, Processor, Camera, 5G, Design specs
 - **Product Coverage**: 2,205 variants from 104 Shopify products (all in-stock)
-- **iPhone Specs Added**: Hardcoded specs for iPhone 11-16 models (Apple specs don't change)
 - **LLM Parser Enhanced**: Extracts storage, color, category with Hinglish support
 
 ## User Preferences
