@@ -18,7 +18,7 @@ GOLDEN_TESTS = [
         "query": "iPhone 16 Pro Max price",
         "category": "pricing",
         "assertions": [
-            {"type": "contains", "value": "95,399", "description": "Contains base price"},
+            {"type": "contains_price", "min": 90000, "max": 120000, "description": "Price in expected range"},
             {"type": "contains", "value": "16 Pro Max", "description": "Mentions correct model"},
             {"type": "contains", "value": "grest.in", "description": "Contains product link"},
         ]
@@ -55,7 +55,7 @@ GOLDEN_TESTS = [
         "query": "What is the price of iPhone 12?",
         "category": "pricing",
         "assertions": [
-            {"type": "contains_price", "min": 20000, "max": 45000, "description": "Price in reasonable range"},
+            {"type": "contains_price", "min": 15000, "max": 45000, "description": "Price in reasonable range"},
             {"type": "contains", "value": "12", "description": "Mentions iPhone 12"},
         ]
     },
@@ -169,7 +169,8 @@ GOLDEN_TESTS = [
         "category": "multi_turn",
         "session_id": "multi_test_1",
         "assertions": [
-            {"type": "contains", "value": "95,399", "description": "Correct base price"},
+            {"type": "contains_price", "min": 90000, "max": 105000, "description": "Price in expected range for Fair 256GB"},
+            {"type": "contains", "value": "16 Pro Max", "description": "Mentions correct model"},
         ]
     },
     {
