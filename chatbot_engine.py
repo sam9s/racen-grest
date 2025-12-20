@@ -32,6 +32,251 @@ from database import (
 
 _openai_client = None
 
+IPHONE_SPECS = {
+    "iPhone 16 Pro Max": {
+        "display": '6.9" Super Retina XDR OLED',
+        "processor": "A18 Pro chip",
+        "rear_camera": "48MP + 12MP + 12MP (5x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Titanium frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 16 Pro": {
+        "display": '6.3" Super Retina XDR OLED',
+        "processor": "A18 Pro chip",
+        "rear_camera": "48MP + 12MP + 12MP (5x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Titanium frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 16 Plus": {
+        "display": '6.7" Super Retina XDR OLED',
+        "processor": "A18 chip",
+        "rear_camera": "48MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 16": {
+        "display": '6.1" Super Retina XDR OLED',
+        "processor": "A18 chip",
+        "rear_camera": "48MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 15 Pro Max": {
+        "display": '6.7" Super Retina XDR OLED',
+        "processor": "A17 Pro chip",
+        "rear_camera": "48MP + 12MP + 12MP (5x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Titanium frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 15 Pro": {
+        "display": '6.1" Super Retina XDR OLED',
+        "processor": "A17 Pro chip",
+        "rear_camera": "48MP + 12MP + 12MP (3x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Titanium frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 15 Plus": {
+        "display": '6.7" Super Retina XDR OLED',
+        "processor": "A16 Bionic chip",
+        "rear_camera": "48MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 15": {
+        "display": '6.1" Super Retina XDR OLED',
+        "processor": "A16 Bionic chip",
+        "rear_camera": "48MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 14 Pro Max": {
+        "display": '6.7" Super Retina XDR OLED',
+        "processor": "A16 Bionic chip",
+        "rear_camera": "48MP + 12MP + 12MP (3x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Stainless steel frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 14 Pro": {
+        "display": '6.1" Super Retina XDR OLED',
+        "processor": "A16 Bionic chip",
+        "rear_camera": "48MP + 12MP + 12MP (3x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Stainless steel frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 14 Plus": {
+        "display": '6.7" Super Retina XDR OLED',
+        "processor": "A15 Bionic chip",
+        "rear_camera": "12MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 14": {
+        "display": '6.1" Super Retina XDR OLED',
+        "processor": "A15 Bionic chip",
+        "rear_camera": "12MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 13 Pro Max": {
+        "display": '6.7" Super Retina XDR OLED',
+        "processor": "A15 Bionic chip",
+        "rear_camera": "12MP + 12MP + 12MP (3x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Stainless steel frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 13 Pro": {
+        "display": '6.1" Super Retina XDR OLED',
+        "processor": "A15 Bionic chip",
+        "rear_camera": "12MP + 12MP + 12MP (3x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Stainless steel frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 13": {
+        "display": '6.1" Super Retina XDR OLED',
+        "processor": "A15 Bionic chip",
+        "rear_camera": "12MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 13 Mini": {
+        "display": '5.4" Super Retina XDR OLED',
+        "processor": "A15 Bionic chip",
+        "rear_camera": "12MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 12 Pro Max": {
+        "display": '6.7" Super Retina XDR OLED',
+        "processor": "A14 Bionic chip",
+        "rear_camera": "12MP + 12MP + 12MP (2.5x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Stainless steel frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 12 Pro": {
+        "display": '6.1" Super Retina XDR OLED',
+        "processor": "A14 Bionic chip",
+        "rear_camera": "12MP + 12MP + 12MP (2x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Stainless steel frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 12": {
+        "display": '6.1" Super Retina XDR OLED',
+        "processor": "A14 Bionic chip",
+        "rear_camera": "12MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 12 Mini": {
+        "display": '5.4" Super Retina XDR OLED',
+        "processor": "A14 Bionic chip",
+        "rear_camera": "12MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "Yes",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 11 Pro Max": {
+        "display": '6.5" Super Retina XDR OLED',
+        "processor": "A13 Bionic chip",
+        "rear_camera": "12MP + 12MP + 12MP (2x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "No (4G LTE)",
+        "design": "Stainless steel frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 11 Pro": {
+        "display": '5.8" Super Retina XDR OLED',
+        "processor": "A13 Bionic chip",
+        "rear_camera": "12MP + 12MP + 12MP (2x Telephoto)",
+        "front_camera": "12MP TrueDepth",
+        "5g": "No (4G LTE)",
+        "design": "Stainless steel frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+    "iPhone 11": {
+        "display": '6.1" Liquid Retina LCD',
+        "processor": "A13 Bionic chip",
+        "rear_camera": "12MP + 12MP Wide",
+        "front_camera": "12MP TrueDepth",
+        "5g": "No (4G LTE)",
+        "design": "Aluminum frame",
+        "water_resistance": "IP68",
+        "face_id": "Yes",
+    },
+}
+
+def get_iphone_specs(model_name: str) -> dict:
+    """Get specifications for an iPhone model."""
+    if not model_name:
+        return {}
+    model_clean = model_name.replace("Apple ", "").strip()
+    if model_clean in IPHONE_SPECS:
+        return IPHONE_SPECS[model_clean]
+    for key in IPHONE_SPECS:
+        if key.lower() in model_clean.lower() or model_clean.lower() in key.lower():
+            return IPHONE_SPECS[key]
+    return {}
+
 
 def get_openai_client():
     """Lazy initialization of OpenAI client with validation."""
@@ -625,6 +870,18 @@ def get_product_context_from_database(message: str) -> str:
             context_parts.append(f"  URL: {product['product_url']}")
             if product.get('image_url'):
                 context_parts.append(f"  IMAGE: {product['image_url']}")
+            
+            specs = get_iphone_specs(product['name'])
+            if specs:
+                context_parts.append(f"\n  *** SPECIFICATIONS - YOU MUST INCLUDE THESE EXACT SPECS IN YOUR RESPONSE ***")
+                context_parts.append(f"  - **Display:** {specs.get('display', 'N/A')}")
+                context_parts.append(f"  - **Processor:** {specs.get('processor', 'N/A')}")
+                context_parts.append(f"  - **Rear Camera:** {specs.get('rear_camera', 'N/A')}")
+                context_parts.append(f"  - **Front Camera:** {specs.get('front_camera', 'N/A')}")
+                context_parts.append(f"  - **5G:** {specs.get('5g', 'N/A')}")
+                context_parts.append(f"  - **Design:** {specs.get('design', 'N/A')}")
+                context_parts.append(f"  - **Water Resistance:** {specs.get('water_resistance', 'N/A')}")
+                context_parts.append(f"  *** COPY THESE SPECS EXACTLY INTO YOUR RESPONSE USING BULLET POINTS ***")
             
             if storage:
                 variants = get_product_variants(model_name, storage)
@@ -1296,11 +1553,13 @@ MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
 5. Product pages may contain simplified or outdated information - defer to official policies
 6. At the end, cite the primary authoritative source(s) that answered the question
 
-CRITICAL PRICING INSTRUCTIONS:
+CRITICAL PRICING AND SPECS INSTRUCTIONS:
 - If "PRODUCT DATABASE" section is provided above, use ONLY those prices - they are current and accurate
 - The Product Database prices override any pricing from other sources (website scrapes may be outdated)
 - When recommending products by price, list the specific products from the database with their exact prices
 - Always include the product URL so users can purchase directly
+- MANDATORY: If SPECIFICATIONS are provided in the database context, you MUST include them in your response using bullet points
+- Copy the exact specs (Display, Processor, Camera, 5G, Design) - DO NOT say "not specified"
 
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
@@ -1460,11 +1719,13 @@ MULTI-SOURCE SYNTHESIS INSTRUCTIONS:
 5. Product pages may contain simplified or outdated information - defer to official policies
 6. At the end, cite the primary authoritative source(s) that answered the question
 
-CRITICAL PRICING INSTRUCTIONS:
+CRITICAL PRICING AND SPECS INSTRUCTIONS:
 - If "PRODUCT DATABASE" section is provided above, use ONLY those prices - they are current and accurate
 - The Product Database prices override any pricing from other sources (website scrapes may be outdated)
 - When recommending products by price, list the specific products from the database with their exact prices
 - Always include the product URL so users can purchase directly
+- MANDATORY: If SPECIFICATIONS are provided in the database context, you MUST include them in your response using bullet points
+- Copy the exact specs (Display, Processor, Camera, 5G, Design) - DO NOT say "not specified"
 
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
