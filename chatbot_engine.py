@@ -667,7 +667,8 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
             products = []
         
         if condition:
-            products = [p for p in products if p.get('condition', '').lower() == condition.lower()]
+            condition_lower = condition.lower() if condition else ''
+            products = [p for p in products if (p.get('condition') or '').lower() == condition_lower]
         
         if color:
             products = [p for p in products if color.lower() in (p.get('color', '') or '').lower()]
@@ -730,7 +731,8 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
                 context_parts.append(f"DO NOT guess price. DO NOT use training data.")
         elif condition:
             products = get_products_under_price(500000, None)
-            products = [p for p in products if p.get('condition', '').lower() == condition.lower()]
+            condition_lower = condition.lower() if condition else ''
+            products = [p for p in products if (p.get('condition') or '').lower() == condition_lower]
             if products:
                 context_parts.append(f"PRODUCTS IN {condition.upper()} CONDITION:")
                 for p in products[:5]:

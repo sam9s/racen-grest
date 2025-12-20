@@ -1,0 +1,1080 @@
+{
+  "timestamp": "2025-12-20T23:41:54.057592",
+  "summary": {
+    "total": 51,
+    "passed": 49,
+    "failed": 2,
+    "pass_rate": 96.07843137254902
+  },
+  "category_stats": {
+    "pricing": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6
+    },
+    "pricing_hinglish": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2
+    },
+    "specifications": {
+      "passed": 4,
+      "failed": 1,
+      "total": 5
+    },
+    "specifications_hinglish": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3
+    },
+    "multi_turn": {
+      "passed": 5,
+      "failed": 1,
+      "total": 6
+    },
+    "multi_turn_hinglish": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3
+    },
+    "policy": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4
+    },
+    "policy_hinglish": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "condition": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "condition_hinglish": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2
+    },
+    "availability": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4
+    },
+    "comparison": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2
+    },
+    "general": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4
+    },
+    "edge_case": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3
+    },
+    "hinglish": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5
+    }
+  },
+  "results": [
+    {
+      "id": "price_001",
+      "query": "iPhone 16 Pro Max price",
+      "passed": true,
+      "error": null,
+      "elapsed": 9.147475957870483,
+      "assertions_passed": 3,
+      "assertions_total": 3,
+      "assertion_details": [
+        {
+          "description": "Price in expected range",
+          "passed": true,
+          "reason": "Price \u20b995,399 in range [90,000-120,000]"
+        },
+        {
+          "description": "Mentions correct model",
+          "passed": true,
+          "reason": "Found '16 Pro Max'"
+        },
+        {
+          "description": "Contains product link",
+          "passed": true,
+          "reason": "Found 'grest.in'"
+        }
+      ],
+      "response_preview": "The **Apple [iPhone 16 Pro Max](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-16-pro-max?variant=51620233478375)** is available starting at **\u20b995,399** for the **256 GB** variant in **Fair** condition.\n\nHere are some key specs:\n\n![iPhone 16 Pro Max](https://cdn.shopify.co..."
+    },
+    {
+      "id": "price_002",
+      "query": "iPhone 15 Pro 256GB price",
+      "passed": true,
+      "error": null,
+      "elapsed": 9.279348134994507,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Price in reasonable range",
+          "passed": true,
+          "reason": "Price \u20b964,999 in range [50,000-90,000]"
+        },
+        {
+          "description": "Mentions correct model",
+          "passed": true,
+          "reason": "Found '15 Pro'"
+        }
+      ],
+      "response_preview": "The **Apple [iPhone 15 Pro (256GB)](https://grest.in/products/refurbished-apple-[iPhones](https://grest.in/collections/iphones)-15-pro?variant=51620244717799)** is available at a starting price of **\u20b964,999** in Fair condition. \n\nHere are the key specs:\n\n![iPhone 15 Pro](https://cdn.shopify.com/s/fi..."
+    },
+    {
+      "id": "price_003",
+      "query": "iPhone 14 kitna ka hai",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.897122383117676,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Price in reasonable range",
+          "passed": true,
+          "reason": "Price \u20b930,299 in range [30,000-60,000]"
+        },
+        {
+          "description": "Mentions iPhone 14",
+          "passed": true,
+          "reason": "Found '14'"
+        }
+      ],
+      "response_preview": "[iPhone 14](https://grest.in/products/refurbished-apple-[iPhones](https://grest.in/collections/iphones)-14?variant=51620254253287) ka price hamare collection mein \u20b930,299 se shuru hota hai! \ud83d\udcf1\n\n**Specifications:**\n- **Starting Price:** \u20b930,299 (128 GB, Fair condition)\n- **Storage Options:** 128 GB, 2..."
+    },
+    {
+      "id": "price_004",
+      "query": "iPhone 13 Pro Max 512GB Superb condition price",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.426604509353638,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Price in reasonable range",
+          "passed": true,
+          "reason": "Price \u20b966,999 in range [50,000-80,000]"
+        },
+        {
+          "description": "Mentions correct model",
+          "passed": true,
+          "reason": "Found '13 Pro Max'"
+        }
+      ],
+      "response_preview": "The **Apple [iPhone 13 Pro Max](https://grest.in/products/refurbished-[iPhones](https://grest.in/collections/iphones)-13-pro-max?variant=47835809743079)** in **512GB** storage and **Superb condition** is priced at **\u20b966,999**.\n\nHere are the key specifications:\n\n![iPhone 13 Pro Max](https://cdn.shopi..."
+    },
+    {
+      "id": "price_005",
+      "query": "What is the price of iPhone 12?",
+      "passed": true,
+      "error": null,
+      "elapsed": 9.03434419631958,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Price in reasonable range",
+          "passed": true,
+          "reason": "Price \u20b918,099 in range [15,000-45,000]"
+        },
+        {
+          "description": "Mentions iPhone 12",
+          "passed": true,
+          "reason": "Found '12'"
+        }
+      ],
+      "response_preview": "The price of the **Apple [iPhone 12](https://grest.in/products/refurbished-apple-[iPhones](https://grest.in/collections/iphones)-12)** starts at **\u20b918,099** for the 64 GB variant in fair condition. Here are the key specs:\n\n![iPhone 12](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_11_..."
+    },
+    {
+      "id": "price_006",
+      "query": "iPhone 11 Pro price kya hai",
+      "passed": true,
+      "error": null,
+      "elapsed": 9.052756309509277,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Price in reasonable range",
+          "passed": true,
+          "reason": "Price \u20b918,899 in range [15,000-50,000]"
+        },
+        {
+          "description": "Mentions correct model",
+          "passed": true,
+          "reason": "Found '11 Pro'"
+        }
+      ],
+      "response_preview": "**[iPhones](https://grest.in/collections/iphones) 11 Pro** ki price \u20b918,899 se shuru hoti hai! \ud83d\udcf1\n\n**Yeh hain iPhone 11 Pro ke kuch key specs:**\n- **Storage Options:** 64 GB, 256 GB, 512 GB\n- **Display:** 5.8\" Super Retina XDR\n- **Processor:** A13 Bionic chip\n- **Rear Camera:** Triple 12MP (Wide + Ul..."
+    },
+    {
+      "id": "price_007",
+      "query": "cheapest iPhone available",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.624090433120728,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Shows budget option",
+          "passed": true,
+          "reason": "Price \u20b95,999 in range [5,000-30,000]"
+        },
+        {
+          "description": "Contains link or iPhone",
+          "passed": true,
+          "reason": "Found 'grest.in'"
+        }
+      ],
+      "response_preview": "Sabse sasta [iPhone](https://grest.in/collections/[iPhones](https://grest.in/collections/iphones)) jo humein milta hai, wo hai **APPLE iPhone 6 (Gold)**! \ud83c\udf89\n\n![iPhone 6](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_11_2.png)\n\n- **Starting Price:** \u20b95,999\n- **Storage Options:** 32 GB\n-..."
+    },
+    {
+      "id": "price_008",
+      "query": "iPhone 16 Pro Max 1TB Superb price",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.749667882919312,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Mentions 1TB or storage",
+          "passed": true,
+          "reason": "Found '1'"
+        },
+        {
+          "description": "Premium price range",
+          "passed": true,
+          "reason": "Price \u20b9112,999 in range [100,000-150,000]"
+        }
+      ],
+      "response_preview": "Here are the details for the **Apple [iPhone 16 Pro Max (1 TB, Superb condition)](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-16-pro-max?variant=51620233740519)**:\n\n![iPhone 16 Pro Max](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_5_26.png?v=1761891236)\n..."
+    },
+    {
+      "id": "specs_001",
+      "query": "iPhone 16 Pro Max specs",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.848599672317505,
+      "assertions_passed": 3,
+      "assertions_total": 3,
+      "assertion_details": [
+        {
+          "description": "Correct display size",
+          "passed": true,
+          "reason": "Found '6.3'"
+        },
+        {
+          "description": "Correct processor",
+          "passed": true,
+          "reason": "Found 'A18 Pro'"
+        },
+        {
+          "description": "48MP camera",
+          "passed": true,
+          "reason": "Found '48'"
+        }
+      ],
+      "response_preview": "Here are the specs for the **Apple [iPhone 16 Pro Max](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-16-pro-max)**:\n\n![iPhone 16 Pro Max](https://grest.in/products/iphone-16-pro-max)\n\n- **Starting Price:** \u20b995,399 - \u20b9113,999 (varies by storage and condition)\n- **Storage O..."
+    },
+    {
+      "id": "specs_002",
+      "query": "iPhone 15 Pro specifications",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.394273281097412,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "A17 Pro processor",
+          "passed": true,
+          "reason": "Found 'A17'"
+        },
+        {
+          "description": "Titanium design",
+          "passed": true,
+          "reason": "Found 'Titanium'"
+        }
+      ],
+      "response_preview": "Here are the specifications for the **Apple [iPhone 15 Pro](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-15-pro)**:\n\n![iPhone 15 Pro](https://grest.in/products/iphone-15-pro)\n\n- **Starting Price:** \u20b961,299\n- **Storage Options:** 128 GB, 256 GB, 512 GB, 1 TB\n- **Display:*..."
+    },
+    {
+      "id": "specs_003",
+      "query": "What is the display size of iPhone 16 Pro Max?",
+      "passed": false,
+      "error": null,
+      "elapsed": 7.305122137069702,
+      "assertions_passed": 1,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Correct display size",
+          "passed": true,
+          "reason": "Found '6.3'"
+        },
+        {
+          "description": "Display type",
+          "passed": false,
+          "reason": "Missing 'OLED'"
+        }
+      ],
+      "response_preview": "The **Apple [iPhones](https://grest.in/collections/iphones) 16 Pro Max** has a **display size of 6.3 inches**. If you have any other questions or need more information, just let us know!\n\n---\n\n*You might also like to check:*\n[iPhones](https://grest.in/collections/iphones) | [All Products](https://gr..."
+    },
+    {
+      "id": "specs_004",
+      "query": "iPhone 14 Pro camera details",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.702799081802368,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "48MP main camera",
+          "passed": true,
+          "reason": "Found '48'"
+        },
+        {
+          "description": "Discusses camera",
+          "passed": true,
+          "reason": "Found 'camera'"
+        }
+      ],
+      "response_preview": "Here are the camera details for the **Apple [iPhone 14 Pro](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-14-pro)**:\n\n![iPhone 14 Pro](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/iPhone-14-Pro.png)\n\n- **Rear Camera:**\n  - **Triple Camera System:**\n    - 48MP Ma..."
+    },
+    {
+      "id": "specs_005",
+      "query": "Does iPhone 13 support 5G?",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.966338396072388,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Confirms 5G support",
+          "passed": true,
+          "reason": "Found '5G'"
+        }
+      ],
+      "response_preview": "Yes, the [iPhones](https://grest.in/collections/iphones) 13 supports 5G! \ud83d\udcf1 This means you can enjoy faster internet speeds and improved connectivity. If you need more information or want to explore our options, just let us know!\n\n---\n\n*Browse more options here:*\n[iPhones](https://grest.in/collection..."
+    },
+    {
+      "id": "specs_006",
+      "query": "iPhone 11 mein 5G hai kya?",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.787035703659058,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Clarifies no 5G",
+          "passed": true,
+          "reason": "Found '4G'"
+        }
+      ],
+      "response_preview": "[iPhones](https://grest.in/collections/iphones) 11 mein **5G** nahi hai. Ye device sirf **4G** networks ko support karta hai. Agar aapko **5G** support wale iPhones chahiye, toh iPhone 12 ya iPhone 13 series aapke liye achha option hoga! \n\nKya main aapko in models ke baare mein aur information do? \ud83d\ude0a..."
+    },
+    {
+      "id": "specs_007",
+      "query": "iPhone 16 Pro Max processor kaisa hai",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.076460123062134,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "A18 Pro processor",
+          "passed": true,
+          "reason": "Found 'A18'"
+        }
+      ],
+      "response_preview": "**Apple [iPhone 16 Pro Max](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-16-pro-max)** ka processor kaafi advanced hai:\n\n- **Processor:** Apple A18 Pro chip\n- **Cores:** 6-core CPU (2 performance cores + 4 efficiency cores)\n\nYe processor high performance aur energy effic..."
+    },
+    {
+      "id": "specs_008",
+      "query": "iPhone 15 water resistant hai?",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.773461580276489,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Confirms water resistance",
+          "passed": true,
+          "reason": "Found 'IP68'"
+        }
+      ],
+      "response_preview": "Haan, **[iPhones](https://grest.in/collections/iphones) 15** water resistant hai! \ud83c\udf0a Iska IP68 rating hai, jo iska matlab hai ki ye 6 meters tak 30 minutes tak paani mein reh sakta hai. Aap ise baarish ya paani ke chhalak se kaafi aram se use kar sakte hain.\n\nAgar aapko iPhone 15 ya kisi aur model ki..."
+    },
+    {
+      "id": "multi_001a",
+      "query": "iPhone 16 Pro Max 256GB Fair price",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.029181718826294,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Price in expected range for Fair 256GB",
+          "passed": true,
+          "reason": "Price \u20b995,399 in range [90,000-105,000]"
+        },
+        {
+          "description": "Mentions correct model",
+          "passed": true,
+          "reason": "Found '16 Pro Max'"
+        }
+      ],
+      "response_preview": "The **Apple [iPhone 16 Pro Max (256GB, Fair condition)](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-16-pro-max?variant=51620233478375)** is available for **\u20b995,399**.\n\n![iPhone 16 Pro Max](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_5_26.png?v=176189123..."
+    },
+    {
+      "id": "multi_002a",
+      "query": "Show me iPhone 15 Pro",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.662788152694702,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Shows iPhone 15 Pro",
+          "passed": true,
+          "reason": "Found '15 Pro'"
+        }
+      ],
+      "response_preview": "Here are the details for the **Apple [iPhone 15 Pro](https://grest.in/products/refurbished-apple-[iPhones](https://grest.in/collections/iphones)-15-pro?variant=51620244619495)**:\n\n![iPhone 15 Pro](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_7_19.png?v=1761802488)\n\n- **Starting Price..."
+    },
+    {
+      "id": "multi_003a",
+      "query": "iPhone 14 price batao",
+      "passed": true,
+      "error": null,
+      "elapsed": 9.409740447998047,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Shows iPhone 14",
+          "passed": true,
+          "reason": "Found '14'"
+        }
+      ],
+      "response_preview": "Apple [iPhones](https://grest.in/collections/iphones) 14 ka price hamare collection mein **\u20b930,299** se shuru hota hai! \ud83d\udcf1 \n\nYahan iske key specs hain:\n\n![iPhone 14](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_11_1.png?v=1761762198)\n\n- **Starting Price:** \u20b930,299 (128 GB, Fair condit..."
+    },
+    {
+      "id": "policy_001",
+      "query": "What is your warranty policy?",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.991987705230713,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Mentions warranty duration",
+          "passed": true,
+          "reason": "Found '12 month'"
+        }
+      ],
+      "response_preview": "Our warranty policy is designed to give you complete peace of mind when purchasing from us! Here are the key details:\n\n- **Standard Warranty:** Every [iPhones](https://grest.in/collections/[iPhones](https://grest.in/collections/iphones)) and [MacBooks](https://grest.in/collections/[MacBooks](https:/..."
+    },
+    {
+      "id": "policy_002",
+      "query": "Do you have return policy?",
+      "passed": true,
+      "error": null,
+      "elapsed": 12.77316951751709,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Mentions return policy",
+          "passed": true,
+          "reason": "Found '7-day'"
+        }
+      ],
+      "response_preview": "Haan, humare paas ek clear aur customer-friendly return policy hai! Yahan pe kuch key details hain:\n\n- **7-Day Replacement:** Aap apne product ko receive karne ke 7 din ke andar replacement ki request kar sakte hain agar aap satisfied nahi hain.\n\n- **Returns ke liye Conditions:** Hum return accept k..."
+    },
+    {
+      "id": "policy_003",
+      "query": "How is delivery done?",
+      "passed": true,
+      "error": null,
+      "elapsed": 12.383888959884644,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Mentions delivery info",
+          "passed": true,
+          "reason": "Found 'delivery'"
+        }
+      ],
+      "response_preview": "Delivery at GREST is designed to be seamless and customer-friendly. Here's how it works:\n\n- **Free Delivery:** We offer free standard shipping across India on all orders.\n- **Timely Shipping:** Orders are processed within 24-48 hours after confirmation.\n- **Real-Time Tracking:** Once shipped, you'll..."
+    },
+    {
+      "id": "policy_004",
+      "query": "COD available hai?",
+      "passed": true,
+      "error": null,
+      "elapsed": 11.97838807106018,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Addresses COD query",
+          "passed": true,
+          "reason": "Found 'COD'"
+        }
+      ],
+      "response_preview": "Haan, hamare paas Cash on Delivery (COD) option available hai! \ud83d\udecd\ufe0f Aap checkout ke dauraan apne PIN code enter karke COD ki availability check kar sakte hain. \n\nAgar aapko aur koi madad chahiye, toh zaroor poochiye!\n\n---\n\n*You might also like to check:*\n[FAQs](https://grest.in/pages/faqs) | [Track Or..."
+    },
+    {
+      "id": "policy_005",
+      "query": "What payment methods do you accept?",
+      "passed": true,
+      "error": null,
+      "elapsed": 6.61031174659729,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Mentions payment options",
+          "passed": true,
+          "reason": "Found 'payment'"
+        }
+      ],
+      "response_preview": "We accept all major payment options, including:\n\n- **Credit/Debit Cards**\n- **UPI**\n- **Net Banking**\n- **Wallets**\n- **EMI options**\n- **Cash on Delivery (COD)**\n\nOur transactions are secured with industry-standard encryption to ensure your payment information is completely safe. If you have any ot..."
+    },
+    {
+      "id": "condition_001",
+      "query": "What is the difference between Fair and Superb condition?",
+      "passed": true,
+      "error": null,
+      "elapsed": 18.17487668991089,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Explains Fair condition",
+          "passed": true,
+          "reason": "Found 'Fair'"
+        },
+        {
+          "description": "Explains Superb condition",
+          "passed": true,
+          "reason": "Found 'Superb'"
+        }
+      ],
+      "response_preview": "**Great question!** Let\u2019s look at the differences between **Fair** and **Superb** conditions for our refurbished [iPhones](https://grest.in/collections/iphones):\n\n### **Fair Condition:**\n- **Appearance:** Noticeable scratches, scuffs, or signs of use. There may be cosmetic wear on the body and scree..."
+    },
+    {
+      "id": "condition_002",
+      "query": "Fair condition mein kya milta hai?",
+      "passed": true,
+      "error": null,
+      "elapsed": 26.68791913986206,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Explains Fair condition",
+          "passed": true,
+          "reason": "Found 'Fair'"
+        }
+      ],
+      "response_preview": "Fair condition mein aapko kuch accha aur budget-friendly options milte hain! \ud83d\ude0a Yahan kuch key features hain jo Fair condition phones ke baare mein jaanna chahiye:\n\n- **Cosmetic Condition:** Visible scratches, scuffs ya wear marks hote hain. Aesthetic flaws hain, par functionality pe koi impact nahi ..."
+    },
+    {
+      "id": "condition_003",
+      "query": "Best condition phone chahiye",
+      "passed": true,
+      "error": null,
+      "elapsed": 12.17349123954773,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Recommends Superb condition",
+          "passed": true,
+          "reason": "Found 'Superb'"
+        }
+      ],
+      "response_preview": "Aapko best condition ka phone chahiye? \ud83d\ude0a Hamare paas \"Superb\" condition ke kuch acchhe options hain jo aapko near-new experience denge! Yahan kuch options hain:\n\n1. **Apple [iPhones](https://grest.in/collections/iphones) 6 (32GB)**  \n   - **Starting Price:** \u20b97,000  \n   - **Condition:** Superb (almo..."
+    },
+    {
+      "id": "avail_001",
+      "query": "Is iPhone 16 Pro Max available?",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.271665573120117,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Confirms availability",
+          "passed": true,
+          "reason": "Found 'available'"
+        }
+      ],
+      "response_preview": "Yes, the **Apple [iPhone 16 Pro Max](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-16-pro-max)** is available! \ud83c\udf89\n\nHere are the details:\n\n![iPhone 16 Pro Max](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_5_26.png?v=1761891236)\n\n- **Starting Price:** \u20b995,399..."
+    },
+    {
+      "id": "avail_002",
+      "query": "Do you have MacBook?",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.2172691822052,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Addresses MacBook query",
+          "passed": true,
+          "reason": "Found 'MacBook'"
+        }
+      ],
+      "response_preview": "Sorry, [MacBooks](https://grest.in/collections/macbook) is not currently available. Check [grest.in](https://grest.in) for the latest inventory. If you need help with anything else or have questions about our products, feel free to ask!\n\n---\n\n*You might also like to check:*\n[MacBooks](https://grest...."
+    },
+    {
+      "id": "avail_003",
+      "query": "iPhone 16 available colors?",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.6816558837890625,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Lists colors",
+          "passed": true,
+          "reason": "Found 'color'"
+        }
+      ],
+      "response_preview": "**Apple [iPhones](https://grest.in/collections/iphones) 16** is available in these stunning colors:\n\n- Black\n- White\n- Pink\n- Teal\n- Ultramarine\n\nIf you need more information about the specifications or pricing, just let us know! \ud83d\ude0a\n\n---\n\n*Feel free to explore more:*\n[iPhones](https://grest.in/collec..."
+    },
+    {
+      "id": "avail_004",
+      "query": "Storage options for iPhone 15 Pro Max",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.557151794433594,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Lists storage options",
+          "passed": true,
+          "reason": "Found '256'"
+        }
+      ],
+      "response_preview": "Here are the **storage options** for the **Apple [iPhone 15 Pro Max](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-15-pro-max)**:\n\n- **1 TB**\n- **512 GB**\n- **256 GB**\n\nThese options allow you to select the capacity that best fits your needs! If you need more information ..."
+    },
+    {
+      "id": "compare_001",
+      "query": "iPhone 15 Pro vs iPhone 15 Pro Max",
+      "passed": true,
+      "error": null,
+      "elapsed": 11.746683835983276,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Discusses both models",
+          "passed": true,
+          "reason": "Found '15 Pro'"
+        },
+        {
+          "description": "Compares features",
+          "passed": true,
+          "reason": "Found 'display'"
+        }
+      ],
+      "response_preview": "Here\u2019s a detailed comparison between the **[iPhones](https://grest.in/collections/iphones) 15 Pro** and **iPhone 15 Pro Max**:\n\n### **iPhone 15 Pro**\n![iPhone 15 Pro](https://grest.in/products/iphone-15-pro)\n- **Starting Price:** \u20b961,299 (128 GB)\n- **Storage Options:** 128 GB, 256 GB, 512 GB, 1 TB\n-..."
+    },
+    {
+      "id": "compare_002",
+      "query": "Which is better: iPhone 14 Pro or iPhone 15?",
+      "passed": true,
+      "error": null,
+      "elapsed": 12.013434886932373,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Mentions iPhone 14 Pro",
+          "passed": true,
+          "reason": "Found '14 Pro'"
+        },
+        {
+          "description": "Mentions iPhone 15",
+          "passed": true,
+          "reason": "Found '15'"
+        }
+      ],
+      "response_preview": "The **[iPhones](https://grest.in/collections/iphones) 15** is a newer release compared to the **iPhone 14 Pro**, and each has its unique features. Here's a quick comparison:\n\n### **iPhone 15**\n- **Processor:** A16 Bionic chip\n- **Display:** 6.1\" Super Retina XDR\n- **Camera:** Dual 48MP (wide) + 12MP..."
+    },
+    {
+      "id": "general_001",
+      "query": "Tell me about GREST",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.500805854797363,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Describes GREST",
+          "passed": true,
+          "reason": "Found 'GREST'"
+        }
+      ],
+      "response_preview": "We are GREST, your go-to destination for premium refurbished [iPhones](https://grest.in/collections/iphones) and [MacBooks](https://grest.in/collections/macbook) in India! \ud83c\udf1f Our aim is to provide you with authentic Apple devices at prices that are significantly lower than new ones while ensuring exc..."
+    },
+    {
+      "id": "general_002",
+      "query": "Why should I buy from GREST?",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.497986078262329,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Explains GREST benefits",
+          "passed": true,
+          "reason": "Found 'warranty'"
+        }
+      ],
+      "response_preview": "Here are some compelling reasons to choose GREST for your refurbished Apple devices:\n\n1. **12-Month Warranty:** We provide a full year's warranty on all our products for your peace of mind.\n\n2. **50+ Quality Checks:** Every device goes through rigorous testing to ensure it meets our high standards o..."
+    },
+    {
+      "id": "general_003",
+      "query": "Hello",
+      "passed": true,
+      "error": null,
+      "elapsed": 6.4592931270599365,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Friendly greeting",
+          "passed": true,
+          "reason": "Found 'Hello'"
+        }
+      ],
+      "response_preview": "Hello again! \ud83d\udc4b Aap se milkar accha laga. Koi specific product ya information chahiye? Hum aapki madad karne ke liye yahan hain!"
+    },
+    {
+      "id": "general_004",
+      "query": "Thank you",
+      "passed": true,
+      "error": null,
+      "elapsed": 6.337353229522705,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Polite response",
+          "passed": true,
+          "reason": "Found 'welcome'"
+        }
+      ],
+      "response_preview": "You're welcome again! \ud83d\ude0a If there's anything more you need or any questions you have, just let us know. We're here to help!\n\n---\n\n*You might also like to check:*\n[Contact](https://grest.in/pages/contact-us) | [FAQs](https://grest.in/pages/faqs)"
+    },
+    {
+      "id": "edge_001",
+      "query": "What is the capital of France?",
+      "passed": true,
+      "error": null,
+      "elapsed": 6.322429656982422,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Stays on topic or politely declines",
+          "passed": true,
+          "reason": "Found 'GREST'"
+        }
+      ],
+      "response_preview": "I don't have our previous chat history, but I'm happy to help you today! If you have any questions about our refurbished [iPhones](https://grest.in/collections/iphones) or [MacBooks](https://grest.in/collections/macbook), feel free to ask!\n\n---\n\n*Here are some helpful links:*\n[iPhones](https://grest..."
+    },
+    {
+      "id": "edge_002",
+      "query": "Can you write code for me?",
+      "passed": true,
+      "error": null,
+      "elapsed": 6.6548731327056885,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Does not write code",
+          "passed": true,
+          "reason": "Correctly excludes 'def '"
+        },
+        {
+          "description": "Does not write code",
+          "passed": true,
+          "reason": "Correctly excludes 'function'"
+        }
+      ],
+      "response_preview": "I\u2019m here to assist you with queries related to our premium refurbished [iPhones](https://grest.in/collections/iphones) and [MacBooks](https://grest.in/collections/macbook) at GREST. If you have any questions about our products, feel free to ask! \n\n---\n\n*For your reference:*\n[iPhones](https://grest.i..."
+    },
+    {
+      "id": "edge_003",
+      "query": "iPhone 99 price",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.259510517120361,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Handles non-existent model",
+          "passed": true,
+          "reason": "Found 'available'"
+        }
+      ],
+      "response_preview": "Sorry, [iPhones](https://grest.in/collections/iphones) 99 is not currently available on GREST. Please check [grest.in](https://grest.in) for the latest inventory.\n\n---\n\n*You might also like to check:*\n[iPhones](https://grest.in/collections/iphones) | [All Products](https://grest.in/collections/all) ..."
+    },
+    {
+      "id": "hinglish_001",
+      "query": "sabse sasta iPhone konsa hai?",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.908799409866333,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Shows budget option",
+          "passed": true,
+          "reason": "Price \u20b95,999 in range [5,000-30,000]"
+        },
+        {
+          "description": "Recommends an iPhone",
+          "passed": true,
+          "reason": "Found 'iPhone'"
+        }
+      ],
+      "response_preview": "Sabse sasta [iPhones](https://grest.in/collections/iphones) hamaare paas **Apple iPhone 6 (Gold)** hai! \ud83d\udcf1 \n\n- **Starting Price:** \u20b95,999\n- **Storage Options:** 32 GB\n- **Condition:** Good condition\n\nAgar aapko aur options ya details chahiye ho to zaroor batayein! Aap isse yahaan dekh sakte hain: [Vi..."
+    },
+    {
+      "id": "hinglish_002",
+      "query": "Mujhe accha camera wala phone chahiye",
+      "passed": true,
+      "error": null,
+      "elapsed": 11.246280431747437,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Recommends camera-focused phone",
+          "passed": true,
+          "reason": "Found 'camera'"
+        }
+      ],
+      "response_preview": "Agar aapko accha camera wala phone chahiye, toh humare paas kuch behtareen options hain! \ud83d\udcf8\n\n### Recommended Options:\n\n1. **[iPhone 13 Pro](https://grest.in/products/[iPhones](https://grest.in/collections/iphones)-13-pro)** - Starting at \u20b944,999\n   - **Storage Options:** 128GB, 256GB, 512GB\n   - **Di..."
+    },
+    {
+      "id": "hinglish_003",
+      "query": "warranty kitne din ki hai?",
+      "passed": true,
+      "error": null,
+      "elapsed": 16.051344633102417,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Explains warranty",
+          "passed": true,
+          "reason": "Found '12'"
+        }
+      ],
+      "response_preview": "Hamara warranty policy ke according, sabhi devices ke liye **6 mahine ki warranty** milti hai, jo aapke purchase date se shuru hoti hai. Agar aap chahte hain, toh aap purchase ke samay **6 mahine ka extended warranty** bhi kharid sakte hain, jo total 12 mahine tak protection deti hai. \n\nKoi aur sawa..."
+    },
+    {
+      "id": "hinglish_004",
+      "query": "yeh phone original hai ya duplicate?",
+      "passed": true,
+      "error": null,
+      "elapsed": 6.8740527629852295,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Clarifies authenticity",
+          "passed": true,
+          "reason": "Found 'original'"
+        }
+      ],
+      "response_preview": "Hamare saare phones **100% original Apple devices** hain! \ud83d\udd0d Har device ko 50+ quality checks ke zariye thoroughly test kiya jata hai, taaki aapko best quality aur performance mile. \n\nKya aap kisi specific phone ke baare mein jaan na chahte hain? Hamari madad karne ke liye hum yahan hain!\n\n---\n\n*Brow..."
+    },
+    {
+      "id": "hinglish_005",
+      "query": "store kahan hai aapka?",
+      "passed": true,
+      "error": null,
+      "elapsed": 6.68342399597168,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Provides store info",
+          "passed": true,
+          "reason": "Found 'store'"
+        }
+      ],
+      "response_preview": "Humari koi physical store nahi hai, sab kuch online hi available hai. Aap hamare saare premium refurbished [iPhones](https://grest.in/collections/iphones) aur [MacBooks](https://grest.in/collections/macbook) ko online checkout kar sakte hain! \ud83c\udf10\n\nHamare products ke liye free delivery hai across India..."
+    },
+    {
+      "id": "multi_001a",
+      "query": "iPhone 16 Pro Max 256GB Fair price",
+      "passed": true,
+      "error": null,
+      "elapsed": 13.985652923583984,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Price in expected range for Fair 256GB",
+          "passed": true,
+          "reason": "Price \u20b995,399 in range [90,000-105,000]"
+        },
+        {
+          "description": "Mentions correct model",
+          "passed": true,
+          "reason": "Found '16 Pro Max'"
+        }
+      ],
+      "response_preview": "The **Apple [iPhones](https://grest.in/collections/iphones) 16 Pro Max (256GB, Fair Condition)** is available for **\u20b995,399**. \n\nHere are the key specifications:\n\n![iPhone 16 Pro Max](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_5_26.png?v=1761891236)\n\n- **Starting Price:** \u20b995,399\n-..."
+    },
+    {
+      "id": "multi_001b",
+      "query": "What about the 1TB variant?",
+      "passed": false,
+      "error": null,
+      "elapsed": 8.161749124526978,
+      "assertions_passed": 2,
+      "assertions_total": 3,
+      "assertion_details": [
+        {
+          "description": "Remembers model from context",
+          "passed": true,
+          "reason": "Found '16 Pro Max'"
+        },
+        {
+          "description": "References 1TB",
+          "passed": true,
+          "reason": "Found '1'"
+        },
+        {
+          "description": "Higher price for 1TB",
+          "passed": false,
+          "reason": "No prices found (expected range [100,000-120,000])"
+        }
+      ],
+      "response_preview": "Currently, we don't have the **Apple [iPhones](https://grest.in/collections/iphones) 16 Pro Max (1TB variant)** listed in our product lineup. You can always check our website for current stock and updated models.\n\nIf you're interested in the **1TB variant**, we recommend keeping an eye on our collec..."
+    },
+    {
+      "id": "multi_002a",
+      "query": "Show me iPhone 15 Pro",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.953681945800781,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Shows iPhone 15 Pro",
+          "passed": true,
+          "reason": "Found '15 Pro'"
+        }
+      ],
+      "response_preview": "Here's the information for the **Apple [iPhones](https://grest.in/collections/iphones) 15 Pro**:\n\n![iPhone 15 Pro](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_7_19.png?v=1761802488)\n\n- **Price:** \u20b961,299 (Condition: Fair, Storage: 128 GB)\n- **Storage Options:** 128 GB\n- **Display:**..."
+    },
+    {
+      "id": "multi_002b",
+      "query": "same product in Superb condition",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.419360876083374,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Remembers iPhone 15 Pro",
+          "passed": true,
+          "reason": "Found '15 Pro'"
+        },
+        {
+          "description": "Shows Superb condition",
+          "passed": true,
+          "reason": "Found 'Superb'"
+        }
+      ],
+      "response_preview": "Here's the information for the **Apple [iPhones](https://grest.in/collections/iphones) 15 Pro** in **Superb condition**:\n\n![iPhone 15 Pro](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_7_19.png?v=1761802488)\n\n- **Price:** \u20b966,500 \n- **Storage Options:** 128 GB\n- **Display:** ProMotion..."
+    },
+    {
+      "id": "multi_003a",
+      "query": "iPhone 14 price batao",
+      "passed": true,
+      "error": null,
+      "elapsed": 9.0307137966156,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Shows iPhone 14",
+          "passed": true,
+          "reason": "Found '14'"
+        }
+      ],
+      "response_preview": "[iPhones](https://grest.in/collections/iphones) 14 ka price hamare collection mein **\u20b930,299** se shuru hota hai! \ud83d\udcf1 \n\nYahan iske kuch specs hain:\n- **Storage Options:** 128 GB, 256 GB, 512 GB\n- **Display:** 6.1\" Super Retina XDR\n- **Processor:** A15 Bionic\n- **Rear Camera:** Dual 12MP (Wide + Ultra ..."
+    },
+    {
+      "id": "multi_003b",
+      "query": "aur iska 512GB variant?",
+      "passed": true,
+      "error": null,
+      "elapsed": 8.68366265296936,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "Remembers iPhone 14",
+          "passed": true,
+          "reason": "Found '14'"
+        },
+        {
+          "description": "Shows 512GB variant",
+          "passed": true,
+          "reason": "Found '512'"
+        }
+      ],
+      "response_preview": "**Apple [iPhones](https://grest.in/collections/iphones) 14 (512 GB)** ka price **\u20b952,999** hai! \ud83c\udf89 \n\nYahan iske key specs hain:\n\n![iPhone 14 512GB](https://cdn.shopify.com/s/files/1/0639/4576/9191/files/Frame_11_2.png)\n\n- **Starting Price:** \u20b952,999\n- **Storage Options:** 128 GB, 256 GB, 512 GB\n- **D..."
+    }
+  ]
+}

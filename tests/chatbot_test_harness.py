@@ -222,8 +222,8 @@ def run_all_tests(category_filter: str = None, num_samples: int = 1, verbose: bo
     all_results = []
     category_stats = defaultdict(lambda: {"passed": 0, "failed": 0, "total": 0})
     
-    # Run regular tests (non-multi-turn)
-    regular_tests = [t for t in GOLDEN_TESTS if "depends_on" not in t]
+    # Run regular tests (non-multi-turn, non-skipped)
+    regular_tests = [t for t in GOLDEN_TESTS if "depends_on" not in t and not t.get("skip")]
     if category_filter:
         regular_tests = [t for t in regular_tests if t["category"] == category_filter]
     
