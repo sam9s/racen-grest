@@ -540,18 +540,25 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) ->
             if cheapest:
                 context_parts.append(f"\n  Cheapest available: {cheapest['name']} at Rs. {int(cheapest['price']):,}")
     
-    elif query_type == 'general' and (model or condition):
+    elif query_type == 'general' and (model or condition or color):
         if model:
-            product = search_product_by_specs(model, storage, condition)
+            product = search_product_by_specs(model, storage, condition, color)
             if product:
-                context_parts.append(f"PRODUCT MATCH:")
+                context_parts.append(f"SPECIFIC PRODUCT MATCH (use these exact details):")
                 context_parts.append(f"  Model: {product['name']}")
                 context_parts.append(f"  Storage: {product.get('storage', 'N/A')}")
                 context_parts.append(f"  Condition: {product.get('condition', 'N/A')}")
-                context_parts.append(f"  PRICE: Rs. {int(product['price']):,} (USE THIS EXACT PRICE)")
+                if product.get('color'):
+                    context_parts.append(f"  Color: {product.get('color')}")
+                context_parts.append(f"  *** EXACT PRICE: Rs. {int(product['price']):,} ***")
                 context_parts.append(f"  URL: {product['product_url']}")
+                if product.get('image_url'):
+                    context_parts.append(f"  IMAGE: {product['image_url']}")
+                context_parts.append(f"\n  CRITICAL: Quote EXACTLY Rs. {int(product['price']):,} - do NOT use 'starting from' or other prices.")
+                if color:
+                    context_parts.append(f"  NOTE: User asked for {color} color specifically.")
                 if condition:
-                    context_parts.append(f"\n  NOTE: User asked for {condition} condition - show this condition in response.")
+                    context_parts.append(f"  NOTE: User asked for {condition} condition specifically.")
             else:
                 context_parts.append(f"\n*** CRITICAL: PRODUCT NOT AVAILABLE ***")
                 context_parts.append(f"Product: {model}")
