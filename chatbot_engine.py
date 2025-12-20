@@ -847,7 +847,7 @@ def get_product_context_from_database(message: str) -> str:
     context_parts.append("NOTE: Use ONLY these prices. They are current and accurate.")
     context_parts.append("IMPORTANT: Show the LOWEST in-stock price. Clearly state storage & condition of the shown price.\n")
     
-    if model_name and (storage or 'price' in message.lower() or 'kitna' in message.lower() or 'cost' in message.lower()):
+    if model_name:
         product = search_product_by_specs(model_name, storage, condition)
         
         if product:
