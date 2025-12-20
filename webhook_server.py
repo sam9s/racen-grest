@@ -231,7 +231,8 @@ def api_chat():
         conversation_histories[session_id],
         user_name=user_name,
         is_returning_user=is_returning_user,
-        last_topic_summary=last_topic_summary
+        last_topic_summary=last_topic_summary,
+        session_id=session_id
     )
     
     response_text = result.get("response", "")
@@ -362,7 +363,8 @@ def api_chat_stream():
             conversation_histories[session_id],
             user_name=user_name,
             is_returning_user=is_returning_user,
-            last_topic_summary=last_topic_summary
+            last_topic_summary=last_topic_summary,
+            session_id=session_id
         ):
             if chunk["type"] == "content":
                 full_response += chunk["content"]
@@ -461,7 +463,8 @@ def api_chat_manychat():
             conversation_histories[session_id],
             user_name=first_name if first_name else None,
             is_returning_user=len(conversation_histories[session_id]) > 0,
-            last_topic_summary=None
+            last_topic_summary=None,
+            session_id=session_id
         )
         
         answer = result.get("response", "I'm sorry, I couldn't generate a response.")

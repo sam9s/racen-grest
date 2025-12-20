@@ -32,6 +32,80 @@ from database import (
 
 _openai_client = None
 
+# Session-level product context tracking for multi-turn conversations
+# Key: session_id, Value: dict with model, storage, condition, color, last_updated
+_session_product_context = {}
+
+def get_session_context(session_id: str) -> dict:
+    """Get the product context for a session."""
+    return _session_product_context.get(session_id, {})
+
+def update_session_context(session_id: str, model: str = None, storage: str = None, 
+                           condition: str = None, color: str = None):
+    """Update the product context for a session. Only updates non-None values."""
+    if session_id not in _session_product_context:
+        _session_product_context[session_id] = {}
+    
+    ctx = _session_product_context[session_id]
+    if model:
+        ctx['model'] = model
+    if storage:
+        ctx['storage'] = storage
+    if condition:
+        ctx['condition'] = condition
+    if color:
+        ctx['color'] = color
+    
+    import time
+    ctx['last_updated'] = time.time()
+
+def detect_coreference(message: str) -> bool:
+    """Detect if the message contains a co-reference to a previous product."""
+    coreference_patterns = [
+        r'\bsame\s*(product|model|phone|device|one)?\b',
+        r'\bthat\s*(one|product|model|phone)?\b',
+        r'\bthis\s*(one|product|model|phone)?\b',
+        r'\bwoh\s*wala\b',  # Hinglish: "that one"
+        r'\bwahi\b',  # Hinglish: "the same"
+        r'\biske\b',  # Hinglish: "of this"
+        r'\buska\b',  # Hinglish: "of that"
+        r'\bprevious\b',
+        r'\babove\b',
+        r'\bmentioned\b',
+        r'\bit\b(?!\s*is)',  # "it" but not "it is"
+    ]
+    message_lower = message.lower()
+    for pattern in coreference_patterns:
+        if re.search(pattern, message_lower):
+            return True
+    return False
+
+def merge_with_session_context(session_id: str, parsed_model: str, parsed_storage: str, 
+                                parsed_condition: str, parsed_color: str = None,
+                                message: str = "") -> Tuple[str, str, str, str]:
+    """
+    Merge parsed query values with session context.
+    If message contains co-reference and parsed values are missing, use session context.
+    """
+    ctx = get_session_context(session_id)
+    has_coreference = detect_coreference(message)
+    
+    final_model = parsed_model
+    final_storage = parsed_storage
+    final_condition = parsed_condition
+    final_color = parsed_color
+    
+    # If no model detected but has co-reference, use session context
+    if not final_model and has_coreference and ctx.get('model'):
+        final_model = ctx['model']
+        print(f"[Session Context] Using model from context: {final_model}")
+    
+    # Update session context with new values
+    if final_model or final_storage or final_condition or final_color:
+        update_session_context(session_id, final_model, final_storage, final_condition, final_color)
+    
+    return (final_model, final_storage, final_condition, final_color)
+
 IPHONE_SPECS = {
     "iPhone 16 Pro Max": {
         "display": '6.9" Super Retina XDR OLED',
@@ -596,23 +670,34 @@ Query: "what warranty do you offer"
         return None
 
 
-def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) -> str:
+def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, session_id: str = None) -> str:
     """
     Get product context using LLM-parsed intent for accurate pricing.
     This is the hybrid approach: LLM understands, database provides prices.
+    Supports session context for multi-turn conversations.
     """
     if not parsed_intent:
-        return get_product_context_from_database(message)
+        return get_product_context_from_database(message, session_id)
     
     context_parts = []
     context_parts.append("\n\n=== PRODUCT DATABASE (AUTHORITATIVE PRICING SOURCE) ===")
     context_parts.append("NOTE: Use ONLY these prices. They are current and accurate.")
     context_parts.append("IMPORTANT: You MUST use the EXACT prices shown below. Do not estimate or round.\n")
     
-    model = parsed_intent.get('model')
-    storage = parsed_intent.get('storage')
-    condition = parsed_intent.get('condition')
-    color = parsed_intent.get('color')
+    # Get parsed values
+    parsed_model = parsed_intent.get('model')
+    parsed_storage = parsed_intent.get('storage')
+    parsed_condition = parsed_intent.get('condition')
+    parsed_color = parsed_intent.get('color')
+    
+    # Merge with session context for multi-turn conversations
+    if session_id:
+        model, storage, condition, color = merge_with_session_context(
+            session_id, parsed_model, parsed_storage, parsed_condition, parsed_color, message
+        )
+    else:
+        model, storage, condition, color = parsed_model, parsed_storage, parsed_condition, parsed_color
+    
     category = parsed_intent.get('category')
     budget_min = parsed_intent.get('budget_min')
     budget_max = parsed_intent.get('budget_max')
@@ -819,8 +904,25 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) ->
                     context_parts.append(f"  - {p['name']} ({p.get('storage', 'N/A')}): Rs. {int(p['price']):,}")
                     context_parts.append(f"    URL: {p['product_url']}")
     
+    elif model or storage or condition or color:
+        # Fallback: if we have any product attributes (including from session context), look up the product
+        product = search_product_by_specs(model, storage, condition, color)
+        if product:
+            context_parts.append(f"PRODUCT MATCH (from context):")
+            context_parts.append(f"  Model: {product['name']}")
+            context_parts.append(f"  Storage: {product.get('storage', 'N/A')}")
+            context_parts.append(f"  Condition: {product.get('condition', 'N/A')}")
+            if product.get('color'):
+                context_parts.append(f"  Color: {product.get('color')}")
+            context_parts.append(f"  *** PRICE: Rs. {int(product['price']):,} (USE THIS EXACT PRICE) ***")
+            context_parts.append(f"  URL: {product['product_url']}")
+            if product.get('image_url'):
+                context_parts.append(f"  IMAGE: {product['image_url']}")
+        else:
+            # Fallback to database context
+            return get_product_context_from_database(message, session_id)
     else:
-        return get_product_context_from_database(message)
+        return get_product_context_from_database(message, session_id)
     
     context_parts.append("\n=== END PRODUCT DATABASE ===")
     context_parts.append("REMINDER: Use the EXACT prices above. Do not estimate or use old prices.\n")
@@ -828,10 +930,14 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) ->
     return "\n".join(context_parts)
 
 
-def get_product_context_from_database(message: str) -> str:
+def get_product_context_from_database(message: str, session_id: str = None) -> str:
     """
     Get product/pricing context from the database based on the user's query.
     Returns formatted string for LLM context injection.
+    
+    Now supports session context for multi-turn conversations.
+    If message contains co-reference (e.g., "same product", "that one") and
+    no model is detected, uses the model from session context.
     
     Priority order:
     1. Specific variant queries (iPhone 12 128GB Superb)
@@ -839,8 +945,16 @@ def get_product_context_from_database(message: str) -> str:
     3. Price range queries (iPhone under 25000)
     4. General product listing
     """
-    model_name, storage, condition = detect_variant_query(message)
+    parsed_model, parsed_storage, parsed_condition = detect_variant_query(message)
     is_price_query, max_price, min_price, category = detect_price_query(message)
+    
+    # Merge with session context for multi-turn conversations
+    if session_id:
+        model_name, storage, condition, _ = merge_with_session_context(
+            session_id, parsed_model, parsed_storage, parsed_condition, None, message
+        )
+    else:
+        model_name, storage, condition = parsed_model, parsed_storage, parsed_condition
     
     context_parts = []
     context_parts.append("\n\n=== PRODUCT DATABASE (AUTHORITATIVE PRICING SOURCE) ===")
@@ -1444,7 +1558,8 @@ def generate_response(
     n_context_docs: int = 8,
     user_name: str = None,
     is_returning_user: bool = False,
-    last_topic_summary: str = None
+    last_topic_summary: str = None,
+    session_id: str = None
 ) -> dict:
     """
     Generate a response to the user's message using RAG.
@@ -1491,14 +1606,17 @@ def generate_response(
             parsed_intent.get('condition') or
             parsed_intent.get('budget_max') or
             parsed_intent.get('budget_min') or
-            parsed_intent.get('is_cheapest_query')
+            parsed_intent.get('is_cheapest_query') or
+            parsed_intent.get('storage') or  # Use hybrid when storage is detected (LLM parsing)
+            parsed_intent.get('model') or    # Use hybrid when model is detected
+            parsed_intent.get('color')       # Use hybrid when color is detected
         )
     )
     
     if should_use_hybrid:
-        product_context = get_product_context_with_parsed_intent(user_message, parsed_intent)
+        product_context = get_product_context_with_parsed_intent(user_message, parsed_intent, session_id)
     else:
-        product_context = get_product_context_from_database(user_message)
+        product_context = get_product_context_from_database(user_message, session_id)
     
     web_search_context = get_web_search_context(user_message)
     
@@ -1625,7 +1743,8 @@ def generate_response_stream(
     n_context_docs: int = 8,
     user_name: str = None,
     is_returning_user: bool = False,
-    last_topic_summary: str = None
+    last_topic_summary: str = None,
+    session_id: str = None
 ):
     """
     Generate a streaming response to the user's message using RAG.
@@ -1657,14 +1776,17 @@ def generate_response_stream(
             parsed_intent.get('condition') or
             parsed_intent.get('budget_max') or
             parsed_intent.get('budget_min') or
-            parsed_intent.get('is_cheapest_query')
+            parsed_intent.get('is_cheapest_query') or
+            parsed_intent.get('storage') or  # Use hybrid when storage is detected (LLM parsing)
+            parsed_intent.get('model') or    # Use hybrid when model is detected
+            parsed_intent.get('color')       # Use hybrid when color is detected
         )
     )
     
     if should_use_hybrid:
-        product_context = get_product_context_with_parsed_intent(user_message, parsed_intent)
+        product_context = get_product_context_with_parsed_intent(user_message, parsed_intent, session_id)
     else:
-        product_context = get_product_context_from_database(user_message)
+        product_context = get_product_context_from_database(user_message, session_id)
     
     web_search_context = get_web_search_context(user_message)
     

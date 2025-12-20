@@ -4,13 +4,15 @@
 GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and MacBook e-commerce platform. The chatbot serves as a front-line customer engagement tool, answering questions about products, pricing, warranty, and policies with bilingual support (English + Hinglish).
 
 ## Recent Updates (Dec 20, 2025)
-- **100% ACCURACY ACHIEVED**: 20/20 tests passed - exceeds 95% target
+- **MULTI-TURN CONVERSATIONS**: Now correctly handles follow-up queries like "1TB variant for same product"
+- **Session Context Tracking**: Stores product model across conversation turns, resolves co-references
+- **100% ACCURACY ACHIEVED**: 21/21 tests passed (including multi-turn) - exceeds 95% target
 - **Stock Fix Applied**: All 2,205 variants now correctly marked in-stock (Shopify API limitation workaround)
-- **Fair Pricing Restored**: Base queries now return cheapest Fair condition (₹95,399 for iPhone 16 Pro Max)
-- **Specs Display Restored**: Product responses now include Display, Processor, Camera, 5G, Design specs
+- **Fair Pricing Restored**: Base queries return cheapest Fair condition (₹95,399 for iPhone 16 Pro Max)
+- **Specs Display Restored**: Product responses include Display, Processor, Camera, 5G, Design specs
 - **Product Coverage**: 2,205 variants from 104 Shopify products (all in-stock)
 - **iPhone Specs Added**: Hardcoded specs for iPhone 11-16 models (Apple specs don't change)
-- **LLM Parser Enhanced**: Extracts color, category, spec_only, comparison_models with Hinglish support
+- **LLM Parser Enhanced**: Extracts storage, color, category with Hinglish support
 
 ## User Preferences
 Focus on high-level features and architectural decisions. Prioritize clarity and conciseness. Direct communication style preferred. Do not make changes to existing file structure without explicit approval.
@@ -28,6 +30,7 @@ Focus on high-level features and architectural decisions. Prioritize clarity and
 
 ### Key Features
 - **Hybrid Pricing System**: LLM + PostgreSQL database for accurate pricing (100% accuracy achieved)
+- **Multi-Turn Context**: Session-level tracking resolves "same product", "that one" references
 - **Bilingual Support**: English and Hinglish responses based on user language
 - **Streaming Responses**: SSE-based real-time response display
 - **Product Database**: 2,205 variants synced from Shopify with per-variant pricing (all in-stock)
