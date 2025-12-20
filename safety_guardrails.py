@@ -29,6 +29,12 @@ TOPIC_TO_PAGES = {
     "macbook": ["MacBooks", "All Products"],
     "laptop": ["MacBooks", "All Products"],
     "phone": ["iPhones", "All Products"],
+    "variant": ["iPhones", "All Products"],
+    "storage": ["iPhones", "All Products"],
+    "1tb": ["iPhones", "All Products"],
+    "512gb": ["iPhones", "All Products"],
+    "256gb": ["iPhones", "All Products"],
+    "pro max": ["iPhones", "All Products"],
     "price": ["All Products", "iPhones", "MacBooks"],
     "cost": ["All Products", "iPhones", "MacBooks"],
     "budget": ["All Products", "iPhones", "MacBooks"],
@@ -475,10 +481,18 @@ def _response_shows_product_interest(response: str) -> bool:
     return any(phrase in response_lower for phrase in PRODUCT_INTEREST_PHRASES)
 
 
+def _response_has_end_cta(response: str) -> bool:
+    """Check if response already has a CTA link at the end (last 100 chars)."""
+    import re
+    last_section = response[-150:] if len(response) > 150 else response
+    # Check for "View [Product]" style links at the end
+    return bool(re.search(r'View\s+\w+.*\]\(', last_section))
+
+
 def append_contextual_links(query: str, response: str) -> str:
     """
     Append contextual page links at the end of response if:
-    1. Response has no URLs already
+    1. Response has no CTA link at the end already
     2. Query OR response matches topic keywords
     3. Not a crisis response
     
@@ -486,7 +500,8 @@ def append_contextual_links(query: str, response: str) -> str:
     """
     import random
     
-    if _response_has_urls(response):
+    # Only skip if there's already a proper end CTA, not just any inline URL
+    if _response_has_end_cta(response):
         return response
     
     if _is_crisis_response(response):
