@@ -339,17 +339,67 @@ IPHONE_SPECS = {
     },
 }
 
-def get_iphone_specs(model_name: str) -> dict:
-    """Get specifications for an iPhone model."""
+def get_iphone_specs_from_db(model_name: str) -> dict:
+    """Get specifications for a product from the database (canonical source)."""
     if not model_name:
         return {}
-    model_clean = model_name.replace("Apple ", "").strip()
-    if model_clean in IPHONE_SPECS:
-        return IPHONE_SPECS[model_clean]
-    for key in IPHONE_SPECS:
-        if key.lower() in model_clean.lower() or model_clean.lower() in key.lower():
-            return IPHONE_SPECS[key]
-    return {}
+    
+    try:
+        with get_db_session() as session:
+            if not session:
+                return {}
+            
+            # Clean up model name for matching
+            model_clean = model_name.replace("Apple ", "").strip()
+            
+            # Query database for product specs
+            product = session.query(GRESTProduct).filter(
+                GRESTProduct.name.ilike(f"%{model_clean}%")
+            ).first()
+            
+            if product and product.specifications:
+                specs_data = product.specifications
+                if isinstance(specs_data, str):
+                    import json
+                    specs_data = json.loads(specs_data)
+                
+                # Extract the 'specs' dict from the specifications JSON
+                raw_specs = specs_data.get('specs', {})
+                
+                if raw_specs:
+                    # Normalize keys for consistent display
+                    normalized = {}
+                    key_mapping = {
+                        'display': 'display',
+                        'processor': 'processor',
+                        'rear camera': 'rear_camera',
+                        'front camera': 'front_camera',
+                        'water resistance': 'water_resistance',
+                        'secure authentication': 'face_id',
+                        'battery': 'battery',
+                        'operating system': 'os',
+                        'sim card': 'sim',
+                        'bluetooth': 'bluetooth',
+                        'connectors': 'connectors',
+                        'storage': 'storage_options',
+                        'size and weight': 'size_weight',
+                    }
+                    for key, value in raw_specs.items():
+                        norm_key = key.lower().strip()
+                        mapped = key_mapping.get(norm_key, norm_key.replace(' ', '_'))
+                        normalized[mapped] = value
+                    
+                    return normalized
+            
+            return {}
+    except Exception as e:
+        print(f"Error fetching specs from DB: {e}")
+        return {}
+
+
+def get_iphone_specs(model_name: str) -> dict:
+    """Get specifications for an iPhone model - reads from database."""
+    return get_iphone_specs_from_db(model_name)
 
 
 def get_openai_client():
