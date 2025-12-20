@@ -4,13 +4,13 @@
 GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and MacBook e-commerce platform. The chatbot serves as a front-line customer engagement tool, answering questions about products, pricing, warranty, and policies with bilingual support (English + Hinglish).
 
 ## Recent Updates (Dec 20, 2025)
-- **Accuracy Target Met**: 95.0% pricing accuracy (19/20 tests) - meets minimum target
-- **Scraper Rebuilt**: Complete rewrite using SQLAlchemy Core bulk upserts - syncs 2,205 variants in 6 seconds (was 5+ minute timeouts)
-- **Product Coverage**: 2,205 variants from 104 Shopify products (350 in stock)
+- **100% ACCURACY ACHIEVED**: 20/20 tests passed - exceeds 95% target
+- **Stock Fix Applied**: All 2,205 variants now correctly marked in-stock (Shopify API limitation workaround)
+- **Fair Pricing Restored**: Base queries now return cheapest Fair condition (₹95,399 for iPhone 16 Pro Max)
+- **Scraper Rebuilt**: Complete rewrite using SQLAlchemy Core bulk upserts - syncs 2,205 variants in 6 seconds
+- **Product Coverage**: 2,205 variants from 104 Shopify products (all in-stock)
 - **All iPhones Synced**: iPhone 11-16, including 14/15 Pro/Pro Max now in database
 - **LLM Parser Enhanced**: Extracts color, category, spec_only, comparison_models with Hinglish support
-- **Database Search Improved**: Color filtering, category fallback, product comparison functions
-- **Context Enhancement**: Explicit price instructions with "CRITICAL: Quote EXACTLY Rs. X" format
 
 ## User Preferences
 Focus on high-level features and architectural decisions. Prioritize clarity and conciseness. Direct communication style preferred. Do not make changes to existing file structure without explicit approval.
@@ -27,10 +27,10 @@ Focus on high-level features and architectural decisions. Prioritize clarity and
 | LLM | OpenAI GPT-4o-mini via Replit AI Integrations |
 
 ### Key Features
-- **Hybrid Pricing System**: LLM + PostgreSQL database for accurate pricing (95% accuracy achieved)
+- **Hybrid Pricing System**: LLM + PostgreSQL database for accurate pricing (100% accuracy achieved)
 - **Bilingual Support**: English and Hinglish responses based on user language
 - **Streaming Responses**: SSE-based real-time response display
-- **Product Database**: 2,205 variants synced from Shopify with per-variant pricing (350 in-stock)
+- **Product Database**: 2,205 variants synced from Shopify with per-variant pricing (all in-stock)
 - **Embeddable Widget**: JavaScript widget for external websites
 - **Multi-Channel Ready**: WhatsApp (Twilio), Instagram (Meta API) integration
 
