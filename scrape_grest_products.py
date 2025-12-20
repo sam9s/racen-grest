@@ -226,54 +226,57 @@ def populate_database(hard_delete_stale: bool = True):
     products_skipped = 0
     seen_skus = set()
     
-    for product in all_products:
-        title = product.get('title', '')
-        product_id = product.get('id')
-        handle = product.get('handle', '')
-        product_type = product.get('product_type', '')
+    with get_db_session() as db:
+        if db is None:
+            print("Database not available!")
+            return {"success": False, "error": "Database not available"}
         
-        if not title or not product_id:
-            products_skipped += 1
-            continue
+        existing_skus = {p.sku: p for p in db.query(GRESTProduct).all()}
+        print(f"Found {len(existing_skus)} existing variants in database")
         
-        category = get_category(title, product_type)
-        
-        if category == 'Protection Plan':
-            print(f"  Skipping protection plan: {title[:50]}")
-            products_skipped += 1
-            continue
-        
-        variants = product.get('variants', [])
-        if not variants:
-            print(f"  Skipping (no variants): {title[:50]}")
-            products_skipped += 1
-            continue
-        
-        specs = extract_specs_from_body(product.get('body_html', ''))
-        
-        images = product.get('images', [])
-        image_url = images[0].get('src', '') if images else None
-        
-        base_product_url = f"https://grest.in/products/{handle}"
-        
-        min_price, max_price = get_price_range(variants)
-        storage_options, colors, conditions = parse_variant_options(variants)
-        
-        specs_json = json.dumps({
-            'specs': specs,
-            'storage_options': storage_options,
-            'colors': colors,
-            'conditions': conditions,
-            'variant_count': len(variants),
-            'product_type': product_type,
-            'tags': product.get('tags', ''),
-            'price_range': f"Rs. {int(min_price):,} - Rs. {int(max_price):,}" if max_price and min_price and max_price != min_price else f"Rs. {int(min_price):,}" if min_price else ""
-        })
-        
-        with get_db_session() as db:
-            if db is None:
-                print("Database not available!")
-                return
+        for product in all_products:
+            title = product.get('title', '')
+            product_id = product.get('id')
+            handle = product.get('handle', '')
+            product_type = product.get('product_type', '')
+            
+            if not title or not product_id:
+                products_skipped += 1
+                continue
+            
+            category = get_category(title, product_type)
+            
+            if category == 'Protection Plan':
+                print(f"  Skipping protection plan: {title[:50]}")
+                products_skipped += 1
+                continue
+            
+            variants = product.get('variants', [])
+            if not variants:
+                print(f"  Skipping (no variants): {title[:50]}")
+                products_skipped += 1
+                continue
+            
+            specs = extract_specs_from_body(product.get('body_html', ''))
+            
+            images = product.get('images', [])
+            image_url = images[0].get('src', '') if images else None
+            
+            base_product_url = f"https://grest.in/products/{handle}"
+            
+            min_price, max_price = get_price_range(variants)
+            storage_options, colors, conditions = parse_variant_options(variants)
+            
+            specs_json = json.dumps({
+                'specs': specs,
+                'storage_options': storage_options,
+                'colors': colors,
+                'conditions': conditions,
+                'variant_count': len(variants),
+                'product_type': product_type,
+                'tags': product.get('tags', ''),
+                'price_range': f"Rs. {int(min_price):,} - Rs. {int(max_price):,}" if max_price and min_price and max_price != min_price else f"Rs. {int(min_price):,}" if min_price else ""
+            })
             
             for variant in variants:
                 variant_id = variant.get('id')
@@ -315,7 +318,7 @@ def populate_database(hard_delete_stale: bool = True):
                     variant_title_parts.append(condition)
                 variant_name = ' - '.join(variant_title_parts) if len(variant_title_parts) > 1 else title
                 
-                existing = db.query(GRESTProduct).filter(GRESTProduct.sku == sku).first()
+                existing = existing_skus.get(sku)
                 
                 if existing:
                     existing.name = title
@@ -352,8 +355,9 @@ def populate_database(hard_delete_stale: bool = True):
                     )
                     db.add(new_variant)
                     variants_added += 1
-        
-        print(f"  Processed: {title[:40]} ({len(variants)} variants)")
+            
+            print(f"  Processed: {title[:40]} ({len(variants)} variants)")
+            db.commit()
     
     print()
     print("=" * 60)
