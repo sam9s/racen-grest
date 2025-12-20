@@ -251,9 +251,21 @@ def _prepare_product_variants(product):
         if compare_price and compare_price > price:
             discount = int(((compare_price - price) / compare_price) * 100)
         
-        inventory_qty = variant.get('inventory_quantity', 0)
+        inventory_qty = variant.get('inventory_quantity')
         inventory_policy = variant.get('inventory_policy', '')
-        in_stock = inventory_qty > 0 or inventory_policy == 'continue'
+        available = variant.get('available')
+        
+        # Determine in-stock status:
+        # 1. If 'available' is explicitly set, use it
+        # 2. If inventory data exists, use it
+        # 3. Otherwise, assume in-stock if variant has valid price (Shopify shows purchasable items)
+        if available is not None:
+            in_stock = bool(available)
+        elif inventory_qty is not None:
+            in_stock = inventory_qty > 0 or inventory_policy == 'continue'
+        else:
+            # No stock data available - assume in stock if has valid price
+            in_stock = price > 0
         
         sku = f"SHOPIFY_{product_id}_{variant_id}"
         variant_title = ' - '.join(filter(None, [title, storage, condition])) or title
