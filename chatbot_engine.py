@@ -108,29 +108,29 @@ def merge_with_session_context(session_id: str, parsed_model: str, parsed_storag
 
 IPHONE_SPECS = {
     "iPhone 16 Pro Max": {
-        "display": '6.9" Super Retina XDR OLED',
+        "display": '6.9" Super Retina XDR OLED, 120Hz ProMotion, Always-On, 460 ppi',
         "processor": "A18 Pro chip",
-        "rear_camera": "48MP + 12MP + 12MP (5x Telephoto)",
+        "rear_camera": "48MP Fusion + 48MP Ultra Wide + 12MP 5x Telephoto",
         "front_camera": "12MP TrueDepth",
         "5g": "Yes",
-        "design": "Titanium frame",
+        "design": "Titanium Grade 5 frame",
         "water_resistance": "IP68",
         "face_id": "Yes",
     },
     "iPhone 16 Pro": {
-        "display": '6.3" Super Retina XDR OLED',
+        "display": '6.3" Super Retina XDR OLED, 120Hz ProMotion, Always-On, 460 ppi',
         "processor": "A18 Pro chip",
-        "rear_camera": "48MP + 12MP + 12MP (5x Telephoto)",
+        "rear_camera": "48MP Fusion + 48MP Ultra Wide + 12MP 5x Telephoto",
         "front_camera": "12MP TrueDepth",
         "5g": "Yes",
-        "design": "Titanium frame",
+        "design": "Titanium Grade 5 frame",
         "water_resistance": "IP68",
         "face_id": "Yes",
     },
     "iPhone 16 Plus": {
-        "display": '6.7" Super Retina XDR OLED',
+        "display": '6.7" Super Retina XDR OLED, 60Hz, Dynamic Island, 460 ppi',
         "processor": "A18 chip",
-        "rear_camera": "48MP + 12MP Wide",
+        "rear_camera": "48MP Fusion + 12MP Ultra Wide",
         "front_camera": "12MP TrueDepth",
         "5g": "Yes",
         "design": "Aluminum frame",
@@ -138,9 +138,9 @@ IPHONE_SPECS = {
         "face_id": "Yes",
     },
     "iPhone 16": {
-        "display": '6.1" Super Retina XDR OLED',
+        "display": '6.1" Super Retina XDR OLED, 60Hz, Dynamic Island, 460 ppi',
         "processor": "A18 chip",
-        "rear_camera": "48MP + 12MP Wide",
+        "rear_camera": "48MP Fusion + 12MP Ultra Wide",
         "front_camera": "12MP TrueDepth",
         "5g": "Yes",
         "design": "Aluminum frame",
@@ -148,9 +148,9 @@ IPHONE_SPECS = {
         "face_id": "Yes",
     },
     "iPhone 15 Pro Max": {
-        "display": '6.7" Super Retina XDR OLED',
+        "display": '6.7" Super Retina XDR OLED, 120Hz ProMotion, Always-On, 460 ppi',
         "processor": "A17 Pro chip",
-        "rear_camera": "48MP + 12MP + 12MP (5x Telephoto)",
+        "rear_camera": "48MP Main + 12MP Ultra Wide + 12MP 5x Telephoto",
         "front_camera": "12MP TrueDepth",
         "5g": "Yes",
         "design": "Titanium frame",
@@ -158,9 +158,9 @@ IPHONE_SPECS = {
         "face_id": "Yes",
     },
     "iPhone 15 Pro": {
-        "display": '6.1" Super Retina XDR OLED',
+        "display": '6.1" Super Retina XDR OLED, 120Hz ProMotion, Always-On, 460 ppi',
         "processor": "A17 Pro chip",
-        "rear_camera": "48MP + 12MP + 12MP (3x Telephoto)",
+        "rear_camera": "48MP Main + 12MP Ultra Wide + 12MP 3x Telephoto",
         "front_camera": "12MP TrueDepth",
         "5g": "Yes",
         "design": "Titanium frame",
@@ -168,9 +168,9 @@ IPHONE_SPECS = {
         "face_id": "Yes",
     },
     "iPhone 15 Plus": {
-        "display": '6.7" Super Retina XDR OLED',
+        "display": '6.7" Super Retina XDR OLED, 60Hz, Dynamic Island, 460 ppi',
         "processor": "A16 Bionic chip",
-        "rear_camera": "48MP + 12MP Wide",
+        "rear_camera": "48MP Main + 12MP Ultra Wide",
         "front_camera": "12MP TrueDepth",
         "5g": "Yes",
         "design": "Aluminum frame",
@@ -178,9 +178,9 @@ IPHONE_SPECS = {
         "face_id": "Yes",
     },
     "iPhone 15": {
-        "display": '6.1" Super Retina XDR OLED',
+        "display": '6.1" Super Retina XDR OLED, 60Hz, Dynamic Island, 460 ppi',
         "processor": "A16 Bionic chip",
-        "rear_camera": "48MP + 12MP Wide",
+        "rear_camera": "48MP Main + 12MP Ultra Wide",
         "front_camera": "12MP TrueDepth",
         "5g": "Yes",
         "design": "Aluminum frame",
@@ -708,18 +708,33 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
     
     if query_type == 'specs' and spec_only and model:
         specs = get_product_specifications(model)
-        if specs:
-            context_parts.append(f"PRODUCT SPECIFICATIONS FOR {specs['name']}:")
-            context_parts.append(f"  Category: {specs['category']}")
-            if specs.get('price_range'):
-                context_parts.append(f"  Price Range: {specs['price_range']}")
-            if specs.get('storage_options'):
-                context_parts.append(f"  Storage Options: {', '.join(specs['storage_options'])}")
-            if specs.get('colors'):
-                context_parts.append(f"  Colors: {', '.join(specs['colors'])}")
-            if specs.get('conditions'):
-                context_parts.append(f"  Conditions: {', '.join(specs['conditions'])}")
-            if specs.get('specifications'):
+        iphone_specs = get_iphone_specs(model)
+        
+        if specs or iphone_specs:
+            context_parts.append(f"PRODUCT SPECIFICATIONS FOR {specs.get('name', model) if specs else model}:")
+            if specs:
+                context_parts.append(f"  Category: {specs.get('category', 'iPhone')}")
+                if specs.get('price_range'):
+                    context_parts.append(f"  Price Range: {specs['price_range']}")
+                if specs.get('storage_options'):
+                    context_parts.append(f"  Storage Options: {', '.join(specs['storage_options'])}")
+                if specs.get('colors'):
+                    context_parts.append(f"  Colors: {', '.join(specs['colors'])}")
+                if specs.get('conditions'):
+                    context_parts.append(f"  Conditions: {', '.join(specs['conditions'])}")
+            
+            # Always use hardcoded specs for iPhones (database specs are often empty)
+            if iphone_specs:
+                context_parts.append(f"\n  *** TECHNICAL SPECIFICATIONS (AUTHORITATIVE - USE THESE EXACTLY) ***")
+                context_parts.append(f"  - **Display:** {iphone_specs.get('display', 'N/A')}")
+                context_parts.append(f"  - **Processor:** {iphone_specs.get('processor', 'N/A')}")
+                context_parts.append(f"  - **Rear Camera:** {iphone_specs.get('rear_camera', 'N/A')}")
+                context_parts.append(f"  - **Front Camera:** {iphone_specs.get('front_camera', 'N/A')}")
+                context_parts.append(f"  - **5G:** {iphone_specs.get('5g', 'N/A')}")
+                context_parts.append(f"  - **Design:** {iphone_specs.get('design', 'N/A')}")
+                context_parts.append(f"  - **Water Resistance:** {iphone_specs.get('water_resistance', 'N/A')}")
+                context_parts.append(f"  *** COPY THESE SPECS EXACTLY - DO NOT MODIFY OR HALLUCINATE ***")
+            elif specs.get('specifications'):
                 context_parts.append(f"\n  Technical Specifications:")
                 for key, value in specs['specifications'].items():
                     context_parts.append(f"    - {key}: {value}")
