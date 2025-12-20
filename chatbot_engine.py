@@ -24,7 +24,10 @@ from database import (
     search_products_for_chatbot,
     search_product_by_specs,
     get_product_variants,
-    get_storage_options_for_model
+    get_storage_options_for_model,
+    get_product_specifications,
+    compare_products,
+    search_products_by_category
 )
 
 _openai_client = None
@@ -225,9 +228,11 @@ def parse_query_with_llm(message: str) -> dict:
     - "ekdum mast" → Superb
     - "20000 ke budget mein" → budget_max: 20000
     - "30 se 40 hazar" → budget_min: 30000, budget_max: 40000
+    - "neela wala" → color: Blue
     
     Returns:
-        dict with keys: model, storage, condition, budget_min, budget_max, is_price_query
+        dict with keys: model, storage, condition, color, category, budget_min, budget_max, 
+                       is_price_query, spec_only, comparison_models
     """
     client = get_openai_client()
     if client is None:
@@ -248,10 +253,27 @@ CONDITION MAPPINGS (Indian/Hinglish to English):
 - Good: acchi, accha, badhiya, decent, theek thaak, normal
 - Superb: ekdum, mast, best, top, premium, zabardast, shandar, first class, A1
 
+COLOR MAPPINGS (Indian/Hinglish to English):
+- Blue: neela, neeli, blue
+- Black: kaala, kaali, black, midnight
+- White: safed, white, silver, starlight
+- Red: laal, red, product red
+- Green: hara, hari, green, alpine green
+- Gold: sona, golden, gold
+- Purple: jamuni, purple
+- Pink: gulabi, pink, rose
+- Yellow: peela, yellow
+- Desert Titanium: desert, titanium brown
+- Natural Titanium: natural, titanium grey
+- White Titanium: white titanium
+
 MODEL MAPPINGS:
-- iPhone 11, 12, 13, 14, 15 (with Pro, Pro Max, Plus, mini variants)
+- iPhone 11, 12, 13, 14, 15, 16 (with Pro, Pro Max, Plus, mini variants)
 - MacBook Air, MacBook Pro
-- iPad, iPad Pro, iPad Air
+- iPad, iPad Pro, iPad Air, iPad mini
+
+CATEGORY (when no specific model):
+- iPhone, MacBook, iPad
 
 STORAGE: 64GB, 128GB, 256GB, 512GB, 1TB
 
@@ -266,41 +288,48 @@ OUTPUT FORMAT (JSON only):
   "model": "iPhone 12" or null,
   "storage": "128 GB" or null,
   "condition": "Fair" or "Good" or "Superb" or null,
+  "color": "Blue" or "Black" or null,
+  "category": "iPhone" or "MacBook" or "iPad" or null,
   "budget_min": 30000 or null,
   "budget_max": 40000 or null,
   "is_price_query": true/false,
   "is_cheapest_query": true/false,
-  "query_type": "specific_price" | "budget_search" | "cheapest" | "comparison" | "general" | "other"
+  "spec_only": true/false,
+  "comparison_models": ["iPhone 15", "iPhone 16"] or null,
+  "query_type": "specific_price" | "budget_search" | "cheapest" | "comparison" | "specs" | "general" | "other"
 }
 
 EXAMPLES:
-Query: "20000 ke budget mein koi superb condition ka phone hai"
-{"model": null, "storage": null, "condition": "Superb", "budget_min": null, "budget_max": 20000, "is_price_query": true, "is_cheapest_query": false, "query_type": "budget_search"}
+Query: "iPhone 16 Pro Max 256GB Blue Superb price"
+{"model": "iPhone 16 Pro Max", "storage": "256 GB", "condition": "Superb", "color": "Blue", "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "spec_only": false, "comparison_models": null, "query_type": "specific_price"}
 
-Query: "eak theek si condition ka iphone 30, 40000 ka hai koi"
-{"model": null, "storage": null, "condition": "Fair", "budget_min": 30000, "budget_max": 40000, "is_price_query": true, "is_cheapest_query": false, "query_type": "budget_search"}
+Query: "Neela wala iPhone dikhao"
+{"model": null, "storage": null, "condition": null, "color": "Blue", "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "spec_only": false, "comparison_models": null, "query_type": "budget_search"}
 
-Query: "iPhone 12 128GB superb price"
-{"model": "iPhone 12", "storage": "128 GB", "condition": "Superb", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "query_type": "specific_price"}
+Query: "Cheapest 256GB iPhone"
+{"model": null, "storage": "256 GB", "condition": null, "color": null, "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": true, "spec_only": false, "comparison_models": null, "query_type": "cheapest"}
 
-Query: "sabse sasta iPhone dikhao"
-{"model": null, "storage": null, "condition": null, "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": true, "query_type": "cheapest"}
+Query: "Show specs for iPhone 16 Pro Max"
+{"model": "iPhone 16 Pro Max", "storage": null, "condition": null, "color": null, "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": false, "is_cheapest_query": false, "spec_only": true, "comparison_models": null, "query_type": "specs"}
 
-Query: "acchi condition mein kaunsa phone milega 25000 tak"
-{"model": null, "storage": null, "condition": "Good", "budget_min": null, "budget_max": 25000, "is_price_query": true, "is_cheapest_query": false, "query_type": "budget_search"}
+Query: "Compare iPhone 15 vs iPhone 16"
+{"model": null, "storage": null, "condition": null, "color": null, "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "spec_only": false, "comparison_models": ["iPhone 15", "iPhone 16"], "query_type": "comparison"}
 
-Query: "iPhone 13 Pro Max kitne ka hai"
-{"model": "iPhone 13 Pro Max", "storage": null, "condition": null, "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "query_type": "specific_price"}
+Query: "sabse sasta iPad"
+{"model": null, "storage": null, "condition": null, "color": null, "category": "iPad", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": true, "spec_only": false, "comparison_models": null, "query_type": "cheapest"}
+
+Query: "MacBook under 80000"
+{"model": null, "storage": null, "condition": null, "color": null, "category": "MacBook", "budget_min": null, "budget_max": 80000, "is_price_query": true, "is_cheapest_query": false, "spec_only": false, "comparison_models": null, "query_type": "budget_search"}
 
 Query: "what warranty do you offer"
-{"model": null, "storage": null, "condition": null, "budget_min": null, "budget_max": null, "is_price_query": false, "is_cheapest_query": false, "query_type": "other"}"""
+{"model": null, "storage": null, "condition": null, "color": null, "category": null, "budget_min": null, "budget_max": null, "is_price_query": false, "is_cheapest_query": false, "spec_only": false, "comparison_models": null, "query_type": "other"}"""
                 },
                 {
                     "role": "user",
                     "content": message
                 }
             ],
-            max_tokens=200,
+            max_tokens=300,
             temperature=0
         )
         
@@ -338,13 +367,57 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) ->
     model = parsed_intent.get('model')
     storage = parsed_intent.get('storage')
     condition = parsed_intent.get('condition')
+    color = parsed_intent.get('color')
+    category = parsed_intent.get('category')
     budget_min = parsed_intent.get('budget_min')
     budget_max = parsed_intent.get('budget_max')
     is_cheapest = parsed_intent.get('is_cheapest_query', False)
+    spec_only = parsed_intent.get('spec_only', False)
+    comparison_models = parsed_intent.get('comparison_models')
     query_type = parsed_intent.get('query_type', 'other')
     
-    if query_type == 'specific_price' and model:
-        product = search_product_by_specs(model, storage, condition)
+    if query_type == 'specs' and spec_only and model:
+        specs = get_product_specifications(model)
+        if specs:
+            context_parts.append(f"PRODUCT SPECIFICATIONS FOR {specs['name']}:")
+            context_parts.append(f"  Category: {specs['category']}")
+            if specs.get('price_range'):
+                context_parts.append(f"  Price Range: {specs['price_range']}")
+            if specs.get('storage_options'):
+                context_parts.append(f"  Storage Options: {', '.join(specs['storage_options'])}")
+            if specs.get('colors'):
+                context_parts.append(f"  Colors: {', '.join(specs['colors'])}")
+            if specs.get('conditions'):
+                context_parts.append(f"  Conditions: {', '.join(specs['conditions'])}")
+            if specs.get('specifications'):
+                context_parts.append(f"\n  Technical Specifications:")
+                for key, value in specs['specifications'].items():
+                    context_parts.append(f"    - {key}: {value}")
+        else:
+            context_parts.append(f"No specifications found for {model}")
+        return "\n".join(context_parts)
+    
+    if query_type == 'comparison' and comparison_models and len(comparison_models) >= 2:
+        comparison = compare_products(comparison_models[0], comparison_models[1])
+        if comparison:
+            context_parts.append(f"PRODUCT COMPARISON:")
+            for i, key in enumerate(['model1', 'model2']):
+                data = comparison.get(key)
+                if data:
+                    context_parts.append(f"\n  {comparison_models[i]}:")
+                    context_parts.append(f"    Name: {data['name']}")
+                    context_parts.append(f"    Price Range: Rs. {int(data['min_price']):,} - Rs. {int(data['max_price']):,}")
+                    context_parts.append(f"    Storage: {', '.join(data['storage_options'])}")
+                    context_parts.append(f"    Conditions: {', '.join(data['conditions'])}")
+                    context_parts.append(f"    Colors: {', '.join(data['colors'][:5])}")
+                    context_parts.append(f"    Variants: {data['variant_count']}")
+                    context_parts.append(f"    URL: {data['product_url']}")
+                else:
+                    context_parts.append(f"\n  {comparison_models[i]}: Not available on GREST")
+        return "\n".join(context_parts)
+    
+    if query_type == 'specific_price' and (model or category):
+        product = search_product_by_specs(model, storage, condition, color, category)
         
         if product:
             condition_shown = product.get('condition') or 'Unknown'
@@ -399,26 +472,42 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict) ->
             context_parts.append(f"*** END CRITICAL INSTRUCTION ***\n")
     
     elif query_type == 'cheapest' or is_cheapest:
-        category = 'iPhone' if not model or 'iphone' in (model or '').lower() else None
-        cheapest = get_cheapest_product(category)
-        if cheapest:
-            context_parts.append(f"CHEAPEST {'iPhone' if category else 'Product'} AVAILABLE:")
-            context_parts.append(f"  Model: {cheapest['name']}")
-            context_parts.append(f"  Storage: {cheapest.get('storage', 'N/A')}")
-            context_parts.append(f"  Condition: {cheapest.get('condition', 'N/A')}")
-            context_parts.append(f"  PRICE: Rs. {int(cheapest['price']):,} (USE THIS EXACT PRICE)")
-            context_parts.append(f"  URL: {cheapest['product_url']}")
+        search_category = category if category else ('iPhone' if not model or 'iphone' in (model or '').lower() else None)
+        
+        if storage or color:
+            product = search_product_by_specs(model, storage, condition, color, search_category)
+            if product:
+                context_parts.append(f"CHEAPEST MATCHING PRODUCT:")
+                context_parts.append(f"  Model: {product['name']}")
+                context_parts.append(f"  Storage: {product.get('storage', 'N/A')}")
+                context_parts.append(f"  Color: {product.get('color', 'N/A')}")
+                context_parts.append(f"  Condition: {product.get('condition', 'N/A')}")
+                context_parts.append(f"  PRICE: Rs. {int(product['price']):,} (USE THIS EXACT PRICE)")
+                context_parts.append(f"  URL: {product['product_url']}")
+        else:
+            cheapest = get_cheapest_product(search_category)
+            if cheapest:
+                category_label = search_category if search_category else 'Product'
+                context_parts.append(f"CHEAPEST {category_label} AVAILABLE:")
+                context_parts.append(f"  Model: {cheapest['name']}")
+                context_parts.append(f"  Storage: {cheapest.get('storage', 'N/A')}")
+                context_parts.append(f"  Condition: {cheapest.get('condition', 'N/A')}")
+                context_parts.append(f"  PRICE: Rs. {int(cheapest['price']):,} (USE THIS EXACT PRICE)")
+                context_parts.append(f"  URL: {cheapest['product_url']}")
     
     elif query_type == 'budget_search':
         if budget_min and budget_max:
-            products = get_products_in_price_range(budget_min, budget_max, None)
+            products = get_products_in_price_range(budget_min, budget_max, category)
         elif budget_max:
-            products = get_products_under_price(budget_max, None)
+            products = get_products_under_price(budget_max, category)
         else:
             products = []
         
         if condition:
             products = [p for p in products if p.get('condition', '').lower() == condition.lower()]
+        
+        if color:
+            products = [p for p in products if color.lower() in (p.get('color', '') or '').lower()]
         
         if products:
             context_parts.append(f"PRODUCTS MATCHING YOUR CRITERIA:")

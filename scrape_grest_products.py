@@ -195,21 +195,28 @@ def parse_variant_options_single(variant):
     return storage, color, condition
 
 
-def populate_database():
-    """Fetch all products from Shopify Admin API and populate database with per-variant rows."""
+def populate_database(hard_delete_stale: bool = True):
+    """
+    Fetch all products from Shopify Admin API and populate database with per-variant rows.
+    
+    Args:
+        hard_delete_stale: If True, delete any database entries that no longer exist in Shopify.
+                          This ensures database is an exact clone of Shopify.
+    """
     init_database()
     
     print("=" * 60)
     print("GREST Product Sync - Shopify Admin API (Per-Variant)")
     print("=" * 60)
     print(f"Store: {SHOPIFY_STORE_URL}")
+    print(f"Hard Delete Stale: {hard_delete_stale}")
     print()
     
     all_products = fetch_all_products()
     
     if not all_products:
         print("No products fetched. Check API credentials.")
-        return
+        return {"success": False, "error": "No products fetched"}
     
     print(f"\nProcessing {len(all_products)} products...")
     print("-" * 60)
@@ -217,6 +224,7 @@ def populate_database():
     variants_added = 0
     variants_updated = 0
     products_skipped = 0
+    seen_skus = set()
     
     for product in all_products:
         title = product.get('title', '')
@@ -297,6 +305,7 @@ def populate_database():
                 in_stock = inventory_qty > 0 or inventory_policy == 'continue'
                 
                 sku = f"SHOPIFY_{product_id}_{variant_id}"
+                seen_skus.add(sku)
                 product_url = f"{base_product_url}?variant={variant_id}"
                 
                 variant_title_parts = [title]
@@ -353,12 +362,36 @@ def populate_database():
     print(f"Variants Added: {variants_added}")
     print(f"Variants Updated: {variants_updated}")
     print(f"Products Skipped: {products_skipped}")
+    print(f"Total SKUs seen in Shopify: {len(seen_skus)}")
     print()
+    
+    variants_deleted = 0
+    if hard_delete_stale and seen_skus:
+        with get_db_session() as db:
+            if db:
+                stale_products = db.query(GRESTProduct).filter(
+                    ~GRESTProduct.sku.in_(seen_skus)
+                ).all()
+                
+                if stale_products:
+                    stale_names = [f"{p.name} ({p.sku})" for p in stale_products[:5]]
+                    print(f"HARD DELETE: Removing {len(stale_products)} stale variants not in Shopify:")
+                    for name in stale_names:
+                        print(f"  - {name}")
+                    if len(stale_products) > 5:
+                        print(f"  ... and {len(stale_products) - 5} more")
+                    
+                    for product in stale_products:
+                        db.delete(product)
+                    variants_deleted = len(stale_products)
+                    print(f"Deleted {variants_deleted} stale variants.")
+                else:
+                    print("No stale variants to delete - database is in sync with Shopify.")
     
     with get_db_session() as db:
         if db:
             total = db.query(GRESTProduct).count()
-            print(f"Total variants in database: {total}")
+            print(f"\nTotal variants in database: {total}")
             
             print("\nVariants by category:")
             categories = db.query(GRESTProduct.category).distinct().all()
@@ -394,6 +427,15 @@ def populate_database():
             ).first()
             if sample2:
                 print(f"  iPhone 12 256GB Superb: Rs. {int(sample2.price):,}")
+    
+    return {
+        "success": True,
+        "variants_added": variants_added,
+        "variants_updated": variants_updated,
+        "variants_deleted": variants_deleted,
+        "products_skipped": products_skipped,
+        "total_skus_seen": len(seen_skus)
+    }
 
 if __name__ == "__main__":
     populate_database()

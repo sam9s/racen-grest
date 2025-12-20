@@ -129,6 +129,139 @@ def clear_website_chunks():
         print(f"Error clearing website chunks: {e}")
 
 
+def compute_content_hash(content: str) -> str:
+    """Compute a hash of content for change detection."""
+    return hashlib.md5(content.encode()).hexdigest()
+
+
+def get_page_hashes() -> dict:
+    """Get stored page hashes from metadata."""
+    metadata = load_metadata()
+    return metadata.get("page_hashes", {})
+
+
+def save_page_hashes(hashes: dict):
+    """Save page hashes to metadata."""
+    metadata = load_metadata()
+    metadata["page_hashes"] = hashes
+    save_metadata(metadata)
+
+
+def sync_website_incremental(max_pages: int = 50) -> dict:
+    """
+    Incrementally sync website content with vector database.
+    
+    Only updates pages that have changed since last sync.
+    Deletes embeddings for pages that no longer exist.
+    
+    Returns sync statistics.
+    """
+    from datetime import datetime
+    
+    print("Starting incremental website sync...")
+    documents = scrape_grest_website(max_pages=max_pages)
+    
+    if not documents:
+        print("No content found from website.")
+        return {
+            "pages_processed": 0,
+            "pages_updated": 0,
+            "pages_unchanged": 0,
+            "pages_deleted": 0,
+            "chunks_added": 0
+        }
+    
+    old_hashes = get_page_hashes()
+    new_hashes = {}
+    current_urls = set()
+    
+    collection = get_or_create_collection()
+    
+    pages_updated = 0
+    pages_unchanged = 0
+    chunks_added = 0
+    chunks_rejected = 0
+    
+    for doc in documents:
+        url = doc["url"]
+        content = doc["content"]
+        current_urls.add(url)
+        
+        if not is_valid_text_content(content):
+            print(f"  Rejecting invalid content from {url}")
+            chunks_rejected += 1
+            continue
+        
+        content_hash = compute_content_hash(content)
+        new_hashes[url] = content_hash
+        
+        if url in old_hashes and old_hashes[url] == content_hash:
+            pages_unchanged += 1
+            continue
+        
+        print(f"  Updating: {url}")
+        pages_updated += 1
+        
+        try:
+            existing = collection.get(where={"source": url})
+            if existing and existing.get("ids"):
+                collection.delete(ids=existing["ids"])
+        except Exception as e:
+            print(f"  Warning: Could not delete old chunks for {url}: {e}")
+        
+        chunks = split_text_into_chunks(content, url)
+        
+        for chunk in chunks:
+            if not is_valid_text_content(chunk["content"], min_printable_ratio=0.90):
+                chunks_rejected += 1
+                continue
+                
+            try:
+                collection.upsert(
+                    ids=[chunk["id"]],
+                    documents=[chunk["content"]],
+                    metadatas=[{
+                        "source": chunk["source"],
+                        "type": "website",
+                        "chunk_index": chunk["chunk_index"]
+                    }]
+                )
+                chunks_added += 1
+            except Exception as e:
+                print(f"Error adding chunk: {e}")
+    
+    pages_deleted = 0
+    for old_url in old_hashes:
+        if old_url not in current_urls:
+            print(f"  Deleting removed page: {old_url}")
+            try:
+                existing = collection.get(where={"source": old_url})
+                if existing and existing.get("ids"):
+                    collection.delete(ids=existing["ids"])
+                    pages_deleted += 1
+            except Exception as e:
+                print(f"  Warning: Could not delete chunks for removed page {old_url}: {e}")
+    
+    save_page_hashes(new_hashes)
+    
+    metadata = load_metadata()
+    metadata["last_scrape"] = datetime.now().isoformat()
+    metadata["website_pages"] = len(documents)
+    metadata["website_chunks"] = collection.count()
+    save_metadata(metadata)
+    
+    print(f"Incremental sync complete: {pages_updated} updated, {pages_unchanged} unchanged, {pages_deleted} deleted")
+    
+    return {
+        "pages_processed": len(documents),
+        "pages_updated": pages_updated,
+        "pages_unchanged": pages_unchanged,
+        "pages_deleted": pages_deleted,
+        "chunks_added": chunks_added,
+        "chunks_rejected": chunks_rejected
+    }
+
+
 def ingest_website_content(max_pages: int = 50, clear_existing: bool = True) -> int:
     """
     Scrape the GREST website and add content to the knowledge base.
@@ -148,17 +281,21 @@ def ingest_website_content(max_pages: int = 50, clear_existing: bool = True) -> 
         metadata = load_metadata()
         metadata["website_pages"] = 0
         metadata["website_chunks"] = 0
+        metadata["page_hashes"] = {}
         save_metadata(metadata)
     
     collection = get_or_create_collection()
     chunks_added = 0
     chunks_rejected = 0
+    page_hashes = {}
     
     for doc in documents:
         if not is_valid_text_content(doc["content"]):
             print(f"  Rejecting invalid content from {doc['url']}")
             chunks_rejected += 1
             continue
+        
+        page_hashes[doc["url"]] = compute_content_hash(doc["content"])
             
         chunks = split_text_into_chunks(doc["content"], doc["url"])
         
@@ -185,6 +322,7 @@ def ingest_website_content(max_pages: int = 50, clear_existing: bool = True) -> 
     metadata["last_scrape"] = datetime.now().isoformat()
     metadata["website_pages"] = len(documents)
     metadata["website_chunks"] = chunks_added
+    metadata["page_hashes"] = page_hashes
     save_metadata(metadata)
     
     print(f"Added {chunks_added} chunks from {len(documents)} pages (rejected {chunks_rejected} invalid chunks).")

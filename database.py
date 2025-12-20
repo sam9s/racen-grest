@@ -711,10 +711,16 @@ def get_all_products_formatted():
         return "\n".join(lines)
 
 
-def search_product_by_specs(model_name: str, storage: str = None, condition: str = None, include_out_of_stock: bool = False):
+def search_product_by_specs(model_name: str = None, storage: str = None, condition: str = None, 
+                           color: str = None, category: str = None, include_out_of_stock: bool = False):
     """
-    Search for a specific product variant by model name, storage, and condition.
+    Search for a specific product variant by model name, storage, condition, and color.
     ALWAYS returns the LOWEST price for the given specs (matching website behavior).
+    
+    Supports fallback search:
+    - If model is provided → search by model
+    - If model is null but category exists → search by category + other filters
+    - If neither → search globally with filters
     """
     with get_db_session() as db:
         if db is None:
@@ -722,28 +728,32 @@ def search_product_by_specs(model_name: str, storage: str = None, condition: str
         
         from sqlalchemy import func
         
-        model_normalized = model_name.strip()
-        model_lower = model_normalized.lower()
+        q = db.query(GRESTProduct)
         
-        all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'new', 'max', 'air']
+        if model_name:
+            model_normalized = model_name.strip()
+            model_lower = model_normalized.lower()
+            
+            all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'new', 'max', 'air']
+            
+            exclude_suffixes = []
+            for suffix in all_suffixes:
+                if suffix not in model_lower:
+                    exclude_suffixes.append(suffix)
+            
+            if 'pro max' in model_lower:
+                if 'pro' in exclude_suffixes:
+                    exclude_suffixes.remove('pro')
+                if 'max' in exclude_suffixes:
+                    exclude_suffixes.remove('max')
+            
+            q = q.filter(GRESTProduct.name.ilike(f"%{model_normalized}%"))
+            
+            for suffix in exclude_suffixes:
+                q = q.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
         
-        exclude_suffixes = []
-        for suffix in all_suffixes:
-            if suffix not in model_lower:
-                exclude_suffixes.append(suffix)
-        
-        if 'pro max' in model_lower:
-            if 'pro' in exclude_suffixes:
-                exclude_suffixes.remove('pro')
-            if 'max' in exclude_suffixes:
-                exclude_suffixes.remove('max')
-        
-        q = db.query(GRESTProduct).filter(
-            GRESTProduct.name.ilike(f"%{model_normalized}%")
-        )
-        
-        for suffix in exclude_suffixes:
-            q = q.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
+        elif category:
+            q = q.filter(GRESTProduct.category.ilike(f"%{category}%"))
         
         if storage:
             storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
@@ -753,6 +763,12 @@ def search_product_by_specs(model_name: str, storage: str = None, condition: str
         
         if condition:
             q = q.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
+        
+        if color:
+            q = q.filter(GRESTProduct.color.ilike(f"%{color}%"))
+        
+        if not include_out_of_stock:
+            q = q.filter(GRESTProduct.in_stock == True)
         
         product = q.order_by(GRESTProduct.price.asc()).first()
         
@@ -774,9 +790,125 @@ def search_product_by_specs(model_name: str, storage: str = None, condition: str
                 'image_url': product.image_url,
                 'variant': product.variant,
                 'in_stock': not out_of_stock,
-                'out_of_stock': out_of_stock
+                'out_of_stock': out_of_stock,
+                'specifications': product.specifications
             }
         return None
+
+
+def search_products_by_category(category: str, storage: str = None, condition: str = None, 
+                                 color: str = None, limit: int = 10):
+    """
+    Search products by category with optional filters.
+    Returns multiple products sorted by price.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        q = db.query(GRESTProduct).filter(
+            GRESTProduct.category.ilike(f"%{category}%"),
+            GRESTProduct.in_stock == True
+        )
+        
+        if storage:
+            storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
+            q = q.filter(GRESTProduct.storage.ilike(f"%{storage_clean}%"))
+        
+        if condition:
+            q = q.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
+        
+        if color:
+            q = q.filter(GRESTProduct.color.ilike(f"%{color}%"))
+        
+        products = q.order_by(GRESTProduct.price.asc()).limit(limit).all()
+        
+        return [{
+            'name': p.name,
+            'storage': p.storage,
+            'color': p.color,
+            'condition': p.condition,
+            'price': float(p.price),
+            'product_url': p.product_url
+        } for p in products]
+
+
+def get_product_specifications(model_name: str) -> dict:
+    """
+    Get specifications for a product model.
+    Returns the specifications JSON from the database.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return None
+        
+        product = db.query(GRESTProduct).filter(
+            GRESTProduct.name.ilike(f"%{model_name}%")
+        ).first()
+        
+        if product and product.specifications:
+            import json
+            try:
+                specs = json.loads(product.specifications)
+                return {
+                    'name': product.name,
+                    'category': product.category,
+                    'specifications': specs.get('specs', {}),
+                    'storage_options': specs.get('storage_options', []),
+                    'colors': specs.get('colors', []),
+                    'conditions': specs.get('conditions', []),
+                    'price_range': specs.get('price_range', '')
+                }
+            except json.JSONDecodeError:
+                return None
+        return None
+
+
+def compare_products(model1: str, model2: str) -> dict:
+    """
+    Compare two product models side by side.
+    Returns comparison data for both products.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return None
+        
+        def get_model_data(model_name):
+            products = db.query(GRESTProduct).filter(
+                GRESTProduct.name.ilike(f"%{model_name}%"),
+                GRESTProduct.in_stock == True
+            ).all()
+            
+            if not products:
+                return None
+            
+            prices = [float(p.price) for p in products]
+            storages = list(set(p.storage for p in products if p.storage))
+            conditions = list(set(p.condition for p in products if p.condition))
+            colors = list(set(p.color for p in products if p.color))
+            
+            return {
+                'name': products[0].name,
+                'category': products[0].category,
+                'min_price': min(prices),
+                'max_price': max(prices),
+                'storage_options': sorted(storages),
+                'conditions': conditions,
+                'colors': colors,
+                'variant_count': len(products),
+                'product_url': products[0].product_url
+            }
+        
+        data1 = get_model_data(model1)
+        data2 = get_model_data(model2)
+        
+        if not data1 and not data2:
+            return None
+        
+        return {
+            'model1': data1,
+            'model2': data2
+        }
 
 
 def get_product_variants(model_name: str, storage: str = None):

@@ -23,6 +23,7 @@ from chatbot_engine import generate_response, generate_response_stream, generate
 from conversation_logger import log_feedback, log_conversation, ensure_session_exists
 from database import get_or_create_user, get_user_conversation_history, get_conversation_summary, upsert_conversation_summary
 from knowledge_base import initialize_knowledge_base, get_knowledge_base_stats
+from sync_manager import start_sync_manager, get_sync_manager
 
 app = Flask(__name__)
 CORS(app)
@@ -42,6 +43,16 @@ def init_knowledge_base_on_startup():
         print(f"[Startup] Warning: Failed to initialize knowledge base: {e}")
 
 init_knowledge_base_on_startup()
+
+def init_sync_manager():
+    """Initialize the sync manager to run automatic syncs every 6 hours."""
+    try:
+        start_sync_manager(run_immediately=False)
+        print("[Startup] SyncManager started - syncing every 6 hours")
+    except Exception as e:
+        print(f"[Startup] Warning: Failed to start SyncManager: {e}")
+
+init_sync_manager()
 
 conversation_histories = {}
 
