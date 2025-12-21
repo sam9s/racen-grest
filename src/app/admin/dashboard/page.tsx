@@ -917,6 +917,26 @@ function MonitoringView() {
   );
 }
 
+interface SyncProgress {
+  step: string;
+  message: string;
+  progress: number;
+  status?: string;
+  result?: {
+    variantsProcessed: number;
+    variantsDeleted: number;
+  };
+}
+
+const SYNC_STEPS = [
+  { key: 'connecting', label: 'Connecting', icon: '🔌' },
+  { key: 'fetching', label: 'Fetching Products', icon: '📥' },
+  { key: 'processing', label: 'Processing Data', icon: '⚙️' },
+  { key: 'upserting', label: 'Updating Database', icon: '💾' },
+  { key: 'cleaning', label: 'Cleanup', icon: '🧹' },
+  { key: 'complete', label: 'Complete', icon: '✅' },
+];
+
 function SyncView() {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [history, setHistory] = useState<SyncRun[]>([]);
@@ -924,12 +944,48 @@ function SyncView() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [currentRunId, setCurrentRunId] = useState<number | null>(null);
+  const [progress, setProgress] = useState<SyncProgress | null>(null);
+  const [showProgress, setShowProgress] = useState(false);
 
   useEffect(() => {
     fetchAll();
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    let progressInterval: NodeJS.Timeout | null = null;
+    
+    if (syncing && currentRunId) {
+      setShowProgress(true);
+      progressInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/admin/sync/progress?runId=${currentRunId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setProgress(data);
+            
+            if (data.step === 'complete' || data.step === 'error') {
+              setSyncing(false);
+              setTimeout(() => {
+                fetchHistory();
+                fetchVerification();
+                fetchStatus();
+              }, 1000);
+              if (progressInterval) clearInterval(progressInterval);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch progress:', error);
+        }
+      }, 500);
+    }
+    
+    return () => {
+      if (progressInterval) clearInterval(progressInterval);
+    };
+  }, [syncing, currentRunId]);
 
   const fetchAll = async () => {
     await Promise.all([fetchStatus(), fetchHistory(), fetchVerification()]);
@@ -942,12 +998,11 @@ function SyncView() {
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
-        if (data.isRunning) {
+        if (data.isRunning && data.currentRunId) {
           setSyncing(true);
-        } else if (syncing) {
+          setCurrentRunId(data.currentRunId);
+        } else if (!data.isRunning && syncing) {
           setSyncing(false);
-          fetchHistory();
-          fetchVerification();
         }
       }
     } catch (error) {
@@ -984,19 +1039,38 @@ function SyncView() {
   const triggerSync = async () => {
     if (syncing) return;
     setSyncing(true);
+    setProgress(null);
+    setShowProgress(true);
     try {
       const res = await fetch('/api/admin/sync/run', { method: 'POST' });
       if (res.ok) {
-        setTimeout(fetchStatus, 1000);
+        const data = await res.json();
+        setCurrentRunId(data.syncRunId);
       } else {
         const data = await res.json();
         alert(data.error || 'Failed to start sync');
         setSyncing(false);
+        setShowProgress(false);
       }
     } catch (error) {
       console.error('Failed to trigger sync:', error);
       setSyncing(false);
+      setShowProgress(false);
     }
+  };
+
+  const getCurrentStepIndex = () => {
+    if (!progress) return -1;
+    const stepMap: Record<string, number> = {
+      'starting': 0, 'connecting': 0,
+      'fetching': 1, 'fetched': 1,
+      'processing': 2, 'processed': 2,
+      'upserting': 3,
+      'cleaning': 4,
+      'complete': 5,
+      'error': -1
+    };
+    return stepMap[progress.step] ?? -1;
   };
 
   const getStatusBadge = (runStatus: string) => {
@@ -1024,8 +1098,101 @@ function SyncView() {
     );
   }
 
+  const currentStepIndex = getCurrentStepIndex();
+
   return (
     <div className="space-y-6">
+      {/* Progress Panel - Shows during sync */}
+      {showProgress && (
+        <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-white font-semibold text-lg flex items-center gap-2">
+              {progress?.step === 'complete' ? (
+                <span className="text-2xl">✅</span>
+              ) : progress?.step === 'error' ? (
+                <span className="text-2xl">❌</span>
+              ) : (
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-emerald-400"></div>
+              )}
+              Shopify Sync Progress
+            </h3>
+            {progress?.step === 'complete' && (
+              <button
+                onClick={() => setShowProgress(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="mb-6">
+            <div className="flex justify-between text-sm text-gray-400 mb-2">
+              <span>{progress?.message || 'Initializing...'}</span>
+              <span className="text-emerald-400 font-medium">{progress?.progress || 0}%</span>
+            </div>
+            <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all duration-500 ease-out ${
+                  progress?.step === 'error' ? 'bg-red-500' : 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                }`}
+                style={{ width: `${progress?.progress || 0}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          {/* Step Indicators */}
+          <div className="flex justify-between">
+            {SYNC_STEPS.map((step, index) => {
+              const isActive = index === currentStepIndex;
+              const isComplete = index < currentStepIndex;
+              const isPending = index > currentStepIndex;
+              
+              return (
+                <div key={step.key} className="flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all duration-300 ${
+                    isComplete 
+                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' 
+                      : isActive 
+                        ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500 animate-pulse' 
+                        : 'bg-gray-700 text-gray-500'
+                  }`}>
+                    {isComplete ? '✓' : step.icon}
+                  </div>
+                  <span className={`text-xs mt-2 font-medium ${
+                    isComplete ? 'text-emerald-400' : isActive ? 'text-white' : 'text-gray-500'
+                  }`}>
+                    {step.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Completion Message */}
+          {progress?.step === 'complete' && progress.result && (
+            <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+              <p className="text-emerald-400 font-medium text-center">
+                Sync completed successfully! {progress.result.variantsProcessed.toLocaleString()} variants processed
+                {progress.result.variantsDeleted > 0 && `, ${progress.result.variantsDeleted} removed`}
+              </p>
+            </div>
+          )}
+          
+          {/* Error Message */}
+          {progress?.step === 'error' && (
+            <div className="mt-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+              <p className="text-red-400 font-medium text-center">
+                {progress.message}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
           <h3 className="text-white font-semibold mb-4">Sync Status</h3>

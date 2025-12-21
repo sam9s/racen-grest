@@ -3,18 +3,24 @@
 ## Overview
 GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and MacBook e-commerce platform. The chatbot serves as a front-line customer engagement tool, answering questions about products, pricing, warranty, and policies with bilingual support (English + Hinglish).
 
-## Recent Updates (Dec 20, 2025)
-- **DATABASE-FIRST SPECS**: All product specs now come from database (Shopify metafields), not hardcoded
-- **SCRAPER ENHANCED**: Fetches metafields from Shopify API for accurate specs (display, processor, camera, etc.)
+## Recent Updates (Dec 21, 2025)
+- **ADMIN DASHBOARD ENHANCED**: Added 4-tab dashboard (Analytics, Conversations, Monitoring, Shopify Sync)
+- **REAL-TIME SYNC PROGRESS**: Beautiful step-by-step progress UI with 6 stages (Connecting → Fetching → Processing → Upserting → Cleanup → Complete)
+- **EMERALD GREEN BRANDING**: All dashboard UI updated to emerald green (#10b981) matching GRESTA theme
+- **SYNC MANAGEMENT**: Manual sync button, verification panel, sync history with detailed metrics
+- **MONITORING TAB**: UptimeRobot integration, sync health warnings for stale data
+- **DASHBOARD LOGIN**: Email-based auth (samret.singh@grest.in / Samret@123)
+
+### Previous Updates (Dec 20, 2025)
+- **DATABASE-FIRST SPECS**: All product specs from database (Shopify metafields), not hardcoded
 - **CANONICAL PIPELINE**: Shopify API → Scraper → Database → Chatbot (no hardcoded product data)
-- **MULTI-TURN CONVERSATIONS**: Now correctly handles follow-up queries like "1TB variant for same product"
-- **Session Context Tracking**: Stores product model across conversation turns, resolves co-references
+- **MULTI-TURN CONVERSATIONS**: Handles follow-up queries like "1TB variant for same product"
 - **100% ACCURACY ACHIEVED**: 21/21 tests passed (including multi-turn) - exceeds 95% target
-- **Stock Fix Applied**: All 2,205 variants now correctly marked in-stock (Shopify API limitation workaround)
-- **Fair Pricing Restored**: Base queries return cheapest Fair condition (₹95,399 for iPhone 16 Pro Max)
-- **Specs Display Restored**: Product responses include Display, Processor, Camera, 5G, Design specs
 - **Product Coverage**: 2,205 variants from 104 Shopify products (all in-stock)
-- **LLM Parser Enhanced**: Extracts storage, color, category with Hinglish support
+
+## Pending Dashboard Issues (To Address Later)
+- Other UI anomalies noted by user - to be reviewed after DNS/production setup
+- Production URL: gresta.sam9scloud.in (DNS entries pending)
 
 ## User Preferences
 Focus on high-level features and architectural decisions. Prioritize clarity and conciseness. Direct communication style preferred. Do not make changes to existing file structure without explicit approval.

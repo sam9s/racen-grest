@@ -56,6 +56,9 @@ init_sync_manager()
 
 conversation_histories = {}
 
+# Global storage for sync progress (thread-safe via GIL for simple operations)
+sync_progress = {}
+
 
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -938,16 +941,30 @@ def _execute_sync(run_id: int):
     from scrape_grest_products import populate_database, get_shopify_product_count
     from datetime import datetime
     
+    def progress_callback(step, message, progress_pct):
+        """Store progress for SSE streaming."""
+        sync_progress[run_id] = {
+            "step": step,
+            "message": message,
+            "progress": progress_pct,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        # Also log to database for persistence
+        try:
+            with get_db_session() as db:
+                event = SyncRunEvent(
+                    sync_run_id=run_id,
+                    event_type=step,
+                    message=message
+                )
+                db.add(event)
+        except:
+            pass
+    
     try:
-        with get_db_session() as db:
-            event = SyncRunEvent(
-                sync_run_id=run_id,
-                event_type='fetch_start',
-                message='Fetching products from Shopify'
-            )
-            db.add(event)
+        progress_callback("starting", "Initializing sync...", 0)
         
-        result = populate_database(hard_delete_stale=True)
+        result = populate_database(hard_delete_stale=True, progress_callback=progress_callback)
         
         with get_db_session() as db:
             event = SyncRunEvent(
@@ -981,8 +998,26 @@ def _execute_sync(run_id: int):
                 message=f"Sync completed: {status}"
             )
             db.add(event)
+        
+        # Mark progress as complete
+        sync_progress[run_id] = {
+            "step": "complete",
+            "message": f"Sync completed successfully! {db_count} products in database",
+            "progress": 100,
+            "status": status,
+            "result": {
+                "variantsProcessed": shopify_count,
+                "variantsDeleted": result.get('variants_deleted', 0),
+            }
+        }
             
     except Exception as e:
+        sync_progress[run_id] = {
+            "step": "error",
+            "message": str(e),
+            "progress": 0,
+            "status": "failed"
+        }
         with get_db_session() as db:
             sync_run = db.query(SyncRun).filter(SyncRun.id == run_id).first()
             if sync_run:
@@ -1025,6 +1060,46 @@ def admin_sync_events(run_id):
     except Exception as e:
         print(f"Sync events error: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/sync/run/<int:run_id>/progress", methods=["GET"])
+def admin_sync_progress(run_id):
+    """Get real-time progress for a specific sync run."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    progress = sync_progress.get(run_id)
+    if progress:
+        return jsonify(progress)
+    
+    # Check if sync run exists and get its status from database
+    from database import SyncRun
+    with get_db_session() as db:
+        if db:
+            sync_run = db.query(SyncRun).filter(SyncRun.id == run_id).first()
+            if sync_run:
+                if sync_run.status == 'running':
+                    return jsonify({
+                        "step": "running",
+                        "message": "Sync in progress...",
+                        "progress": 50
+                    })
+                elif sync_run.status == 'success':
+                    return jsonify({
+                        "step": "complete",
+                        "message": "Sync completed successfully",
+                        "progress": 100,
+                        "status": "success"
+                    })
+                elif sync_run.status == 'failed':
+                    return jsonify({
+                        "step": "error",
+                        "message": sync_run.error_log or "Sync failed",
+                        "progress": 0,
+                        "status": "failed"
+                    })
+    
+    return jsonify({"step": "unknown", "message": "Sync run not found", "progress": 0})
 
 
 @app.route("/api/admin/sync/verification", methods=["GET"])

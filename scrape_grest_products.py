@@ -345,7 +345,7 @@ def _bulk_upsert_variants(session, rows):
         session.execute(upsert_stmt)
 
 
-def populate_database(hard_delete_stale: bool = True):
+def populate_database(hard_delete_stale: bool = True, progress_callback=None):
     """
     Fetch all products from Shopify and sync to database using bulk operations.
     
@@ -357,23 +357,34 @@ def populate_database(hard_delete_stale: bool = True):
     
     Args:
         hard_delete_stale: If True, delete variants not in current Shopify data
+        progress_callback: Optional function(step, message, progress_pct) for real-time updates
     
     Returns:
         dict with success status and metrics
     """
+    def emit(step, message, progress=0):
+        if progress_callback:
+            try:
+                progress_callback(step, message, progress)
+            except:
+                pass
+        print(f"[{step}] {message}")
+    
     init_database()
     
-    print("=" * 60)
-    print("GREST Product Sync - Bulk Upsert Mode")
-    print("=" * 60)
+    emit("connecting", "Connecting to Shopify API...", 5)
     
     start = time()
     
+    emit("fetching", "Fetching products from Shopify...", 10)
     products = fetch_all_products()
     if not products:
+        emit("error", "No products fetched from Shopify", 0)
         return {"success": False, "error": "No products fetched from Shopify"}
     
-    print(f"\nPreparing {len(products)} products for bulk sync...")
+    emit("fetched", f"Fetched {len(products)} products from Shopify", 30)
+    
+    emit("processing", f"Processing {len(products)} products...", 40)
     
     variant_rows = []
     seen_skus = set()
@@ -385,28 +396,30 @@ def populate_database(hard_delete_stale: bool = True):
         seen_skus.update(row['sku'] for row in rows)
         products_processed += 1
     
-    print(f"Prepared {len(variant_rows)} variants from {products_processed} products")
+    emit("processed", f"Prepared {len(variant_rows)} variants from {products_processed} products", 60)
     
     if not variant_rows:
+        emit("error", "No sellable variants found", 0)
         return {"success": False, "error": "No sellable variants found"}
     
     deleted = 0
     
     with get_db_session() as session:
         if session is None:
+            emit("error", "Database not available", 0)
             return {"success": False, "error": "Database not available"}
         
         try:
-            print(f"\nPerforming bulk upsert ({len(variant_rows)} variants in {CHUNK_SIZE}-row chunks)...")
+            emit("upserting", f"Updating database with {len(variant_rows)} variants...", 70)
             _bulk_upsert_variants(session, variant_rows)
             
             if hard_delete_stale and seen_skus:
+                emit("cleaning", "Removing stale products...", 85)
                 stale_count = session.query(GRESTProduct).filter(
                     ~GRESTProduct.sku.in_(seen_skus)
                 ).count()
                 
                 if stale_count > 0:
-                    print(f"Deleting {stale_count} stale variants not in Shopify...")
                     deleted = session.query(GRESTProduct).filter(
                         ~GRESTProduct.sku.in_(seen_skus)
                     ).delete(synchronize_session=False)
@@ -415,24 +428,16 @@ def populate_database(hard_delete_stale: bool = True):
             
         except Exception as exc:
             session.rollback()
-            print(f"ERROR: Sync failed - {exc}")
+            emit("error", f"Sync failed: {exc}", 0)
             raise
     
     elapsed = round(time() - start, 2)
-    
-    print()
-    print("=" * 60)
-    print("SYNC COMPLETE")
-    print("=" * 60)
-    print(f"Variants processed: {len(variant_rows)}")
-    print(f"Variants deleted: {deleted}")
-    print(f"Time elapsed: {elapsed}s")
     
     with get_db_session() as session:
         if session:
             total = session.query(GRESTProduct).count()
             in_stock = session.query(GRESTProduct).filter(GRESTProduct.in_stock == True).count()
-            print(f"\nDatabase totals: {total} variants ({in_stock} in stock)")
+            emit("complete", f"Sync complete! {total} variants in database ({in_stock} in stock)", 100)
     
     return {
         "success": True,
