@@ -18,9 +18,18 @@ GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and 
 - **100% ACCURACY ACHIEVED**: 21/21 tests passed (including multi-turn) - exceeds 95% target
 - **Product Coverage**: 2,205 variants from 104 Shopify products (all in-stock)
 
-## Pending Dashboard Issues (To Address Later)
-- Other UI anomalies noted by user - to be reviewed after DNS/production setup
-- Production URL: gresta.sam9scloud.in (DNS entries pending)
+## Production URL (LIVE)
+- **Custom Domain**: gresta.sam9scloud.in (configured via Caddy reverse proxy)
+- **Replit Deployment**: https://grest--sam9s.replit.app
+
+## Pending Tasks (For Tomorrow)
+1. **Dashboard UI Issues** - Various anomalies to review and fix
+2. **Serper API Integration** - Check how GRESTA accesses the internet for web searches
+3. **UAT Feedback** - Address issues from deployment team testing
+
+## UAT In Progress
+- Deployment team will test and report incorrect/failed responses
+- Expect comprehensive report to work through
 
 ## User Preferences
 Focus on high-level features and architectural decisions. Prioritize clarity and conciseness. Direct communication style preferred. Do not make changes to existing file structure without explicit approval.
