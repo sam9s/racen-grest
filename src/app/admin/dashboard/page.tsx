@@ -64,11 +64,69 @@ interface AdminUser {
   name: string;
 }
 
-const COLORS = ['#03a9f4', '#4fc3f7', '#81d4fa', '#b3e5fc'];
+const COLORS = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0'];
+
+interface SyncStatus {
+  isRunning: boolean;
+  currentRunId: number | null;
+  schedulerActive: boolean;
+  intervalHours: number;
+  nextSync: string | null;
+  productCount: number;
+  lastRun: {
+    id: number;
+    status: string;
+    startedAt: string;
+    finishedAt: string;
+    productsCreated: number;
+    productsUpdated: number;
+    productsDeleted: number;
+    duration: string | null;
+  } | null;
+}
+
+interface SyncRun {
+  id: number;
+  triggerSource: string;
+  triggeredBy: string;
+  startedAt: string;
+  finishedAt: string;
+  status: string;
+  productsCreated: number;
+  productsUpdated: number;
+  productsDeleted: number;
+  shopifyCount: number | null;
+  dbCount: number | null;
+  duration: string | null;
+  errorLog: string | null;
+}
+
+interface MonitoringData {
+  services: {
+    name: string;
+    status: string;
+    uptime: number;
+    lastCheck: string;
+    url?: string;
+  }[];
+  syncHealth: {
+    lastSuccessfulSync: string | null;
+    hoursAgo: number | null;
+    isHealthy: boolean;
+  };
+}
+
+interface SyncVerification {
+  shopifyCount: number | null;
+  databaseCount: number;
+  isMatched: boolean | null;
+  difference: number | null;
+  lastChecked: string;
+}
 
 export default function AdminDashboard() {
   const { status } = useSession();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'conversations'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'conversations' | 'monitoring' | 'sync'>('analytics');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');
@@ -231,14 +289,14 @@ export default function AdminDashboard() {
       case 'instagram':
         return 'bg-pink-500/20 text-pink-400';
       default:
-        return 'bg-cyan-500/20 text-cyan-400';
+        return 'bg-emerald-500/20 text-emerald-400';
     }
   };
 
   if (authChecking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-400"></div>
       </div>
     );
   }
@@ -248,8 +306,8 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-6">
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50 max-w-md w-full">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
@@ -265,7 +323,7 @@ export default function AdminDashboard() {
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 placeholder="your@email.com"
-                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
                 required
               />
             </div>
@@ -276,7 +334,7 @@ export default function AdminDashboard() {
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
                 required
               />
             </div>
@@ -286,7 +344,7 @@ export default function AdminDashboard() {
             <button
               type="submit"
               disabled={loginLoading}
-              className="w-full bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-500/50 text-white font-medium py-3 px-6 rounded-xl transition-colors"
+              className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 text-white font-medium py-3 px-6 rounded-xl transition-colors"
             >
               {loginLoading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -351,7 +409,7 @@ export default function AdminDashboard() {
                   onClick={() => setTimeRange(range)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     timeRange === range
-                      ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30'
+                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
                       : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
                   }`}
                 >
@@ -377,12 +435,12 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="flex gap-4 mb-8">
+        <div className="flex gap-4 mb-8 flex-wrap">
           <button
             onClick={() => setActiveTab('analytics')}
             className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
               activeTab === 'analytics'
-                ? 'bg-cyan-500 text-white'
+                ? 'bg-emerald-500 text-white'
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
             }`}
           >
@@ -395,7 +453,7 @@ export default function AdminDashboard() {
             onClick={() => setActiveTab('conversations')}
             className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
               activeTab === 'conversations'
-                ? 'bg-cyan-500 text-white'
+                ? 'bg-emerald-500 text-white'
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
             }`}
           >
@@ -404,11 +462,38 @@ export default function AdminDashboard() {
             </svg>
             Conversations
           </button>
+          <button
+            onClick={() => setActiveTab('monitoring')}
+            className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'monitoring'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Monitoring
+          </button>
+          <button
+            onClick={() => setActiveTab('sync')}
+            className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'sync'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Shopify Sync
+          </button>
         </div>
 
-        {activeTab === 'analytics' ? (
+        {activeTab === 'analytics' && (
           <AnalyticsView stats={stats} loading={loading} />
-        ) : (
+        )}
+        {activeTab === 'conversations' && (
           <ConversationsView
             sessions={sessions}
             sessionsLoading={sessionsLoading}
@@ -420,6 +505,8 @@ export default function AdminDashboard() {
             getChannelBadgeColor={getChannelBadgeColor}
           />
         )}
+        {activeTab === 'monitoring' && <MonitoringView />}
+        {activeTab === 'sync' && <SyncView />}
       </div>
     </div>
   );
@@ -429,7 +516,7 @@ function AnalyticsView({ stats, loading }: { stats: DashboardStats | null; loadi
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-400"></div>
       </div>
     );
   }
@@ -593,7 +680,7 @@ function ConversationsView({
   if (sessionsLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-400"></div>
       </div>
     );
   }
@@ -622,7 +709,7 @@ function ConversationsView({
               key={session.sessionId}
               onClick={() => onSelectSession(session.sessionId)}
               className={`w-full p-4 text-left border-b border-gray-700/30 hover:bg-gray-700/30 transition-colors ${
-                selectedSession === session.sessionId ? 'bg-cyan-500/10 border-l-2 border-l-cyan-500' : ''
+                selectedSession === session.sessionId ? 'bg-emerald-500/10 border-l-2 border-l-emerald-500' : ''
               }`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -663,7 +750,7 @@ function ConversationsView({
           </div>
         ) : detailLoading ? (
           <div className="h-full flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-400"></div>
           </div>
         ) : conversationDetail ? (
           <>
@@ -685,7 +772,7 @@ function ConversationsView({
               {conversationDetail.messages.map((msg) => (
                 <div key={msg.id} className="space-y-3">
                   <div className="flex justify-end">
-                    <div className="max-w-[80%] bg-cyan-500/20 rounded-2xl rounded-tr-sm px-4 py-3">
+                    <div className="max-w-[80%] bg-emerald-500/20 rounded-2xl rounded-tr-sm px-4 py-3">
                       <p className="text-white text-sm">{msg.userQuestion}</p>
                       <p className="text-xs text-gray-500 mt-1 text-right">{formatDate(msg.timestamp)}</p>
                     </div>
@@ -723,12 +810,387 @@ function StatCard({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 hover:border-cyan-500/30 transition-all hover:shadow-lg hover:shadow-cyan-500/5">
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 hover:border-emerald-500/30 transition-all hover:shadow-lg hover:shadow-emerald-500/5">
       <div className="flex items-center justify-between mb-4">
-        <div className="p-3 bg-cyan-500/10 rounded-xl text-cyan-400">{icon}</div>
+        <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">{icon}</div>
       </div>
       <h3 className="text-gray-400 text-sm font-medium">{title}</h3>
       <p className="text-3xl font-bold text-white mt-1">{value}</p>
+    </div>
+  );
+}
+
+function MonitoringView() {
+  const [data, setData] = useState<MonitoringData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMonitoring();
+    const interval = setInterval(fetchMonitoring, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchMonitoring = async () => {
+    try {
+      const res = await fetch('/api/admin/monitoring');
+      if (res.ok) {
+        const result = await res.json();
+        setData(result);
+      }
+    } catch (error) {
+      console.error('Failed to fetch monitoring:', error);
+    }
+    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-400"></div>
+      </div>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'up': return 'bg-green-500';
+      case 'down': return 'bg-red-500';
+      case 'paused': return 'bg-yellow-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'up': return 'Online';
+      case 'down': return 'Offline';
+      case 'paused': return 'Paused';
+      default: return 'Unknown';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {data?.services.map((service, index) => (
+          <div key={index} className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold">{service.name}</h3>
+              <div className={`w-3 h-3 rounded-full ${getStatusColor(service.status)} ${service.status === 'up' ? 'animate-pulse' : ''}`}></div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">Status</span>
+              <span className={`text-sm font-medium ${service.status === 'up' ? 'text-green-400' : service.status === 'down' ? 'text-red-400' : 'text-yellow-400'}`}>
+                {getStatusText(service.status)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-gray-400 text-sm">Uptime</span>
+              <span className="text-white text-sm font-medium">{service.uptime.toFixed(2)}%</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+        <h3 className="text-white font-semibold mb-4">Sync Health</h3>
+        <div className="flex items-center gap-4">
+          <div className={`w-4 h-4 rounded-full ${data?.syncHealth.isHealthy ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+          <div>
+            <p className="text-white">
+              {data?.syncHealth.isHealthy ? 'Sync is healthy' : 'Sync needs attention'}
+            </p>
+            <p className="text-gray-400 text-sm">
+              {data?.syncHealth.lastSuccessfulSync 
+                ? `Last successful sync: ${data.syncHealth.hoursAgo?.toFixed(1)} hours ago`
+                : 'No successful sync recorded'}
+            </p>
+          </div>
+        </div>
+        {data?.syncHealth.hoursAgo && data.syncHealth.hoursAgo > 8 && (
+          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <p className="text-yellow-400 text-sm">Warning: Last sync was more than 8 hours ago</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SyncView() {
+  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [history, setHistory] = useState<SyncRun[]>([]);
+  const [verification, setVerification] = useState<SyncVerification | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  useEffect(() => {
+    fetchAll();
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchAll = async () => {
+    await Promise.all([fetchStatus(), fetchHistory(), fetchVerification()]);
+    setLoading(false);
+  };
+
+  const fetchStatus = async () => {
+    try {
+      const res = await fetch('/api/admin/sync/status');
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data);
+        if (data.isRunning) {
+          setSyncing(true);
+        } else if (syncing) {
+          setSyncing(false);
+          fetchHistory();
+          fetchVerification();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch sync status:', error);
+    }
+  };
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch('/api/admin/sync/history?limit=10');
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.runs || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sync history:', error);
+    }
+  };
+
+  const fetchVerification = async () => {
+    setVerifying(true);
+    try {
+      const res = await fetch('/api/admin/sync/verification');
+      if (res.ok) {
+        const data = await res.json();
+        setVerification(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch verification:', error);
+    }
+    setVerifying(false);
+  };
+
+  const triggerSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/admin/sync/run', { method: 'POST' });
+      if (res.ok) {
+        setTimeout(fetchStatus, 1000);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to start sync');
+        setSyncing(false);
+      }
+    } catch (error) {
+      console.error('Failed to trigger sync:', error);
+      setSyncing(false);
+    }
+  };
+
+  const getStatusBadge = (runStatus: string) => {
+    switch (runStatus) {
+      case 'success': return 'bg-green-500/20 text-green-400';
+      case 'failed': return 'bg-red-500/20 text-red-400';
+      case 'warning': return 'bg-yellow-500/20 text-yellow-400';
+      case 'running': return 'bg-blue-500/20 text-blue-400';
+      default: return 'bg-gray-500/20 text-gray-400';
+    }
+  };
+
+  const formatDateTime = (dateStr: string) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-400"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+          <h3 className="text-white font-semibold mb-4">Sync Status</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Status</span>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                status?.isRunning ? 'bg-blue-500/20 text-blue-400 animate-pulse' : 'bg-green-500/20 text-green-400'
+              }`}>
+                {status?.isRunning ? 'Syncing...' : 'Idle'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Products</span>
+              <span className="text-white font-medium">{status?.productCount?.toLocaleString() || 0}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Schedule</span>
+              <span className="text-white text-sm">Every {status?.intervalHours || 6} hours</span>
+            </div>
+            {status?.lastRun && (
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Last Run</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusBadge(status.lastRun.status)}`}>
+                  {status.lastRun.status}
+                </span>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={triggerSync}
+            disabled={syncing}
+            className={`w-full mt-4 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+              syncing
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+            }`}
+          >
+            {syncing ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                Syncing...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Sync Now
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-semibold">Verification</h3>
+            <button
+              onClick={fetchVerification}
+              disabled={verifying}
+              className="text-emerald-400 hover:text-emerald-300 text-sm"
+            >
+              {verifying ? 'Checking...' : 'Refresh'}
+            </button>
+          </div>
+          {verification && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Shopify</span>
+                <span className="text-white font-medium">{verification.shopifyCount?.toLocaleString() || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Database</span>
+                <span className="text-white font-medium">{verification.databaseCount?.toLocaleString() || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Match</span>
+                <span className={`px-2 py-0.5 rounded text-sm font-medium ${
+                  verification.isMatched ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+                }`}>
+                  {verification.isMatched ? 'Matched' : `Diff: ${verification.difference}`}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+          <h3 className="text-white font-semibold mb-4">Last Sync Details</h3>
+          {status?.lastRun ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Started</span>
+                <span className="text-white text-sm">{formatDateTime(status.lastRun.startedAt)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Duration</span>
+                <span className="text-white text-sm">{status.lastRun.duration || '-'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Created</span>
+                <span className="text-emerald-400 font-medium">{status.lastRun.productsCreated}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Updated</span>
+                <span className="text-blue-400 font-medium">{status.lastRun.productsUpdated}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Deleted</span>
+                <span className="text-red-400 font-medium">{status.lastRun.productsDeleted}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-500">No sync runs yet</p>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+        <h3 className="text-white font-semibold mb-4">Sync History</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="text-left text-gray-400 text-sm border-b border-gray-700/50">
+                <th className="pb-3 font-medium">Date/Time</th>
+                <th className="pb-3 font-medium">Trigger</th>
+                <th className="pb-3 font-medium">Status</th>
+                <th className="pb-3 font-medium">Duration</th>
+                <th className="pb-3 font-medium">Products</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.length > 0 ? history.map((run) => (
+                <tr key={run.id} className="border-b border-gray-700/30 text-sm">
+                  <td className="py-3 text-white">{formatDateTime(run.startedAt)}</td>
+                  <td className="py-3">
+                    <span className={`px-2 py-0.5 rounded text-xs ${
+                      run.triggerSource === 'manual' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-500/20 text-gray-400'
+                    }`}>
+                      {run.triggerSource}
+                    </span>
+                  </td>
+                  <td className="py-3">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusBadge(run.status)}`}>
+                      {run.status}
+                    </span>
+                  </td>
+                  <td className="py-3 text-gray-300">{run.duration || '-'}</td>
+                  <td className="py-3 text-gray-300">
+                    <span className="text-emerald-400">+{run.productsCreated}</span>
+                    <span className="text-gray-500 mx-1">/</span>
+                    <span className="text-blue-400">~{run.productsUpdated}</span>
+                    <span className="text-gray-500 mx-1">/</span>
+                    <span className="text-red-400">-{run.productsDeleted}</span>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-gray-500">No sync history yet</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

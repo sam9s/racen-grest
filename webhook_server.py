@@ -770,6 +770,371 @@ def admin_conversation_detail(session_id):
         return jsonify({"error": str(e)}), 500
 
 
+# =============================================================================
+# SYNC MANAGEMENT ENDPOINTS
+# =============================================================================
+
+@app.route("/api/admin/sync/status", methods=["GET"])
+def admin_sync_status():
+    """Get current sync status and last run info."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        from sync_manager import get_sync_manager
+        from database import SyncRun, GRESTProduct
+        
+        manager = get_sync_manager()
+        status = manager.get_status()
+        
+        with get_db_session() as db:
+            if db is None:
+                return jsonify({"error": "Database unavailable"}), 500
+            
+            running_sync = db.query(SyncRun).filter(
+                SyncRun.status == 'running'
+            ).first()
+            
+            last_run = db.query(SyncRun).filter(
+                SyncRun.status.in_(['success', 'failed', 'warning'])
+            ).order_by(SyncRun.started_at.desc()).first()
+            
+            product_count = db.query(func.count(GRESTProduct.id)).scalar() or 0
+            
+            return jsonify({
+                "isRunning": running_sync is not None,
+                "currentRunId": running_sync.id if running_sync else None,
+                "schedulerActive": status.get("is_running", False),
+                "intervalHours": status.get("interval_hours", 6),
+                "nextSync": status.get("next_sync"),
+                "productCount": product_count,
+                "lastRun": {
+                    "id": last_run.id,
+                    "status": last_run.status,
+                    "startedAt": last_run.started_at.isoformat() if last_run.started_at else None,
+                    "finishedAt": last_run.finished_at.isoformat() if last_run.finished_at else None,
+                    "productsCreated": last_run.products_created or 0,
+                    "productsUpdated": last_run.products_updated or 0,
+                    "productsDeleted": last_run.products_deleted or 0,
+                    "duration": str(last_run.finished_at - last_run.started_at) if last_run.finished_at and last_run.started_at else None
+                } if last_run else None
+            })
+    except Exception as e:
+        print(f"Sync status error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/sync/history", methods=["GET"])
+def admin_sync_history():
+    """Get sync run history."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        from database import SyncRun
+        
+        limit = request.args.get('limit', 20, type=int)
+        
+        with get_db_session() as db:
+            if db is None:
+                return jsonify({"runs": []})
+            
+            runs = db.query(SyncRun).order_by(
+                SyncRun.started_at.desc()
+            ).limit(limit).all()
+            
+            result = []
+            for run in runs:
+                duration = None
+                if run.finished_at and run.started_at:
+                    delta = run.finished_at - run.started_at
+                    duration = f"{int(delta.total_seconds())}s"
+                
+                result.append({
+                    "id": run.id,
+                    "triggerSource": run.trigger_source,
+                    "triggeredBy": run.triggered_by,
+                    "startedAt": run.started_at.isoformat() if run.started_at else None,
+                    "finishedAt": run.finished_at.isoformat() if run.finished_at else None,
+                    "status": run.status,
+                    "productsCreated": run.products_created or 0,
+                    "productsUpdated": run.products_updated or 0,
+                    "productsDeleted": run.products_deleted or 0,
+                    "shopifyCount": run.shopify_product_count,
+                    "dbCount": run.db_product_count,
+                    "duration": duration,
+                    "errorLog": run.error_log
+                })
+            
+            return jsonify({"runs": result})
+    except Exception as e:
+        print(f"Sync history error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/sync/run", methods=["POST"])
+def admin_sync_run():
+    """Trigger a manual sync."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        from database import SyncRun, SyncRunEvent
+        from scrape_grest_products import populate_database
+        from threading import Thread
+        
+        data = request.get_json() or {}
+        triggered_by = data.get('triggeredBy', 'admin')
+        
+        with get_db_session() as db:
+            if db is None:
+                return jsonify({"error": "Database unavailable"}), 500
+            
+            running = db.query(SyncRun).filter(SyncRun.status == 'running').first()
+            if running:
+                return jsonify({
+                    "error": "Sync already in progress",
+                    "currentRunId": running.id
+                }), 409
+            
+            sync_run = SyncRun(
+                trigger_source='manual',
+                triggered_by=triggered_by,
+                status='running'
+            )
+            db.add(sync_run)
+            db.flush()
+            run_id = sync_run.id
+            
+            event = SyncRunEvent(
+                sync_run_id=run_id,
+                event_type='sync_started',
+                message='Manual sync initiated'
+            )
+            db.add(event)
+        
+        def run_sync_async(run_id):
+            try:
+                _execute_sync(run_id)
+            except Exception as e:
+                print(f"Async sync error: {e}")
+        
+        thread = Thread(target=run_sync_async, args=(run_id,))
+        thread.start()
+        
+        return jsonify({
+            "syncRunId": run_id,
+            "status": "started",
+            "message": "Sync initiated"
+        })
+    except Exception as e:
+        print(f"Sync run error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+def _execute_sync(run_id: int):
+    """Execute the actual sync and update run record."""
+    from database import SyncRun, SyncRunEvent, GRESTProduct
+    from scrape_grest_products import populate_database, get_shopify_product_count
+    from datetime import datetime
+    
+    try:
+        with get_db_session() as db:
+            event = SyncRunEvent(
+                sync_run_id=run_id,
+                event_type='fetch_start',
+                message='Fetching products from Shopify'
+            )
+            db.add(event)
+        
+        result = populate_database(hard_delete_stale=True)
+        
+        with get_db_session() as db:
+            event = SyncRunEvent(
+                sync_run_id=run_id,
+                event_type='fetch_complete',
+                message=f"Fetched {result.get('variants_processed', 0)} variants"
+            )
+            db.add(event)
+        
+        shopify_count = result.get('variants_processed', 0)
+        with get_db_session() as db:
+            db_count = db.query(func.count(GRESTProduct.id)).scalar() or 0
+        
+        is_matched = abs(shopify_count - db_count) <= 5
+        status = 'success' if result.get('success') and is_matched else ('warning' if result.get('success') else 'failed')
+        
+        with get_db_session() as db:
+            sync_run = db.query(SyncRun).filter(SyncRun.id == run_id).first()
+            if sync_run:
+                sync_run.finished_at = datetime.utcnow()
+                sync_run.status = status
+                sync_run.products_created = result.get('variants_added', 0)
+                sync_run.products_updated = result.get('variants_updated', 0)
+                sync_run.products_deleted = result.get('variants_deleted', 0)
+                sync_run.shopify_product_count = shopify_count
+                sync_run.db_product_count = db_count
+            
+            event = SyncRunEvent(
+                sync_run_id=run_id,
+                event_type='sync_complete',
+                message=f"Sync completed: {status}"
+            )
+            db.add(event)
+            
+    except Exception as e:
+        with get_db_session() as db:
+            sync_run = db.query(SyncRun).filter(SyncRun.id == run_id).first()
+            if sync_run:
+                sync_run.finished_at = datetime.utcnow()
+                sync_run.status = 'failed'
+                sync_run.error_log = str(e)
+            
+            event = SyncRunEvent(
+                sync_run_id=run_id,
+                event_type='sync_error',
+                message=str(e)
+            )
+            db.add(event)
+
+
+@app.route("/api/admin/sync/run/<int:run_id>/events", methods=["GET"])
+def admin_sync_events(run_id):
+    """Get events for a specific sync run."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        from database import SyncRunEvent
+        
+        with get_db_session() as db:
+            if db is None:
+                return jsonify({"events": []})
+            
+            events = db.query(SyncRunEvent).filter(
+                SyncRunEvent.sync_run_id == run_id
+            ).order_by(SyncRunEvent.created_at).all()
+            
+            return jsonify({
+                "events": [{
+                    "eventType": e.event_type,
+                    "message": e.message,
+                    "createdAt": e.created_at.isoformat() if e.created_at else None
+                } for e in events]
+            })
+    except Exception as e:
+        print(f"Sync events error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/sync/verification", methods=["GET"])
+def admin_sync_verification():
+    """Get sync verification - compare Shopify vs database counts."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        from database import GRESTProduct
+        from scrape_grest_products import get_shopify_product_count
+        
+        with get_db_session() as db:
+            if db is None:
+                return jsonify({"error": "Database unavailable"}), 500
+            
+            db_count = db.query(func.count(GRESTProduct.id)).scalar() or 0
+        
+        try:
+            shopify_count = get_shopify_product_count()
+        except Exception as e:
+            print(f"Shopify API error: {e}")
+            shopify_count = None
+        
+        if shopify_count is not None:
+            difference = abs(shopify_count - db_count)
+            is_matched = difference <= 5
+        else:
+            difference = None
+            is_matched = None
+        
+        return jsonify({
+            "shopifyCount": shopify_count,
+            "databaseCount": db_count,
+            "isMatched": is_matched,
+            "difference": difference,
+            "lastChecked": datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        print(f"Sync verification error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# MONITORING ENDPOINTS
+# =============================================================================
+
+@app.route("/api/admin/monitoring", methods=["GET"])
+def admin_monitoring():
+    """Get service monitoring status including UptimeRobot."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        from database import SyncRun
+        
+        services = []
+        
+        services.append({
+            "name": "Chatbot API",
+            "status": "up",
+            "uptime": 100,
+            "lastCheck": datetime.utcnow().isoformat()
+        })
+        
+        uptimerobot_key = os.environ.get('UPTIMEROBOT_API_KEY')
+        if uptimerobot_key:
+            try:
+                import requests as req
+                response = req.post(
+                    'https://api.uptimerobot.com/v2/getMonitors',
+                    data={'api_key': uptimerobot_key, 'format': 'json'},
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    for monitor in data.get('monitors', []):
+                        status_map = {0: 'paused', 1: 'not_checked', 2: 'up', 8: 'seems_down', 9: 'down'}
+                        services.append({
+                            "name": monitor.get('friendly_name', 'Unknown'),
+                            "status": status_map.get(monitor.get('status'), 'unknown'),
+                            "uptime": float(monitor.get('all_time_uptime_ratio', 0)),
+                            "lastCheck": datetime.utcnow().isoformat(),
+                            "url": monitor.get('url', '')
+                        })
+            except Exception as e:
+                print(f"UptimeRobot error: {e}")
+        
+        sync_health = {"lastSuccessfulSync": None, "hoursAgo": None, "isHealthy": False}
+        with get_db_session() as db:
+            if db:
+                last_success = db.query(SyncRun).filter(
+                    SyncRun.status == 'success'
+                ).order_by(SyncRun.finished_at.desc()).first()
+                
+                if last_success and last_success.finished_at:
+                    sync_health["lastSuccessfulSync"] = last_success.finished_at.isoformat()
+                    hours_ago = (datetime.utcnow() - last_success.finished_at).total_seconds() / 3600
+                    sync_health["hoursAgo"] = round(hours_ago, 1)
+                    sync_health["isHealthy"] = hours_ago < 8
+        
+        return jsonify({
+            "services": services,
+            "syncHealth": sync_health
+        })
+    except Exception as e:
+        print(f"Monitoring error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("WEBHOOK_PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)

@@ -442,6 +442,20 @@ def populate_database(hard_delete_stale: bool = True):
     }
 
 
+def get_shopify_product_count():
+    """Get total variant count from Shopify without full sync."""
+    products = fetch_all_products()
+    if not products:
+        return 0
+    
+    total_variants = 0
+    for product in products:
+        variants = product.get('variants', [])
+        total_variants += len(variants)
+    
+    return total_variants
+
+
 if __name__ == "__main__":
     result = populate_database(hard_delete_stale=True)
     print(f"\nResult: {result}")
