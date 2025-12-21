@@ -27,7 +27,9 @@ from database import (
     get_storage_options_for_model,
     get_product_specifications,
     compare_products,
-    search_products_by_category
+    search_products_by_category,
+    get_db_session,
+    GRESTProduct
 )
 
 _openai_client = None
@@ -120,10 +122,23 @@ def get_iphone_specs_from_db(model_name: str) -> dict:
             # Clean up model name for matching
             model_clean = model_name.replace("Apple ", "").strip()
             
-            # Query database for product specs
+            # Try exact match first (with Apple prefix)
             product = session.query(GRESTProduct).filter(
-                GRESTProduct.name.ilike(f"%{model_clean}%")
+                GRESTProduct.name == f"Apple {model_clean}"
             ).first()
+            
+            # If not found, try without Apple prefix
+            if not product:
+                product = session.query(GRESTProduct).filter(
+                    GRESTProduct.name == model_clean
+                ).first()
+            
+            # Fallback to partial match with exact model boundaries
+            if not product:
+                # Use word boundary matching - avoid matching "iPhone 14" to "iPhone 14 Pro"
+                product = session.query(GRESTProduct).filter(
+                    GRESTProduct.name.ilike(f"%{model_clean}")
+                ).first()
             
             if product and product.specifications:
                 specs_data = product.specifications
@@ -151,11 +166,32 @@ def get_iphone_specs_from_db(model_name: str) -> dict:
                         'connectors': 'connectors',
                         'storage': 'storage_options',
                         'size and weight': 'size_weight',
+                        'network and connectivity': 'network',
                     }
                     for key, value in raw_specs.items():
                         norm_key = key.lower().strip()
                         mapped = key_mapping.get(norm_key, norm_key.replace(' ', '_'))
                         normalized[mapped] = value
+                    
+                    # Extract 5G info from network field
+                    network_info = normalized.get('network', '')
+                    if '5g' in network_info.lower():
+                        normalized['5g'] = 'Yes'
+                    elif network_info:
+                        normalized['5g'] = 'No (4G LTE)'
+                    
+                    # Extract design info from size_weight or connectors if available
+                    connectors = normalized.get('connectors', '')
+                    if 'titanium' in str(connectors).lower() or 'titanium' in str(normalized.get('size_weight', '')).lower():
+                        normalized['design'] = 'Titanium frame'
+                    elif 'aluminum' in str(connectors).lower() or 'aluminium' in str(normalized.get('size_weight', '')).lower():
+                        normalized['design'] = 'Aluminum frame'
+                    else:
+                        # Default based on model naming
+                        if 'Pro' in model_clean:
+                            normalized['design'] = 'Titanium frame' if '15' in model_clean or '16' in model_clean else 'Stainless steel frame'
+                        else:
+                            normalized['design'] = 'Aluminum frame'
                     
                     return normalized
             
