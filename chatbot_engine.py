@@ -613,6 +613,17 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
             if product.get('image_url'):
                 context_parts.append(f"  IMAGE: {product['image_url']}")
             
+            iphone_specs = get_iphone_specs(product['name'])
+            if iphone_specs:
+                context_parts.append(f"\n  *** SPECIFICATIONS (MANDATORY - INCLUDE IN RESPONSE) ***")
+                context_parts.append(f"  - **Display:** {iphone_specs.get('display', 'N/A')}")
+                context_parts.append(f"  - **Processor:** {iphone_specs.get('processor', 'N/A')}")
+                context_parts.append(f"  - **Rear Camera:** {iphone_specs.get('rear_camera', 'N/A')}")
+                context_parts.append(f"  - **Front Camera:** {iphone_specs.get('front_camera', 'N/A')}")
+                context_parts.append(f"  - **5G:** {iphone_specs.get('5g', 'N/A')}")
+                context_parts.append(f"  - **Design:** {iphone_specs.get('design', 'N/A')}")
+                context_parts.append(f"  *** USE THESE EXACT SPECS IN YOUR RESPONSE ***")
+            
             if storage and not condition:
                 variants = get_product_variants(model, storage)
                 if len(variants) > 1:
