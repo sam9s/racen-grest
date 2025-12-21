@@ -403,6 +403,8 @@ def populate_database(hard_delete_stale: bool = True, progress_callback=None):
         return {"success": False, "error": "No sellable variants found"}
     
     deleted = 0
+    created = 0
+    updated = 0
     
     with get_db_session() as session:
         if session is None:
@@ -410,7 +412,20 @@ def populate_database(hard_delete_stale: bool = True, progress_callback=None):
             return {"success": False, "error": "Database not available"}
         
         try:
-            emit("upserting", f"Updating database with {len(variant_rows)} variants...", 70)
+            # Count existing SKUs before upsert to calculate created vs updated
+            existing_skus = set(
+                row[0] for row in session.query(GRESTProduct.sku).filter(
+                    GRESTProduct.sku.in_(seen_skus)
+                ).all()
+            )
+            
+            new_skus = seen_skus - existing_skus
+            updated_skus = seen_skus & existing_skus
+            
+            created = len(new_skus)
+            updated = len(updated_skus)
+            
+            emit("upserting", f"Updating database: {created} new, {updated} existing...", 70)
             _bulk_upsert_variants(session, variant_rows)
             
             if hard_delete_stale and seen_skus:
@@ -437,11 +452,13 @@ def populate_database(hard_delete_stale: bool = True, progress_callback=None):
         if session:
             total = session.query(GRESTProduct).count()
             in_stock = session.query(GRESTProduct).filter(GRESTProduct.in_stock == True).count()
-            emit("complete", f"Sync complete! {total} variants in database ({in_stock} in stock)", 100)
+            emit("complete", f"Sync complete! {total} variants ({created} new, {updated} updated, {deleted} removed)", 100)
     
     return {
         "success": True,
         "variants_processed": len(variant_rows),
+        "variants_created": created,
+        "variants_updated": updated,
         "variants_deleted": deleted,
         "elapsed_seconds": elapsed,
     }

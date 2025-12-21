@@ -975,6 +975,10 @@ def _execute_sync(run_id: int):
             db.add(event)
         
         shopify_count = result.get('variants_processed', 0)
+        created_count = result.get('variants_created', 0)
+        updated_count = result.get('variants_updated', 0)
+        deleted_count = result.get('variants_deleted', 0)
+        
         with get_db_session() as db:
             db_count = db.query(func.count(GRESTProduct.id)).scalar() or 0
         
@@ -986,9 +990,9 @@ def _execute_sync(run_id: int):
             if sync_run:
                 sync_run.finished_at = datetime.utcnow()
                 sync_run.status = status
-                sync_run.products_created = result.get('variants_added', 0)
-                sync_run.products_updated = result.get('variants_updated', 0)
-                sync_run.products_deleted = result.get('variants_deleted', 0)
+                sync_run.products_created = created_count
+                sync_run.products_updated = updated_count
+                sync_run.products_deleted = deleted_count
                 sync_run.shopify_product_count = shopify_count
                 sync_run.db_product_count = db_count
             
@@ -1002,12 +1006,15 @@ def _execute_sync(run_id: int):
         # Mark progress as complete
         sync_progress[run_id] = {
             "step": "complete",
-            "message": f"Sync completed successfully! {db_count} products in database",
+            "message": f"Sync completed! {created_count} new, {updated_count} updated, {deleted_count} removed",
             "progress": 100,
             "status": status,
             "result": {
                 "variantsProcessed": shopify_count,
-                "variantsDeleted": result.get('variants_deleted', 0),
+                "variantsCreated": created_count,
+                "variantsUpdated": updated_count,
+                "variantsDeleted": deleted_count,
+                "dbCount": db_count,
             }
         }
             

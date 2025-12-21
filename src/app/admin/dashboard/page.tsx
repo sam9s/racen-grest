@@ -924,7 +924,10 @@ interface SyncProgress {
   status?: string;
   result?: {
     variantsProcessed: number;
+    variantsCreated: number;
+    variantsUpdated: number;
     variantsDeleted: number;
+    dbCount: number;
   };
 }
 
@@ -1175,10 +1178,29 @@ function SyncView() {
           {/* Completion Message */}
           {progress?.step === 'complete' && progress.result && (
             <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-              <p className="text-emerald-400 font-medium text-center">
-                Sync completed successfully! {progress.result.variantsProcessed.toLocaleString()} variants processed
-                {progress.result.variantsDeleted > 0 && `, ${progress.result.variantsDeleted} removed`}
-              </p>
+              <div className="text-center">
+                <p className="text-emerald-400 font-medium mb-3">
+                  Sync completed successfully!
+                </p>
+                <div className="flex justify-center gap-6 text-sm">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">{progress.result.dbCount?.toLocaleString()}</p>
+                    <p className="text-gray-400">Total Products</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-emerald-400">+{progress.result.variantsCreated}</p>
+                    <p className="text-gray-400">Created</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-blue-400">~{progress.result.variantsUpdated}</p>
+                    <p className="text-gray-400">Updated</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-red-400">-{progress.result.variantsDeleted}</p>
+                    <p className="text-gray-400">Removed</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           
