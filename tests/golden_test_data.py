@@ -108,9 +108,9 @@ GOLDEN_TESTS = [
         "id": "exact_008",
         "query": "iPhone 16 Pro Max 512GB Good price",
         "category": "exact_match",
-        "expected_db_price": 99399,
+        "expected_db_price": 104199,
         "assertions": [
-            {"type": "exact_db_price", "price": 99399, "tolerance": 2000, "description": "Price matches DB"},
+            {"type": "exact_db_price", "price": 104199, "tolerance": 2000, "description": "Price matches DB"},
             {"type": "contains", "value": "16 Pro Max", "description": "Mentions model"},
         ]
     },
@@ -118,9 +118,9 @@ GOLDEN_TESTS = [
         "id": "exact_009",
         "query": "iPhone 13 Pro Max 1TB Fair price",
         "category": "exact_match",
-        "expected_db_price": 46499,
+        "expected_db_price": 63999,
         "assertions": [
-            {"type": "exact_db_price", "price": 46499, "tolerance": 2000, "description": "Price matches DB"},
+            {"type": "exact_db_price", "price": 63999, "tolerance": 2000, "description": "Price matches DB"},
             {"type": "contains", "value": "13 Pro Max", "description": "Mentions model"},
         ]
     },

@@ -1,0 +1,80 @@
+{
+  "timestamp": "2025-12-21T01:01:39.828193",
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "pass_rate": 100.0
+  },
+  "category_stats": {
+    "edge_case": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3
+    }
+  },
+  "results": [
+    {
+      "id": "edge_001",
+      "query": "What is the capital of France?",
+      "category": "edge_case",
+      "passed": true,
+      "error": null,
+      "elapsed": 6.6207475662231445,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Stays on topic",
+          "passed": true,
+          "reason": "Found 'GREST'"
+        }
+      ],
+      "response_preview": "I'm here to help you with anything related to our premium refurbished [iPhones](https://grest.in/collections/iphones) and [MacBooks](https://grest.in/collections/macbook) at GREST! If you have any questions about our products, prices, or services, feel free to ask!\n\n---\n\n*You might also like to chec...",
+      "full_response": "I'm here to help you with anything related to our premium refurbished [iPhones](https://grest.in/collections/iphones) and [MacBooks](https://grest.in/collections/macbook) at GREST! If you have any questions about our products, prices, or services, feel free to ask!\n\n---\n\n*You might also like to check:*\n[iPhones](https://grest.in/collections/iphones) | [All Products](https://grest.in/collections/all) | [MacBooks](https://grest.in/collections/macbook)"
+    },
+    {
+      "id": "edge_002",
+      "query": "Can you write code for me?",
+      "category": "edge_case",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.480388164520264,
+      "assertions_passed": 2,
+      "assertions_total": 2,
+      "assertion_details": [
+        {
+          "description": "No code",
+          "passed": true,
+          "reason": "Correctly excludes 'def '"
+        },
+        {
+          "description": "No code",
+          "passed": true,
+          "reason": "Correctly excludes 'function'"
+        }
+      ],
+      "response_preview": "I'm here to help you with GREST's premium refurbished [iPhones](https://grest.in/collections/iphones) and [MacBooks](https://grest.in/collections/macbook)! If you have any questions or need assistance regarding our products, feel free to ask. \ud83d\ude0a\n\n---\n\n*Browse more options here:*\n[iPhones](https://gre...",
+      "full_response": "I'm here to help you with GREST's premium refurbished [iPhones](https://grest.in/collections/iphones) and [MacBooks](https://grest.in/collections/macbook)! If you have any questions or need assistance regarding our products, feel free to ask. \ud83d\ude0a\n\n---\n\n*Browse more options here:*\n[iPhones](https://grest.in/collections/iphones) | [All Products](https://grest.in/collections/all) | [MacBooks](https://grest.in/collections/macbook)"
+    },
+    {
+      "id": "edge_003",
+      "query": "Tell me a joke",
+      "category": "edge_case",
+      "passed": true,
+      "error": null,
+      "elapsed": 7.036261320114136,
+      "assertions_passed": 1,
+      "assertions_total": 1,
+      "assertion_details": [
+        {
+          "description": "Stays on topic",
+          "passed": true,
+          "reason": "Found 'GREST'"
+        }
+      ],
+      "response_preview": "Sure, here's a light one for you!\n\nWhy did the [iPhones](https://grest.in/collections/iphones) go to therapy? \n\nBecause it couldn't stop comparing itself to Android! \ud83d\ude02\n\nHope that brings a smile to your face! Need help with anything else?\n\n---\n\n*Here are some helpful links:*\n[iPhones](https://grest.i...",
+      "full_response": "Sure, here's a light one for you!\n\nWhy did the [iPhones](https://grest.in/collections/iphones) go to therapy? \n\nBecause it couldn't stop comparing itself to Android! \ud83d\ude02\n\nHope that brings a smile to your face! Need help with anything else?\n\n---\n\n*Here are some helpful links:*\n[iPhones](https://grest.in/collections/iphones) | [All Products](https://grest.in/collections/all) | [Contact](https://grest.in/pages/contact-us)"
+    }
+  ]
+}

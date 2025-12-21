@@ -22,7 +22,7 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import requests
-from tests.golden_test_data import GOLDEN_TESTS, get_tests_by_category, get_multi_turn_sessions
+from tests.golden_test_data import GOLDEN_TESTS, get_tests_by_category, get_multi_turn_sessions, get_test_count, CATEGORY_DESCRIPTIONS
 
 API_URL = "http://localhost:8080/api/chat"
 TIMEOUT = 30
@@ -102,6 +102,17 @@ def check_assertion(response: str, assertion: Dict) -> Tuple[bool, str]:
             return False, f"Prices {prices} not in range [{min_price:,}-{max_price:,}]"
         return False, f"No prices found (expected range [{min_price:,}-{max_price:,}])"
     
+    elif assertion_type == "exact_db_price":
+        expected_price = assertion.get("price", 0)
+        tolerance = assertion.get("tolerance", 500)
+        prices = extract_prices(response)
+        if prices:
+            for price in prices:
+                if abs(price - expected_price) <= tolerance:
+                    return True, f"Price ₹{price:,} matches DB (expected ₹{expected_price:,} ±{tolerance:,})"
+            return False, f"Prices {prices} don't match DB (expected ₹{expected_price:,} ±{tolerance:,})"
+        return False, f"No prices found (expected ₹{expected_price:,})"
+    
     elif assertion_type == "response_exists":
         if response and len(response.strip()) > 0:
             return True, "Response exists"
@@ -150,6 +161,7 @@ def run_single_test(test: Dict, session_id: str = None) -> Dict:
     return {
         "id": test["id"],
         "query": query,
+        "category": test.get("category", "unknown"),
         "passed": all_passed,
         "error": None,
         "elapsed": elapsed,
@@ -157,6 +169,7 @@ def run_single_test(test: Dict, session_id: str = None) -> Dict:
         "assertions_total": len(assertions),
         "assertion_details": assertion_results,
         "response_preview": response[:300] + "..." if len(response) > 300 else response,
+        "full_response": response,
     }
 
 
@@ -324,8 +337,9 @@ def run_all_tests(category_filter: str = None, num_samples: int = 1, verbose: bo
         if len(failed_tests) > 10:
             print(f"  ... and {len(failed_tests) - 10} more")
     
-    # Save detailed results to file
-    report_path = f"tests/test_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    # Save detailed results to JSON
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    json_report_path = f"tests/test_report_{timestamp}.json"
     report = {
         "timestamp": datetime.now().isoformat(),
         "summary": {
@@ -338,13 +352,122 @@ def run_all_tests(category_filter: str = None, num_samples: int = 1, verbose: bo
         "results": all_results,
     }
     
-    with open(report_path, "w") as f:
+    with open(json_report_path, "w") as f:
         json.dump(report, f, indent=2, default=str)
     
-    print(f"\nDetailed report saved to: {report_path}")
+    # Generate comprehensive markdown report
+    md_report_path = f"TEST_RESULTS_REPORT.md"
+    generate_markdown_report(report, md_report_path, category_stats)
+    
+    print(f"\nJSON report saved to: {json_report_path}")
+    print(f"Markdown report saved to: {md_report_path}")
     print("=" * 70)
     
     return report
+
+
+def generate_markdown_report(report: Dict, filepath: str, category_stats: Dict):
+    """Generate a comprehensive markdown report with all conversations."""
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    summary = report["summary"]
+    results = report["results"]
+    
+    lines = []
+    lines.append("# GRESTA Chatbot Test Results Report")
+    lines.append(f"\n**Generated:** {timestamp}")
+    lines.append(f"\n**Pass Rate:** {summary['pass_rate']:.1f}% ({summary['passed']}/{summary['total']} tests passed)")
+    lines.append("")
+    
+    # Summary table
+    lines.append("## Summary")
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|--------|-------|")
+    lines.append(f"| Total Tests | {summary['total']} |")
+    lines.append(f"| Passed | {summary['passed']} |")
+    lines.append(f"| Failed | {summary['failed']} |")
+    lines.append(f"| Pass Rate | {summary['pass_rate']:.1f}% |")
+    lines.append("")
+    
+    # Category breakdown
+    lines.append("## Results by Category")
+    lines.append("")
+    lines.append("| Category | Passed | Total | Rate |")
+    lines.append("|----------|--------|-------|------|")
+    
+    for cat, stats in sorted(category_stats.items()):
+        cat_rate = (stats["passed"] / stats["total"] * 100) if stats["total"] > 0 else 0
+        status = "✅" if stats["failed"] == 0 else "❌"
+        cat_desc = CATEGORY_DESCRIPTIONS.get(cat, cat)
+        lines.append(f"| {status} {cat_desc} | {stats['passed']} | {stats['total']} | {cat_rate:.0f}% |")
+    lines.append("")
+    
+    # Group results by category
+    results_by_category = defaultdict(list)
+    for r in results:
+        cat = r.get("category", "unknown")
+        results_by_category[cat].append(r)
+    
+    # Detailed conversations by category
+    lines.append("## Detailed Conversations")
+    lines.append("")
+    
+    for cat in sorted(results_by_category.keys()):
+        cat_results = results_by_category[cat]
+        cat_desc = CATEGORY_DESCRIPTIONS.get(cat, cat)
+        lines.append(f"### {cat_desc}")
+        lines.append("")
+        
+        for r in cat_results:
+            test_id = r.get("id", "unknown")
+            query = r.get("query", "")
+            passed = r.get("passed", False)
+            response = r.get("full_response", r.get("response_preview", ""))
+            elapsed = r.get("elapsed", 0)
+            
+            status = "✅ PASS" if passed else "❌ FAIL"
+            lines.append(f"#### Test: {test_id} {status}")
+            lines.append("")
+            lines.append(f"**Query:** `{query}`")
+            lines.append("")
+            lines.append(f"**Response:** ({elapsed:.2f}s)")
+            lines.append("")
+            lines.append("```")
+            lines.append(response[:1500] if len(response) > 1500 else response)
+            lines.append("```")
+            lines.append("")
+            
+            # Show assertion details
+            assertions = r.get("assertion_details", [])
+            if assertions:
+                lines.append("**Assertions:**")
+                for a in assertions:
+                    a_status = "✅" if a["passed"] else "❌"
+                    lines.append(f"- {a_status} {a['description']}: {a['reason']}")
+                lines.append("")
+            
+            lines.append("---")
+            lines.append("")
+    
+    # Failed tests summary
+    failed = [r for r in results if not r.get("passed", False)]
+    if failed:
+        lines.append("## Failed Tests Summary")
+        lines.append("")
+        lines.append("| Test ID | Query | Reason |")
+        lines.append("|---------|-------|--------|")
+        for f in failed:
+            test_id = f.get("id", "unknown")
+            query = f.get("query", "")[:50]
+            failed_assertions = [a for a in f.get("assertion_details", []) if not a["passed"]]
+            reasons = "; ".join([a["reason"] for a in failed_assertions[:2]])
+            lines.append(f"| {test_id} | {query} | {reasons} |")
+        lines.append("")
+    
+    with open(filepath, "w") as f:
+        f.write("\n".join(lines))
+    
+    print(f"Comprehensive markdown report generated: {filepath}")
 
 
 if __name__ == "__main__":
