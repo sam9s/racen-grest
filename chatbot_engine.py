@@ -70,10 +70,12 @@ def detect_coreference(message: str) -> bool:
         r'\bwoh\s*wala\b',  # Hinglish: "that one"
         r'\bwahi\b',  # Hinglish: "the same"
         r'\biske\b',  # Hinglish: "of this"
+        r'\bisi\b',  # Hinglish: "of this same"
         r'\buska\b',  # Hinglish: "of that"
         r'\bprevious\b',
         r'\babove\b',
         r'\bmentioned\b',
+        r'\bvariant\b',  # "256GB variant" implies same product
         r'\bit\b(?!\s*is)',  # "it" but not "it is"
     ]
     message_lower = message.lower()
@@ -807,7 +809,10 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
         return get_product_context_from_database(message, session_id)
     
     context_parts.append("\n=== END PRODUCT DATABASE ===")
-    context_parts.append("REMINDER: Use the EXACT prices above. Do not estimate or use old prices.\n")
+    context_parts.append("*** FINAL PRICE ENFORCEMENT ***")
+    context_parts.append("CRITICAL: You MUST quote the EXACT Rs. amount shown above - copying character by character.")
+    context_parts.append("WARNING: Your training data has OUTDATED prices. IGNORE them. Use ONLY the prices above.")
+    context_parts.append("If you say any price NOT listed above, you will provide WRONG information to the customer.\n")
     
     return "\n".join(context_parts)
 
