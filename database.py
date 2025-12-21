@@ -150,6 +150,39 @@ class GRESTProduct(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class SyncRun(Base):
+    """Tracks Shopify sync runs for monitoring and auditing."""
+    __tablename__ = "sync_runs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    trigger_source = Column(String(20), nullable=False)  # 'manual' | 'scheduled'
+    triggered_by = Column(String(100), nullable=True)  # admin email or 'scheduler'
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    finished_at = Column(DateTime, nullable=True)
+    status = Column(String(20), default='running', nullable=False)  # 'running' | 'success' | 'failed' | 'warning'
+    products_created = Column(Integer, default=0)
+    products_updated = Column(Integer, default=0)
+    products_deleted = Column(Integer, default=0)
+    shopify_product_count = Column(Integer, nullable=True)
+    db_product_count = Column(Integer, nullable=True)
+    error_log = Column(Text, nullable=True)
+    
+    events = relationship("SyncRunEvent", back_populates="sync_run", cascade="all, delete-orphan")
+
+
+class SyncRunEvent(Base):
+    """Detailed timeline events for each sync run."""
+    __tablename__ = "sync_run_events"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    sync_run_id = Column(Integer, ForeignKey("sync_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_type = Column(String(50), nullable=False)  # 'fetch_start', 'fetch_complete', 'compare_start', etc.
+    message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    sync_run = relationship("SyncRun", back_populates="events")
+
+
 def init_database():
     """Initialize database tables."""
     if engine:
