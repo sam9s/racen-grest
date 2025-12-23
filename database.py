@@ -132,6 +132,7 @@ class GRESTProduct(Base):
     id = Column(Integer, primary_key=True, index=True)
     sku = Column(String(100), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False, index=True)
+    model_key = Column(String(100), nullable=True, index=True)
     category = Column(String(100), nullable=False, index=True)
     variant = Column(String(255), nullable=True)
     storage = Column(String(50), nullable=True)

@@ -110,6 +110,67 @@ def get_category(title, product_type=''):
     return product_type or 'Other'
 
 
+def extract_model_key(handle: str, title: str) -> str:
+    """
+    Extract a canonical model key from Shopify product handle or title.
+    
+    Examples:
+    - "refurbished-iphone-x-price-in-india" -> "iphone-x"
+    - "refurbished-iphone-xr-64gb-price-in-india" -> "iphone-xr"
+    - "refurbished-iphone-16-pro-max" -> "iphone-16-pro-max"
+    - "apple-macbook-air-m2-13-inch" -> "macbook-air-m2"
+    
+    This is the canonical identifier for exact product matching.
+    """
+    import re
+    
+    if not handle:
+        return None
+    
+    handle_lower = handle.lower().strip()
+    
+    iphone_pattern = r'iphone-(\d+|x|xr|xs|se)(?:-(pro-max|pro|plus|mini))?'
+    iphone_match = re.search(iphone_pattern, handle_lower)
+    if iphone_match:
+        base = iphone_match.group(1)
+        suffix = iphone_match.group(2) or ''
+        model_key = f"iphone-{base}"
+        if suffix:
+            model_key += f"-{suffix}"
+        return model_key
+    
+    macbook_pattern = r'macbook-(air|pro)(?:-(m\d+))?(?:-(\d+)-inch)?'
+    macbook_match = re.search(macbook_pattern, handle_lower)
+    if macbook_match:
+        variant = macbook_match.group(1)
+        chip = macbook_match.group(2) or ''
+        size = macbook_match.group(3) or ''
+        model_key = f"macbook-{variant}"
+        if chip:
+            model_key += f"-{chip}"
+        if size:
+            model_key += f"-{size}"
+        return model_key
+    
+    ipad_pattern = r'ipad(?:-(pro|air|mini))?(?:-(\d+))?'
+    ipad_match = re.search(ipad_pattern, handle_lower)
+    if ipad_match:
+        variant = ipad_match.group(1) or ''
+        gen = ipad_match.group(2) or ''
+        model_key = "ipad"
+        if variant:
+            model_key += f"-{variant}"
+        if gen:
+            model_key += f"-{gen}"
+        return model_key
+    
+    title_lower = title.lower().strip() if title else ''
+    title_clean = re.sub(r'^apple\s+', '', title_lower)
+    title_clean = re.sub(r'\s+', '-', title_clean)
+    title_clean = re.sub(r'[^a-z0-9\-]', '', title_clean)
+    return title_clean[:50] if title_clean else None
+
+
 def extract_specs_from_body(body_html):
     """Extract specifications from product HTML body."""
     if not body_html:
