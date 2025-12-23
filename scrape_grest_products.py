@@ -301,6 +301,8 @@ def _prepare_product_variants(product):
     if category == 'Protection Plan':
         return []
     
+    model_key = extract_model_key(handle, title)
+    
     variants = product.get('variants', [])
     if not variants:
         return []
@@ -373,6 +375,7 @@ def _prepare_product_variants(product):
         rows.append({
             'sku': sku,
             'name': title,
+            'model_key': model_key,
             'category': category,
             'variant': variant_title,
             'storage': storage,
