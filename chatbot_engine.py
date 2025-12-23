@@ -709,21 +709,19 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
     
     elif query_type == 'budget_search':
         if budget_min and budget_max:
-            products = get_products_in_price_range(budget_min, budget_max, category)
+            products = get_products_in_price_range(budget_min, budget_max, category, storage, condition)
         elif budget_max:
-            products = get_products_under_price(budget_max, category)
+            products = get_products_under_price(budget_max, category, storage, condition)
         else:
             products = []
-        
-        if condition:
-            condition_lower = condition.lower() if condition else ''
-            products = [p for p in products if (p.get('condition') or '').lower() == condition_lower]
         
         if color:
             products = [p for p in products if color.lower() in (p.get('color', '') or '').lower()]
         
         if products:
             context_parts.append(f"PRODUCTS MATCHING YOUR CRITERIA:")
+            if storage:
+                context_parts.append(f"  Storage filter: {storage}")
             if condition:
                 context_parts.append(f"  Condition filter: {condition}")
             if budget_max:
@@ -745,6 +743,8 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
                 context_parts.append(f"    URL: {p['product_url']}")
         else:
             context_parts.append(f"No products found matching criteria.")
+            if storage:
+                context_parts.append(f"  Storage: {storage}")
             if condition:
                 context_parts.append(f"  Condition: {condition}")
             if budget_max:

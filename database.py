@@ -600,10 +600,10 @@ def get_price_range_by_category(category: str):
         return None
 
 
-def get_products_under_price(max_price: float, category: str = None):
+def get_products_under_price(max_price: float, category: str = None, storage: str = None, condition: str = None):
     """
     Get all products under a certain price.
-    Optionally filter by category (iPhone, iPad, MacBook).
+    Optionally filter by category (iPhone, iPad, MacBook), storage, and condition.
     Returns list sorted by price ascending.
     """
     with get_db_session() as db:
@@ -617,6 +617,15 @@ def get_products_under_price(max_price: float, category: str = None):
         
         if category:
             query = query.filter(GRESTProduct.category.ilike(f"%{category}%"))
+        
+        if storage:
+            storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
+            if 'GB' not in storage_clean and 'TB' not in storage_clean:
+                storage_clean = f"{storage} GB"
+            query = query.filter(GRESTProduct.storage.ilike(f"%{storage_clean.strip()}%"))
+        
+        if condition:
+            query = query.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
         
         products = query.order_by(GRESTProduct.price.asc()).all()
         
@@ -638,9 +647,10 @@ def get_products_under_price(max_price: float, category: str = None):
         ]
 
 
-def get_products_in_price_range(min_price: float, max_price: float, category: str = None):
+def get_products_in_price_range(min_price: float, max_price: float, category: str = None, storage: str = None, condition: str = None):
     """
     Get products within a price range.
+    Optionally filter by category, storage, and condition.
     """
     with get_db_session() as db:
         if db is None:
@@ -654,6 +664,15 @@ def get_products_in_price_range(min_price: float, max_price: float, category: st
         
         if category:
             query = query.filter(GRESTProduct.category.ilike(f"%{category}%"))
+        
+        if storage:
+            storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
+            if 'GB' not in storage_clean and 'TB' not in storage_clean:
+                storage_clean = f"{storage} GB"
+            query = query.filter(GRESTProduct.storage.ilike(f"%{storage_clean.strip()}%"))
+        
+        if condition:
+            query = query.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
         
         products = query.order_by(GRESTProduct.price.asc()).all()
         
