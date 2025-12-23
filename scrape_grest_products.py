@@ -129,7 +129,7 @@ def extract_model_key(handle: str, title: str) -> str:
     
     handle_lower = handle.lower().strip()
     
-    iphone_pattern = r'iphone-(\d+|x|xr|xs|se)(?:-(pro-max|pro|plus|mini))?'
+    iphone_pattern = r'iphone-(xr|xs|x|\d+|se)(?:-(pro-max|pro|plus|mini|max))?'
     iphone_match = re.search(iphone_pattern, handle_lower)
     if iphone_match:
         base = iphone_match.group(1)
