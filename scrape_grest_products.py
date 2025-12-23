@@ -31,14 +31,19 @@ def get_shopify_headers():
 
 
 def fetch_all_products():
-    """Fetch ALL products from Shopify Admin API with pagination."""
+    """Fetch ALL active products from Shopify Admin API with pagination.
+    
+    Only fetches products with status='active' to exclude:
+    - Draft products (not ready for sale)
+    - Archived products (removed from store)
+    """
     if not SHOPIFY_ACCESS_TOKEN:
         print("ERROR: SHOPIFY_ACCESS_TOKEN not set!")
         return []
     
     all_products = []
     base_url = f"https://{SHOPIFY_STORE_URL}/admin/api/{API_VERSION}/products.json"
-    params = {'limit': 250}
+    params = {'limit': 250, 'status': 'active'}
     
     while True:
         response = requests.get(base_url, headers=get_shopify_headers(), params=params)
