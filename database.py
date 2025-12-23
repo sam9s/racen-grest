@@ -787,11 +787,17 @@ def search_product_by_specs(model_name: str = None, storage: str = None, conditi
             model_lower = model_normalized.lower()
             
             all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'new', 'max', 'air']
+            all_variants = ['xr', 'xs', 'xs max']
             
             exclude_suffixes = []
             for suffix in all_suffixes:
                 if suffix not in model_lower:
                     exclude_suffixes.append(suffix)
+            
+            exclude_variants = []
+            for variant in all_variants:
+                if variant not in model_lower:
+                    exclude_variants.append(variant)
             
             if 'pro max' in model_lower:
                 if 'pro' in exclude_suffixes:
@@ -799,10 +805,17 @@ def search_product_by_specs(model_name: str = None, storage: str = None, conditi
                 if 'max' in exclude_suffixes:
                     exclude_suffixes.remove('max')
             
+            if 'xs max' in model_lower:
+                if 'xs' in exclude_variants:
+                    exclude_variants.remove('xs')
+            
             q = q.filter(GRESTProduct.name.ilike(f"%{model_normalized}%"))
             
             for suffix in exclude_suffixes:
                 q = q.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
+            
+            for variant in exclude_variants:
+                q = q.filter(~GRESTProduct.name.ilike(f"% {variant}%"))
         
         elif category:
             q = q.filter(GRESTProduct.category.ilike(f"%{category}%"))
