@@ -251,7 +251,9 @@ def _prepare_product_variants(product):
         specs = extract_specs_from_body(product.get('body_html', ''))
     
     images = product.get('images', [])
-    image_url = images[0].get('src', '') if images else None
+    default_image_url = images[0].get('src', '') if images else None
+    
+    image_id_to_url = {img.get('id'): img.get('src', '') for img in images}
     
     min_price, max_price = get_price_range(variants)
     storage_options, colors, conditions = parse_variant_options(variants)
@@ -304,6 +306,9 @@ def _prepare_product_variants(product):
         sku = f"SHOPIFY_{product_id}_{variant_id}"
         variant_title = ' - '.join(filter(None, [title, storage, condition])) or title
         
+        variant_image_id = variant.get('image_id')
+        variant_image_url = image_id_to_url.get(variant_image_id, default_image_url) if variant_image_id else default_image_url
+        
         rows.append({
             'sku': sku,
             'name': title,
@@ -318,7 +323,7 @@ def _prepare_product_variants(product):
             'in_stock': in_stock,
             'warranty_months': 12,
             'product_url': f"{base_url}?variant={variant_id}",
-            'image_url': image_url,
+            'image_url': variant_image_url,
             'specifications': specs_json,
         })
     
