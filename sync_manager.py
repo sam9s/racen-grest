@@ -33,26 +33,66 @@ def sync_shopify_products() -> dict:
     - Fetches all products from Shopify
     - Upserts into PostgreSQL
     - Hard deletes any SKUs not in current Shopify fetch
+    - Records sync run to database for tracking
     
     Returns sync result dict.
     """
     from scrape_grest_products import populate_database
+    from database import get_db_session, SyncRun, GRESTProduct
+    from sqlalchemy import func
     
     logger.info("=" * 50)
-    logger.info("STARTING SHOPIFY SYNC")
+    logger.info("STARTING SCHEDULED SHOPIFY SYNC")
     logger.info("=" * 50)
     
     start_time = datetime.now()
+    run_id = None
+    
+    try:
+        with get_db_session() as db:
+            if db:
+                sync_run = SyncRun(
+                    trigger_source='scheduled',
+                    triggered_by='scheduler',
+                    status='running'
+                )
+                db.add(sync_run)
+                db.flush()
+                run_id = sync_run.id
+                logger.info(f"Created sync run record: {run_id}")
+    except Exception as e:
+        logger.warning(f"Failed to create sync run record: {e}")
     
     try:
         result = populate_database(hard_delete_stale=True)
         duration = (datetime.now() - start_time).total_seconds()
         
+        created = result.get('variants_created', 0)
+        updated = result.get('variants_updated', 0)
+        deleted = result.get('variants_deleted', 0)
+        
         if result and result.get('success'):
             logger.info(f"SHOPIFY SYNC COMPLETE in {duration:.1f}s")
-            logger.info(f"  Added: {result.get('variants_added', 0)}")
-            logger.info(f"  Updated: {result.get('variants_updated', 0)}")
-            logger.info(f"  Deleted: {result.get('variants_deleted', 0)}")
+            logger.info(f"  Created: {created}")
+            logger.info(f"  Updated: {updated}")
+            logger.info(f"  Deleted: {deleted}")
+            
+            if run_id:
+                try:
+                    with get_db_session() as db:
+                        if db:
+                            sync_run = db.query(SyncRun).filter(SyncRun.id == run_id).first()
+                            if sync_run:
+                                sync_run.finished_at = datetime.now()
+                                sync_run.status = 'success'
+                                sync_run.products_created = created
+                                sync_run.products_updated = updated
+                                sync_run.products_deleted = deleted
+                                sync_run.shopify_product_count = result.get('variants_processed', 0)
+                                sync_run.db_product_count = db.query(func.count(GRESTProduct.id)).scalar() or 0
+                except Exception as e:
+                    logger.warning(f"Failed to update sync run record: {e}")
+            
             return {
                 "success": True,
                 "duration_seconds": duration,
@@ -60,6 +100,19 @@ def sync_shopify_products() -> dict:
             }
         else:
             logger.error(f"SHOPIFY SYNC FAILED: {result}")
+            
+            if run_id:
+                try:
+                    with get_db_session() as db:
+                        if db:
+                            sync_run = db.query(SyncRun).filter(SyncRun.id == run_id).first()
+                            if sync_run:
+                                sync_run.finished_at = datetime.now()
+                                sync_run.status = 'failed'
+                                sync_run.error_log = result.get('error') if result else "Unknown error"
+                except Exception as e:
+                    logger.warning(f"Failed to update sync run record: {e}")
+            
             return {
                 "success": False,
                 "duration_seconds": duration,
@@ -69,6 +122,19 @@ def sync_shopify_products() -> dict:
     except Exception as e:
         duration = (datetime.now() - start_time).total_seconds()
         logger.error(f"SHOPIFY SYNC ERROR: {e}")
+        
+        if run_id:
+            try:
+                with get_db_session() as db:
+                    if db:
+                        sync_run = db.query(SyncRun).filter(SyncRun.id == run_id).first()
+                        if sync_run:
+                            sync_run.finished_at = datetime.now()
+                            sync_run.status = 'failed'
+                            sync_run.error_log = str(e)
+            except Exception as ex:
+                logger.warning(f"Failed to update sync run record: {ex}")
+        
         return {
             "success": False,
             "duration_seconds": duration,
