@@ -804,32 +804,47 @@ def search_product_by_specs(model_name: str = None, storage: str = None, conditi
         
         from sqlalchemy import func
         
-        q = db.query(GRESTProduct)
-        
-        if model_name:
-            model_key = query_to_model_key(model_name)
+        def build_query_with_model(use_model_key: bool):
+            """Build query with either model_key or name-based filtering."""
+            q = db.query(GRESTProduct)
             
-            q = q.filter(GRESTProduct.model_key == model_key)
+            if model_name:
+                if use_model_key:
+                    model_key = query_to_model_key(model_name)
+                    q = q.filter(GRESTProduct.model_key == model_key)
+                else:
+                    q = q.filter(GRESTProduct.name.ilike(f"%{model_name}%"))
+            elif category:
+                q = q.filter(GRESTProduct.category.ilike(f"%{category}%"))
+            
+            return q
         
-        elif category:
-            q = q.filter(GRESTProduct.category.ilike(f"%{category}%"))
+        q = build_query_with_model(use_model_key=True)
         
-        if storage:
-            storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
-            if 'GB' not in storage_clean and 'TB' not in storage_clean:
-                storage_clean = f"{storage} GB"
-            q = q.filter(GRESTProduct.storage.ilike(f"%{storage_clean.strip()}%"))
+        def apply_filters_and_search(q):
+            """Apply storage/condition/color/stock filters and return first result."""
+            if storage:
+                storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
+                if 'GB' not in storage_clean and 'TB' not in storage_clean:
+                    storage_clean = f"{storage} GB"
+                q = q.filter(GRESTProduct.storage.ilike(f"%{storage_clean.strip()}%"))
+            
+            if condition:
+                q = q.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
+            
+            if color:
+                q = q.filter(GRESTProduct.color.ilike(f"%{color}%"))
+            
+            if not include_out_of_stock:
+                q = q.filter(GRESTProduct.in_stock == True)
+            
+            return q.order_by(GRESTProduct.price.asc()).first()
         
-        if condition:
-            q = q.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
+        product = apply_filters_and_search(q)
         
-        if color:
-            q = q.filter(GRESTProduct.color.ilike(f"%{color}%"))
-        
-        if not include_out_of_stock:
-            q = q.filter(GRESTProduct.in_stock == True)
-        
-        product = q.order_by(GRESTProduct.price.asc()).first()
+        if not product and model_name:
+            q_fallback = build_query_with_model(use_model_key=False)
+            product = apply_filters_and_search(q_fallback)
         
         out_of_stock = False
         if product and not product.in_stock:
