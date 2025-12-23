@@ -764,14 +764,37 @@ def get_all_products_formatted():
         return "\n".join(lines)
 
 
+def query_to_model_key(model_name: str) -> str:
+    """
+    Convert a user query model name to a canonical model_key for exact matching.
+    
+    Examples:
+    - "iPhone X" -> "iphone-x"
+    - "iPhone 16 Pro Max" -> "iphone-16-pro-max"
+    - "MacBook Air M2" -> "macbook-air-m2"
+    """
+    import re
+    if not model_name:
+        return None
+    
+    query_lower = model_name.lower().strip()
+    query_lower = re.sub(r'^apple\s+', '', query_lower)
+    query_lower = re.sub(r'\s+', '-', query_lower)
+    query_lower = re.sub(r'[^a-z0-9\-]', '', query_lower)
+    return query_lower
+
+
 def search_product_by_specs(model_name: str = None, storage: str = None, condition: str = None, 
                            color: str = None, category: str = None, include_out_of_stock: bool = False):
     """
     Search for a specific product variant by model name, storage, condition, and color.
     ALWAYS returns the LOWEST price for the given specs (matching website behavior).
     
+    Uses canonical model_key matching for exact product identification.
+    Fallback to name ILIKE for products without model_key or legacy data.
+    
     Supports fallback search:
-    - If model is provided → search by model
+    - If model is provided → search by model_key first, then name
     - If model is null but category exists → search by category + other filters
     - If neither → search globally with filters
     """
@@ -784,39 +807,9 @@ def search_product_by_specs(model_name: str = None, storage: str = None, conditi
         q = db.query(GRESTProduct)
         
         if model_name:
-            model_normalized = model_name.strip()
-            model_lower = model_normalized.lower()
+            model_key = query_to_model_key(model_name)
             
-            all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'new', 'max', 'air']
-            all_variants = ['xr', 'xs', 'xs max']
-            
-            exclude_suffixes = []
-            for suffix in all_suffixes:
-                if suffix not in model_lower:
-                    exclude_suffixes.append(suffix)
-            
-            exclude_variants = []
-            for variant in all_variants:
-                if variant not in model_lower:
-                    exclude_variants.append(variant)
-            
-            if 'pro max' in model_lower:
-                if 'pro' in exclude_suffixes:
-                    exclude_suffixes.remove('pro')
-                if 'max' in exclude_suffixes:
-                    exclude_suffixes.remove('max')
-            
-            if 'xs max' in model_lower:
-                if 'xs' in exclude_variants:
-                    exclude_variants.remove('xs')
-            
-            q = q.filter(GRESTProduct.name.ilike(f"%{model_normalized}%"))
-            
-            for suffix in exclude_suffixes:
-                q = q.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
-            
-            for variant in exclude_variants:
-                q = q.filter(~GRESTProduct.name.ilike(f"% {variant}%"))
+            q = q.filter(GRESTProduct.model_key == model_key)
         
         elif category:
             q = q.filter(GRESTProduct.category.ilike(f"%{category}%"))
