@@ -2,193 +2,28 @@
 
 GREST (grest.in) is India's trusted destination for premium refurbished iPhones and MacBooks. All devices undergo 50+ quality checks and come with a 6-month warranty (extendable to 12 months for Rs. 1,499).
 
-## iPhone 16 Series (Latest!)
+**IMPORTANT: Always fetch current prices from the database. Do not use any hardcoded prices from this document.**
 
-### Apple iPhone 16
-- URL: https://grest.in/products/iphone-16
-- Starting Price: Rs. 48,699 (MRP Rs. 69,900)
-- Storage Options: 128 GB, 256 GB (+Rs. 3,700), 512 GB (+Rs. 5,400)
-- Conditions: Fair, Good (+Rs. 2,100), Superb (+Rs. 4,200)
-- Colors: Black, White, Pink, Teal, Ultramarine
-- Display: 6.1" Super Retina XDR OLED, 2556x1179 pixels, 460 ppi
-- Processor: Apple A18 chip
-- Rear Camera: Dual 48MP (wide f/1.6) + 12MP (ultra-wide f/2.4)
-- Front Camera: 12MP f/1.9
-- Battery: 3561 mAh
-- Water Resistance: IP68 (up to 6m for 30 min)
-- Face ID security
-- USB-C connector
-- Bluetooth 5.3
-- iOS 18
+## Available iPhone Models
 
-### Apple iPhone 16 Pro
-- URL: https://grest.in/products/iphone-16-pro
-- Premium tier with ProMotion display
-- Advanced camera system with telephoto lens
-- Titanium design
-- Storage: 256 GB, 512 GB, 1 TB
+GREST offers all recent iPhone models:
+- iPhone 16 Series (16, 16 Pro, 16 Pro Max)
+- iPhone 15 Series (15, 15 Plus, 15 Pro, 15 Pro Max)
+- iPhone 14 Series (14, 14 Plus, 14 Pro, 14 Pro Max)
+- iPhone 13 Series (13, 13 mini, 13 Pro, 13 Pro Max)
+- iPhone 12 Series (12, 12 mini, 12 Pro, 12 Pro Max)
+- iPhone 11 Series (11, 11 Pro, 11 Pro Max)
+- Legacy Models (XS Max, XS, XR, X)
 
-### Apple iPhone 16 Pro Max
-- URL: https://grest.in/products/iphone-16-pro-max
-- Largest display in iPhone 16 series
-- Best camera and battery life
-- Titanium design
-- Storage: 256 GB, 512 GB, 1 TB
+## Product URLs
 
-## iPhone 15 Series
+Use these URL patterns for products:
+- iPhone collection: https://grest.in/collections/iphones
+- MacBook collection: https://grest.in/collections/macbook
+- All products: https://grest.in/collections/all
 
-### Apple iPhone 15
-- URL: https://grest.in/products/iphone-15
-- Starting Price: Rs. 41,999
-- Storage: 128 GB, 256 GB, 512 GB
-- Display: 6.1" Super Retina XDR
-- Processor: A16 Bionic
-- Dynamic Island
-- USB-C port
-
-### Apple iPhone 15 Plus
-- URL: https://grest.in/products/iphone-15-plus
-- Larger 6.7" display
-- Longer battery life
-- Same A16 Bionic chip
-
-### Apple iPhone 15 Pro
-- URL: https://grest.in/products/iphone-15-pro
-- Titanium design
-- A17 Pro chip
-- ProMotion display
-- Action button
-
-### Apple iPhone 15 Pro Max
-- URL: https://grest.in/products/iphone-15-pro-max
-- Largest iPhone 15 with best features
-- 5x optical zoom
-- Titanium design
-
-## iPhone 14 Series
-
-### Apple iPhone 14
-- URL: https://grest.in/products/iphone-14
-- Starting Price: Rs. 35,999
-- Storage: 128 GB, 256 GB, 512 GB
-- Display: 6.1" Super Retina XDR
-- Processor: A15 Bionic
-
-### Apple iPhone 14 Plus
-- URL: https://grest.in/products/iphone-14-plus
-- 6.7" display
-- All-day battery life
-
-### Apple iPhone 14 Pro
-- URL: https://grest.in/products/iphone-14-pro
-- Dynamic Island
-- A16 Bionic chip
-- Always-On display
-- 48MP camera
-
-### Apple iPhone 14 Pro Max
-- URL: https://grest.in/products/iphone-14-pro-max
-- 6.7" ProMotion display
-- Best iPhone 14 camera
-
-## iPhone 13 Series
-
-### Apple iPhone 13
-- URL: https://grest.in/products/iphone-13
-- Starting Price: Rs. 27,999
-- Storage: 128 GB, 256 GB, 512 GB
-- Display: 6.1" Super Retina XDR
-- Processor: A15 Bionic
-- Colors: Starlight, Midnight, Blue, Pink, Green, Red
-
-### Apple iPhone 13 mini
-- URL: https://grest.in/products/iphone-13-mini
-- Compact 5.4" display
-- Same powerful A15 chip
-
-### Apple iPhone 13 Pro
-- URL: https://grest.in/products/iphone-13-pro
-- ProMotion 120Hz display
-- Triple camera with telephoto
-
-### Apple iPhone 13 Pro Max
-- URL: https://grest.in/products/iphone-13-pro-max
-- 6.7" ProMotion display
-- Longest battery life in 13 series
-
-## iPhone 12 Series
-
-### Apple iPhone 12
-- URL: https://grest.in/products/iphone-12
-- Starting Price: Rs. 19,999
-- Storage: 64 GB, 128 GB, 256 GB
-- Display: 6.1" Super Retina XDR
-- Processor: A14 Bionic
-
-### Apple iPhone 12 mini
-- URL: https://grest.in/products/iphone-12-mini
-- Compact 5.4" display
-
-### Apple iPhone 12 Pro
-- URL: https://grest.in/products/iphone-12-pro
-- LiDAR scanner
-- Triple camera system
-
-### Apple iPhone 12 Pro Max
-- URL: https://grest.in/products/iphone-12-pro-max
-- Largest display
-- Best camera sensor
-
-## iPhone 11 Series
-
-### Apple iPhone 11
-- URL: https://grest.in/products/refurbished-iphone-11
-- Starting Price: Rs. 13,199 (MRP Rs. 43,900)
-- Storage: 64 GB, 128 GB, 256 GB
-- Display: 6.1" Liquid Retina HD
-- Processor: A13 Bionic
-
-### Apple iPhone 11 Pro
-- URL: https://grest.in/products/refurbished-apple-iphone-11-pro
-- Starting Price: Rs. 23,499 (MRP Rs. 106,600)
-- Triple camera system
-- 5.8" Super Retina XDR
-
-### Apple iPhone 11 Pro Max
-- URL: https://grest.in/products/refurbished-apple-iphone-11-pro-max
-- 6.5" Super Retina XDR display
-- Best battery in 11 series
-
-## Legacy iPhone Models
-
-### Apple iPhone XS Max
-- URL: https://grest.in/products/refurbished-iphone-xs-max
-- 6.5" Super Retina display
-- A12 Bionic chip
-
-### Apple iPhone XS
-- URL: https://grest.in/products/refurbished-iphone-xs
-- 5.8" OLED display
-- Dual camera
-
-### Apple iPhone XR
-- URL: https://grest.in/products/refurbished-iphone-xr
-- Budget-friendly option
-- 6.1" Liquid Retina display
-
-### Apple iPhone X
-- URL: https://grest.in/products/refurbished-iphone-x
-- First iPhone with Face ID
-- 5.8" Super Retina display
-
-## MacBook Collection
-
-GREST also offers premium refurbished MacBooks:
-- MacBook Air (M1, M2)
-- MacBook Pro (13", 14", 16")
-- Various configurations available
-
-Visit: https://grest.in/collections/macbook
+Individual product URLs follow this pattern:
+- https://grest.in/products/refurbished-iphone-[model]-price-in-india
 
 ## Device Conditions Explained
 
