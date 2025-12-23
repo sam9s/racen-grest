@@ -820,13 +820,26 @@ function StatCard({
   );
 }
 
+interface SyncEvent {
+  runId: number;
+  triggerSource: string;
+  eventType: string;
+  message: string;
+  createdAt: string;
+}
+
 function MonitoringView() {
   const [data, setData] = useState<MonitoringData | null>(null);
+  const [events, setEvents] = useState<SyncEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchMonitoring();
-    const interval = setInterval(fetchMonitoring, 30000);
+    fetchEvents();
+    const interval = setInterval(() => {
+      fetchMonitoring();
+      fetchEvents();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -841,6 +854,18 @@ function MonitoringView() {
       console.error('Failed to fetch monitoring:', error);
     }
     setLoading(false);
+  };
+
+  const fetchEvents = async () => {
+    try {
+      const res = await fetch('/api/admin/sync/events?limit=30');
+      if (res.ok) {
+        const result = await res.json();
+        setEvents(result.events || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sync events:', error);
+    }
   };
 
   if (loading) {
@@ -912,6 +937,48 @@ function MonitoringView() {
             <p className="text-yellow-400 text-sm">Warning: Last sync was more than 8 hours ago</p>
           </div>
         )}
+      </div>
+
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold">Sync Activity Log</h3>
+          <button 
+            onClick={fetchEvents}
+            className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
+        <div className="space-y-2 max-h-80 overflow-y-auto">
+          {events.length === 0 ? (
+            <p className="text-gray-500 text-sm">No sync events recorded yet</p>
+          ) : (
+            events.map((event, index) => (
+              <div key={index} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
+                <div className={`w-2 h-2 rounded-full mt-2 ${
+                  event.eventType === 'sync_complete' || event.eventType === 'complete' ? 'bg-green-500' :
+                  event.eventType === 'sync_error' || event.eventType === 'error' ? 'bg-red-500' :
+                  event.eventType === 'sync_started' ? 'bg-blue-500' :
+                  'bg-gray-500'
+                }`}></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      event.triggerSource === 'scheduled' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
+                    }`}>
+                      {event.triggerSource === 'scheduled' ? '⏰ Scheduled' : '👆 Manual'}
+                    </span>
+                    <span className="text-gray-500 text-xs">Run #{event.runId}</span>
+                  </div>
+                  <p className="text-white text-sm mt-1 truncate">{event.message}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">
+                    {new Date(event.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

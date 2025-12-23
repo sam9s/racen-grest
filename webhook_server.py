@@ -1069,6 +1069,39 @@ def admin_sync_events(run_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/admin/sync/events", methods=["GET"])
+def admin_all_sync_events():
+    """Get all recent sync events across all runs for log viewing."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        from database import SyncRunEvent, SyncRun
+        
+        limit = request.args.get('limit', 50, type=int)
+        
+        with get_db_session() as db:
+            if db is None:
+                return jsonify({"events": []})
+            
+            events = db.query(SyncRunEvent, SyncRun).join(
+                SyncRun, SyncRunEvent.sync_run_id == SyncRun.id
+            ).order_by(SyncRunEvent.created_at.desc()).limit(limit).all()
+            
+            return jsonify({
+                "events": [{
+                    "runId": e.SyncRunEvent.sync_run_id,
+                    "triggerSource": e.SyncRun.trigger_source,
+                    "eventType": e.SyncRunEvent.event_type,
+                    "message": e.SyncRunEvent.message,
+                    "createdAt": e.SyncRunEvent.created_at.isoformat() if e.SyncRunEvent.created_at else None
+                } for e in events]
+            })
+    except Exception as e:
+        print(f"All sync events error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/admin/sync/run/<int:run_id>/progress", methods=["GET"])
 def admin_sync_progress(run_id):
     """Get real-time progress for a specific sync run."""
