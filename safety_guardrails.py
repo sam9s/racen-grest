@@ -408,10 +408,32 @@ def get_system_prompt() -> str:
     return _get_gresta_persona()
 
 
+def sanitize_markdown_urls(response: str) -> str:
+    """
+    Clean up malformed markdown URLs with trailing punctuation.
+    Fixes issues like: [text](url)* or [text](url)) or [text](url)*
+    """
+    import re
+    
+    def clean_url_match(match):
+        text = match.group(1)
+        url = match.group(2)
+        url_clean = url.rstrip(')*,.')
+        return f"[{text}]({url_clean})"
+    
+    pattern = r'\[([^\]]+)\]\(([^)]+[)*,.]+)\)'
+    result = re.sub(pattern, clean_url_match, response)
+    
+    result = re.sub(r'\]\(([^)]+)\)([)*]+)', r'](\1)', result)
+    
+    return result
+
+
 def inject_product_links(response: str) -> str:
     """
     Post-process LLM response to add clickable links to product/page mentions.
     Case-insensitive matching, only converts if not already a markdown link.
+    Also sanitizes any malformed URLs.
     """
     import re
     
@@ -428,6 +450,8 @@ def inject_product_links(response: str) -> str:
             matched_text = match.group(1)
             markdown_link = f"[{display_name}]({url})"
             result = result[:match.start()] + markdown_link + result[match.end():]
+    
+    result = sanitize_markdown_urls(result)
     
     return result
 

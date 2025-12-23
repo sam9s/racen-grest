@@ -1092,3 +1092,78 @@ def get_storage_options_for_model(model_name: str):
         storages = query.all()
         
         return [s[0] for s in storages if s[0]]
+
+
+def get_top_products_for_recommendations(category: str = "iPhone", limit: int = 6, 
+                                          use_case: str = None, max_price: float = None):
+    """
+    Get top products for general recommendation queries.
+    Groups by base model (e.g., iPhone 13 Pro) and returns the lowest price for each.
+    
+    Args:
+        category: "iPhone" or "MacBook"
+        limit: Number of distinct models to return
+        use_case: "camera" | "budget" | "premium" | "general"
+        max_price: Maximum budget filter
+    
+    Returns:
+        List of top products with their starting prices
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        from sqlalchemy import func, distinct
+        
+        query = db.query(
+            GRESTProduct.name,
+            func.min(GRESTProduct.price).label('min_price'),
+            func.min(GRESTProduct.storage).label('storage'),
+            func.min(GRESTProduct.condition).label('condition'),
+            func.min(GRESTProduct.product_url).label('product_url'),
+            func.min(GRESTProduct.image_url).label('image_url')
+        ).filter(
+            GRESTProduct.in_stock == True,
+            GRESTProduct.category.ilike(f"%{category}%") if category else True
+        )
+        
+        if max_price:
+            query = query.filter(GRESTProduct.price <= max_price)
+        
+        pro_models = ['Pro', 'Pro Max']
+        camera_keywords = ['13 Pro', '14 Pro', '15 Pro', '16 Pro', '12 Pro']
+        
+        if use_case == "camera":
+            query = query.filter(
+                db.query(GRESTProduct).filter(
+                    GRESTProduct.name.op('~')('Pro')
+                ).exists()
+            )
+        
+        query = query.group_by(GRESTProduct.name)
+        query = query.order_by(func.min(GRESTProduct.price).asc())
+        
+        results = query.limit(limit * 3).all()
+        
+        seen_base_models = set()
+        unique_products = []
+        
+        for r in results:
+            import re
+            base_model = re.sub(r'\s+(Fair|Good|Superb|128|256|512|64|1TB|GB|TB).*', '', r.name, flags=re.IGNORECASE).strip()
+            
+            if base_model not in seen_base_models:
+                seen_base_models.add(base_model)
+                unique_products.append({
+                    'name': r.name.split(' - ')[0] if ' - ' in r.name else r.name,
+                    'starting_price': float(r.min_price),
+                    'storage': r.storage,
+                    'condition': r.condition,
+                    'product_url': r.product_url,
+                    'image_url': r.image_url
+                })
+                
+                if len(unique_products) >= limit:
+                    break
+        
+        return unique_products

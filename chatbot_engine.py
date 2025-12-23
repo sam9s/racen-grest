@@ -29,7 +29,8 @@ from database import (
     compare_products,
     search_products_by_category,
     get_db_session,
-    GRESTProduct
+    GRESTProduct,
+    get_top_products_for_recommendations
 )
 
 _openai_client = None
@@ -344,6 +345,9 @@ def detect_variant_query(message: str) -> Tuple[Optional[str], Optional[str], Op
     - "iPhone 13 Pro Max 512GB Good condition"
     - "iPad Pro 256GB price"
     - "iPhone 12 Pro Max 128GB"
+    
+    Note: Generic category names ("iPhone", "MacBook" without a number) 
+    are NOT considered specific models - they return None to trigger recommendations.
     """
     message_lower = message.lower()
     
@@ -351,6 +355,12 @@ def detect_variant_query(message: str) -> Tuple[Optional[str], Optional[str], Op
     model_match = re.search(model_pattern, message_lower)
     
     if not model_match:
+        return (None, None, None)
+    
+    has_model_number = model_match.group(2) is not None
+    has_variant = model_match.group(3) is not None
+    
+    if not has_model_number and not has_variant:
         return (None, None, None)
     
     model_parts = []
@@ -952,11 +962,28 @@ def get_product_context_from_database(message: str, session_id: str = None) -> s
                 context_parts.append(f"No products under Rs. {int(max_price):,}.")
                 context_parts.append(f"Cheapest option: {cheapest['name']} at Rs. {int(cheapest['price']):,}")
     
-    elif is_price_query:
-        all_products = get_all_products_formatted()
-        context_parts.append(all_products)
     else:
-        return ""
+        recommend_keywords = ['best', 'recommend', 'suggest', 'which', 'kaunsa', 'konsa', 
+                              'photo', 'camera', 'video', 'good', 'device', 'help me', 'for me']
+        should_recommend = any(kw in message.lower() for kw in recommend_keywords)
+        
+        if should_recommend:
+            context_parts.append(f"TOP RECOMMENDED PRODUCTS (Current prices from database):")
+            context_parts.append(f"IMPORTANT: Use ONLY these starting prices. Do NOT use any other prices.\n")
+            
+            top_products = get_top_products_for_recommendations(category="iPhone", limit=10)
+            for p in top_products:
+                context_parts.append(f"  - {p['name']}")
+                context_parts.append(f"    Starting Price: Rs. {int(p['starting_price']):,} ({p.get('storage', '128 GB')}, {p.get('condition', 'Fair')})")
+                if p.get('product_url'):
+                    context_parts.append(f"    URL: {p['product_url']}")
+            
+            context_parts.append(f"\nNOTE: These are STARTING prices (lowest in-stock variant). Prices vary by storage and condition.")
+        elif is_price_query:
+            all_products = get_all_products_formatted()
+            context_parts.append(all_products)
+        else:
+            return ""
     
     context_parts.append("\n=== END PRODUCT DATABASE ===\n")
     
