@@ -1691,12 +1691,6 @@ CRITICAL PRICING AND SPECS INSTRUCTIONS:
 - MANDATORY: If SPECIFICATIONS are provided in the database context, you MUST include them in your response using bullet points
 - Copy the exact specs (Display, Processor, Camera, 5G, Design) - DO NOT say "not specified"
 
-PROACTIVE PRODUCT RECOMMENDATIONS (MANDATORY):
-- If user asks about products (even vaguely like "costly device", "cheap phone", "what do you have"), ALWAYS show relevant products with prices from PRODUCT DATABASE
-- DO NOT ask for clarification if product data is available - show products FIRST, then ask if they want more options
-- For "costly/expensive/premium" queries: show high-end products from PREMIUM section
-- For "cheap/sasta/budget" queries: show affordable products from CHEAPEST section
-
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
     messages = [{"role": "system", "content": augmented_system_prompt}]
@@ -1866,12 +1860,6 @@ CRITICAL PRICING AND SPECS INSTRUCTIONS:
 - Always include the product URL so users can purchase directly
 - MANDATORY: If SPECIFICATIONS are provided in the database context, you MUST include them in your response using bullet points
 - Copy the exact specs (Display, Processor, Camera, 5G, Design) - DO NOT say "not specified"
-
-PROACTIVE PRODUCT RECOMMENDATIONS (MANDATORY):
-- If user asks about products (even vaguely like "costly device", "cheap phone", "what do you have"), ALWAYS show relevant products with prices from PRODUCT DATABASE
-- DO NOT ask for clarification if product data is available - show products FIRST, then ask if they want more options
-- For "costly/expensive/premium" queries: show high-end products from PREMIUM section
-- For "cheap/sasta/budget" queries: show affordable products from CHEAPEST section
 
 IMPORTANT: Only use information from the context above. If the answer is not in the context, politely say you don't have that specific information and offer to help them contact us at https://grest.in/pages/contact-us"""
 
