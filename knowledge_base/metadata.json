@@ -16,7 +16,7 @@
       "chunks": 5
     }
   ],
-  "last_scrape": "2025-12-23T16:20:39.640683",
+  "last_scrape": "2025-12-24T09:13:13.428562",
   "page_hashes": {
     "https://grest.in": "ac2788cbd0de71df6b2a14245fb2e5d7",
     "https://grest.in/collections/iphones": "d6f194e23e0554f2ba0be247cf13838c",
@@ -28,7 +28,7 @@
     "https://grest.in/pages/warranty-policy": "89b1e6caa4116d168591675a8d1e069c",
     "https://grest.in/policies/refund-policy": "aadaebb6943e7ca4197733d01bb83930",
     "https://grest.in/policies/shipping-policy": "8082bd26e47f89388661d53973b8338f",
-    "https://grest.in/blogs/news": "aa84fe8ccfe7807c084761b5f4c0a716",
+    "https://grest.in/blogs/news": "3c85177e4af7f1cbf38aa9b8b975a669",
     "https://grest.in/blogs/news/how-much-storage-do-you-really-need-in-a-refurbished-iphone-64gb-vs-128gb-vs-256gb": "8f2031ef09baf7c28caeb93197318e14",
     "https://grest.in/blogs/news/why-refurbished-macbooks-are-a-smart-investment-for-freelancers-startups": "6f2cb9723c88341194b90410253c62e3",
     "https://grest.in/blogs/news/how-to-choose-the-best-refurbished-ipad-air-vs-mini-vs-pro-what-s-right-for-you": "c6f509ef309529ea0e2329916abe9179",
@@ -40,8 +40,8 @@
     "https://grest.in/collections/air-pods": "37570427b443e0fcb4671050eeae0fee",
     "https://grest.in/pages/christmas-page": "dbabae42dfdfc2f03a5279ba32c40f81",
     "https://grest.in/products/iphone-16": "b117d48e447949aa5dea6498620b706f",
+    "https://grest.in/blogs/news/refurbished-vs-second-hand-phones-difference": "05e7a4e981ac8f8dbc5d138b897d1f59",
     "https://grest.in/blogs/news/how-to-choose-refurbished-phone-2026-india": "690f2352b2f17db5e6371e50db372a61",
-    "https://grest.in/blogs/news/best-refurbished-iphone-deals-year-end-sale-2025": "f3442b7243f33cfbf9cf092f84af76c4",
     "https://grest.in/blogs/news/grest-phones-preferred-refurbished-choice-india": "1a1ae6998e61c6f1e54a1d8cec768163",
     "https://grest.in/blogs/news/best-iphones-to-buy-india-2025-holiday-new-year-sale": "60471b3afe50cb3ec63c59d2f3881a77",
     "https://grest.in/collections/mobile-phones": "9cb1e6db3941e98f6bf6fbef22c350cd",
@@ -59,11 +59,11 @@
     "https://grest.in/pages/shipping": "a7c3e9ef8b01e946e10a3146f22f52ed",
     "https://grest.in/pages/returns-refund-cancellation": "7bb0c16c1f11c4c881cabed9b30537c6",
     "https://grest.in/collections/iphones.atom": "175717a41259fe8d6091de41190fa455",
-    "https://grest.in/collections/iphones.oembed": "452ddab9c16616ba4bb1cb0102484781",
+    "https://grest.in/collections/iphones.oembed": "3dde71abe2314a774ac57eba6f2db1f8",
     "https://grest.in/products/iphone-16-pro-max": "42e2daccc74aa606393b5cdf17c22d7c",
     "https://grest.in/products/test": "42e2daccc74aa606393b5cdf17c22d7c",
     "https://grest.in/products/iphone-15-pro-max": "42e2daccc74aa606393b5cdf17c22d7c"
   },
   "website_pages": 45,
-  "website_chunks": 564
+  "website_chunks": 567
 }
