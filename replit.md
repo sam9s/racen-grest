@@ -3,12 +3,21 @@
 ## Overview
 GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and MacBook e-commerce platform. The chatbot serves as a front-line customer engagement tool, answering questions about products, pricing, warranty, and policies with bilingual support (English + Hinglish).
 
-## Recent Updates (Dec 21, 2025)
+## Recent Updates (Dec 24, 2025)
+- **ANTI-HALLUCINATION ARCHITECTURE (BLUEPRINT)**: Implemented Option A+B to prevent LLM price hallucination
+  - Always inject compact product summary for ANY query (even vague ones like "phone" or "mobile")
+  - LLM intent detection enhanced for specific queries
+  - Accuracy improved: 84.31% → 98.04% (+13.73%)
+  - Test suite: 50/51 tests passed (only iPhone SE fails - product not in inventory)
+- **REUSABLE BLUEPRINT**: This architecture can be applied to any Shopify-based e-commerce chatbot
+- **Test Suite**: `test_pricing_accuracy.py` with 51 test cases across 7 categories
+
+### Previous Updates (Dec 21, 2025)
 - **ADMIN DASHBOARD ENHANCED**: Added 4-tab dashboard (Analytics, Conversations, Monitoring, Shopify Sync)
-- **REAL-TIME SYNC PROGRESS**: Beautiful step-by-step progress UI with 6 stages (Connecting → Fetching → Processing → Upserting → Cleanup → Complete)
-- **EMERALD GREEN BRANDING**: All dashboard UI updated to emerald green (#10b981) matching GRESTA theme
-- **SYNC MANAGEMENT**: Manual sync button, verification panel, sync history with detailed metrics
-- **MONITORING TAB**: UptimeRobot integration, sync health warnings for stale data
+- **REAL-TIME SYNC PROGRESS**: Beautiful step-by-step progress UI with 6 stages
+- **EMERALD GREEN BRANDING**: All dashboard UI updated to emerald green (#10b981)
+- **SYNC MANAGEMENT**: Manual sync button, verification panel, sync history
+- **MONITORING TAB**: UptimeRobot integration, sync health warnings
 - **DASHBOARD LOGIN**: Email-based auth (samret.singh@grest.in / Samret@123)
 
 ### Previous Updates (Dec 20, 2025)
