@@ -30,7 +30,8 @@ from database import (
     search_products_by_category,
     get_db_session,
     GRESTProduct,
-    get_top_products_for_recommendations
+    get_top_products_for_recommendations,
+    get_premium_products
 )
 
 _openai_client = None
@@ -845,6 +846,21 @@ def get_product_context_from_database(message: str, session_id: str = None) -> s
     parsed_model, parsed_storage, parsed_condition = detect_variant_query(message)
     is_price_query, max_price, min_price, category = detect_price_query(message)
     
+    parsed_intent = parse_query_with_llm(message)
+    llm_category = parsed_intent.get('category')
+    is_cheapest = parsed_intent.get('is_cheapest_query', False)
+    query_type = parsed_intent.get('query_type', 'other')
+    
+    if not category and llm_category:
+        category = llm_category
+    
+    msg_lower = message.lower()
+    if not category:
+        if any(kw in msg_lower for kw in ['mobile', 'phone', 'iphone', 'smartphone']):
+            category = 'iPhone'
+        elif any(kw in msg_lower for kw in ['laptop', 'macbook', 'mac']):
+            category = 'MacBook'
+    
     # Merge with session context for multi-turn conversations
     if session_id:
         model_name, storage, condition, _ = merge_with_session_context(
@@ -913,14 +929,26 @@ def get_product_context_from_database(message: str, session_id: str = None) -> s
             context_parts.append(f"*** YOU MUST SAY: 'Sorry, {model_name} is not currently available. Check grest.in for latest inventory.' ***")
             context_parts.append(f"DO NOT guess price. DO NOT use training data.")
     
-    elif 'sasta' in message.lower() or 'cheapest' in message.lower() or 'lowest' in message.lower():
-        cheapest = get_cheapest_product(category)
+    elif is_cheapest or 'sasta' in msg_lower or 'cheapest' in msg_lower or 'lowest' in msg_lower or 'cheap' in msg_lower or 'low budget' in msg_lower or 'budget' in msg_lower:
+        search_category = category if category else 'iPhone'
+        cheapest = get_cheapest_product(search_category)
         if cheapest:
-            context_parts.append(f"CHEAPEST {'iPhone' if category == 'iPhone' else 'Product'}:")
+            label = 'iPhone' if search_category == 'iPhone' else ('MacBook' if search_category == 'MacBook' else 'Product')
+            context_parts.append(f"CHEAPEST {label} AVAILABLE:")
             context_parts.append(f"  - {cheapest['name']}: Rs. {int(cheapest['price']):,}")
+            context_parts.append(f"    Storage: {cheapest.get('storage', 'N/A')}")
+            context_parts.append(f"    Condition: {cheapest.get('condition', 'N/A')}")
             context_parts.append(f"    URL: {cheapest['product_url']}")
             if cheapest.get('image_url'):
                 context_parts.append(f"    IMAGE: {cheapest['image_url']}")
+            
+            top_budget = get_top_products_for_recommendations(category=search_category, limit=5)
+            if top_budget:
+                context_parts.append(f"\nOTHER AFFORDABLE {label}S (sorted by price):")
+                for p in top_budget:
+                    context_parts.append(f"  - {p['name']}: Starting Rs. {int(p['starting_price']):,}")
+                    if p.get('product_url'):
+                        context_parts.append(f"    URL: {p['product_url']}")
     
     elif min_price and max_price:
         products = get_products_in_price_range(min_price, max_price, category)
@@ -963,15 +991,35 @@ def get_product_context_from_database(message: str, session_id: str = None) -> s
                 context_parts.append(f"Cheapest option: {cheapest['name']} at Rs. {int(cheapest['price']):,}")
     
     else:
+        expensive_keywords = ['costly', 'expensive', 'premium', 'high end', 'high-end', 'flagship', 'mehenga', 'mehnga']
+        is_expensive_query = any(kw in msg_lower for kw in expensive_keywords)
+        
+        list_all_keywords = ['kya hai', 'kya h', 'kya hain', 'aapke pass', 'tumhare pass', 'available', 
+                             'sab', 'all', 'list', 'show all', 'show me', 'dikhao', 'batao']
+        is_list_all_query = any(kw in msg_lower for kw in list_all_keywords)
+        
         recommend_keywords = ['best', 'recommend', 'suggest', 'which', 'kaunsa', 'konsa', 
                               'photo', 'camera', 'video', 'good', 'device', 'help me', 'for me']
-        should_recommend = any(kw in message.lower() for kw in recommend_keywords)
+        should_recommend = any(kw in msg_lower for kw in recommend_keywords)
         
-        if should_recommend:
+        if is_expensive_query:
+            context_parts.append(f"PREMIUM/HIGH-END PRODUCTS (Current prices from database):")
+            context_parts.append(f"IMPORTANT: Use ONLY these prices. Do NOT use any other prices.\n")
+            
+            premium_products = get_premium_products(category=category, limit=8)
+            for p in premium_products:
+                context_parts.append(f"  - {p['name']}")
+                context_parts.append(f"    Starting Price: Rs. {int(p['starting_price']):,}")
+                if p.get('product_url'):
+                    context_parts.append(f"    URL: {p['product_url']}")
+            
+            context_parts.append(f"\nNOTE: These are STARTING prices for premium models.")
+        elif is_list_all_query or should_recommend:
             context_parts.append(f"TOP RECOMMENDED PRODUCTS (Current prices from database):")
             context_parts.append(f"IMPORTANT: Use ONLY these starting prices. Do NOT use any other prices.\n")
             
-            top_products = get_top_products_for_recommendations(category="iPhone", limit=10)
+            search_cat = category if category else "iPhone"
+            top_products = get_top_products_for_recommendations(category=search_cat, limit=10)
             for p in top_products:
                 context_parts.append(f"  - {p['name']}")
                 context_parts.append(f"    Starting Price: Rs. {int(p['starting_price']):,} ({p.get('storage', '128 GB')}, {p.get('condition', 'Fair')})")

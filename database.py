@@ -1167,3 +1167,70 @@ def get_top_products_for_recommendations(category: str = "iPhone", limit: int = 
                     break
         
         return unique_products
+
+
+def get_premium_products(category: str = None, limit: int = 8):
+    """
+    Get premium/high-end products sorted by highest price first.
+    For "costly device" type queries.
+    
+    Args:
+        category: "iPhone" or "MacBook" or None for all
+        limit: Number of distinct models to return
+    
+    Returns:
+        List of premium products with their starting prices
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        from sqlalchemy import func
+        
+        query = db.query(
+            GRESTProduct.name,
+            func.min(GRESTProduct.price).label('min_price'),
+            func.max(GRESTProduct.price).label('max_price'),
+            func.min(GRESTProduct.storage).label('storage'),
+            func.min(GRESTProduct.condition).label('condition'),
+            func.min(GRESTProduct.product_url).label('product_url'),
+            func.min(GRESTProduct.image_url).label('image_url')
+        ).filter(
+            GRESTProduct.in_stock == True
+        )
+        
+        if category:
+            query = query.filter(GRESTProduct.category.ilike(f"%{category}%"))
+        else:
+            query = query.filter(
+                (GRESTProduct.category.ilike('%iPhone%')) | 
+                (GRESTProduct.category.ilike('%MacBook%'))
+            )
+        
+        query = query.group_by(GRESTProduct.name)
+        query = query.order_by(func.min(GRESTProduct.price).desc())
+        
+        results = query.limit(limit * 3).all()
+        
+        seen_base_models = set()
+        unique_products = []
+        
+        for r in results:
+            import re
+            base_model = re.sub(r'\s+(Fair|Good|Superb|128|256|512|64|1TB|GB|TB).*', '', r.name, flags=re.IGNORECASE).strip()
+            
+            if base_model not in seen_base_models:
+                seen_base_models.add(base_model)
+                unique_products.append({
+                    'name': r.name.split(' - ')[0] if ' - ' in r.name else r.name,
+                    'starting_price': float(r.min_price),
+                    'storage': r.storage,
+                    'condition': r.condition,
+                    'product_url': r.product_url,
+                    'image_url': r.image_url
+                })
+                
+                if len(unique_products) >= limit:
+                    break
+        
+        return unique_products
