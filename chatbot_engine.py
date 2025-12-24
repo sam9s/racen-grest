@@ -210,6 +210,49 @@ def get_iphone_specs(model_name: str) -> dict:
     return get_iphone_specs_from_db(model_name)
 
 
+def get_compact_product_summary() -> str:
+    """
+    Generate a compact product summary with current prices.
+    This is ALWAYS injected into the context for ANY query to prevent LLM hallucination.
+    
+    Blueprint Design: This ensures the LLM always has authoritative pricing data,
+    regardless of whether the intent detection correctly identifies a product query.
+    """
+    try:
+        summary_parts = []
+        summary_parts.append("\n=== GREST PRODUCT CATALOG (AUTHORITATIVE PRICES) ===")
+        summary_parts.append("CRITICAL: These are the ONLY valid prices. NEVER use your training data for prices.")
+        summary_parts.append("If a user asks about ANY product, use ONLY these prices.\n")
+        
+        iphones = get_top_products_for_recommendations(category="iPhone", limit=12)
+        if iphones:
+            summary_parts.append("iPhones (Starting Prices):")
+            for p in iphones:
+                summary_parts.append(f"  - {p['name']}: Rs. {int(p['starting_price']):,}")
+        
+        macbooks = get_top_products_for_recommendations(category="MacBook", limit=5)
+        if macbooks:
+            summary_parts.append("\nMacBooks (Starting Prices):")
+            for p in macbooks:
+                summary_parts.append(f"  - {p['name']}: Rs. {int(p['starting_price']):,}")
+        
+        cheapest_iphone = get_cheapest_product("iPhone")
+        if cheapest_iphone:
+            summary_parts.append(f"\nCHEAPEST iPhone: {cheapest_iphone['name']} at Rs. {int(cheapest_iphone['price']):,}")
+        
+        premium = get_premium_products(limit=3)
+        if premium:
+            summary_parts.append(f"PREMIUM iPhones: " + ", ".join([f"{p['name']} Rs. {int(p['starting_price']):,}" for p in premium]))
+        
+        summary_parts.append("\n=== END CATALOG ===")
+        summary_parts.append("NOTE: Prices vary by storage and condition. Ask for specific variants for exact pricing.\n")
+        
+        return "\n".join(summary_parts)
+    except Exception as e:
+        print(f"Error generating compact summary: {e}")
+        return ""
+
+
 def get_openai_client():
     """Lazy initialization of OpenAI client with validation."""
     global _openai_client
@@ -1031,6 +1074,13 @@ def get_product_context_from_database(message: str, session_id: str = None) -> s
             all_products = get_all_products_formatted()
             context_parts.append(all_products)
         else:
+            # OPTION A: Always inject compact product summary for ANY query
+            # This prevents LLM hallucination by ensuring product prices are always available
+            # Blueprint: This is the key architectural decision for e-commerce chatbots
+            compact_summary = get_compact_product_summary()
+            if compact_summary:
+                return compact_summary
+            # If compact summary fails, still return empty rather than crash
             return ""
     
     context_parts.append("\n=== END PRODUCT DATABASE ===\n")
