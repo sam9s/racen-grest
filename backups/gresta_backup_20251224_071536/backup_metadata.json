@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-12-24T07:16:05.227545",
+  "source": "GRESTA UAT",
+  "product_count": "unknown",
+  "files": [
+    "postgres_backup.sql",
+    "chroma_db"
+  ]
+}
