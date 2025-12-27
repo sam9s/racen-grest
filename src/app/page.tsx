@@ -29,7 +29,7 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, captchaAnswer?: string) => {
     if (!content.trim() || isLoading) return;
 
     const userMessage: Message = {
@@ -39,27 +39,61 @@ export default function Home() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    if (!captchaAnswer) {
+      setMessages((prev) => [...prev, userMessage]);
+    }
     setIsLoading(true);
 
     const assistantMessageId = `msg_${Date.now()}_assistant`;
 
     try {
+      const requestBody: Record<string, unknown> = {
+        message: content.trim(),
+        session_id: sessionId,
+        conversation_history: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        user: null,
+      };
+      
+      if (captchaAnswer) {
+        requestBody.captcha_answer = captchaAnswer;
+      }
+
       const response = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message: content.trim(),
-          session_id: sessionId,
-          conversation_history: messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-          user: null,
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      if (response.status === 429) {
+        const errorData = await response.json();
+        if (errorData.captcha_required && errorData.captcha) {
+          const userAnswer = prompt(errorData.captcha.question);
+          if (userAnswer) {
+            setIsLoading(false);
+            await sendMessage(content, userAnswer);
+            return;
+          }
+        }
+        throw new Error(errorData.error || 'Too many requests. Please wait.');
+      }
+
+      if (response.status === 400) {
+        const errorData = await response.json();
+        if (errorData.captcha_failed) {
+          const userAnswer = prompt('Incorrect answer. Please try again: What is the sum?');
+          if (userAnswer) {
+            setIsLoading(false);
+            await sendMessage(content, userAnswer);
+            return;
+          }
+        }
+        throw new Error(errorData.error || 'Request failed');
+      }
 
       if (!response.ok) {
         throw new Error('Stream request failed');

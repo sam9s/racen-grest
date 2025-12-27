@@ -24,6 +24,7 @@ from conversation_logger import log_feedback, log_conversation, ensure_session_e
 from database import get_or_create_user, get_user_conversation_history, get_conversation_summary, upsert_conversation_summary
 from knowledge_base import initialize_knowledge_base, get_knowledge_base_stats
 from sync_manager import start_sync_manager, get_sync_manager
+from rate_limiter import rate_limiter, get_client_ip
 
 app = Flask(__name__)
 CORS(app)
@@ -163,6 +164,22 @@ def api_chat():
     
     message = data.get("message")
     session_id = data.get("session_id", "anonymous")
+    
+    client_ip = get_client_ip(request)
+    
+    captcha_answer = data.get("captcha_answer")
+    if captcha_answer:
+        if not rate_limiter.verify_captcha(session_id, captcha_answer):
+            return jsonify({"error": "Incorrect answer", "captcha_failed": True}), 400
+    
+    allowed, reason, captcha = rate_limiter.check_rate_limit(client_ip, session_id)
+    if not allowed:
+        if captcha:
+            return jsonify({"error": reason, "captcha_required": True, "captcha": captcha}), 429
+        return jsonify({"error": reason, "rate_limited": True}), 429
+    
+    rate_limiter.log_request(client_ip, session_id, "/api/chat", message[:50] if message else "")
+    rate_limiter.record_request(client_ip, session_id)
     conversation_history = data.get("conversation_history", [])
     
     is_trusted_request = validate_internal_api_key()
@@ -290,6 +307,23 @@ def api_chat_stream():
     
     message = data.get("message")
     session_id = data.get("session_id", "anonymous")
+    
+    client_ip = get_client_ip(request)
+    
+    captcha_answer = data.get("captcha_answer")
+    if captcha_answer:
+        if not rate_limiter.verify_captcha(session_id, captcha_answer):
+            return jsonify({"error": "Incorrect answer", "captcha_failed": True}), 400
+    
+    allowed, reason, captcha = rate_limiter.check_rate_limit(client_ip, session_id)
+    if not allowed:
+        if captcha:
+            return jsonify({"error": reason, "captcha_required": True, "captcha": captcha}), 429
+        return jsonify({"error": reason, "rate_limited": True}), 429
+    
+    rate_limiter.log_request(client_ip, session_id, "/api/chat/stream", message[:50] if message else "")
+    rate_limiter.record_request(client_ip, session_id)
+    
     conversation_history = data.get("conversation_history", [])
     
     is_trusted_request = validate_internal_api_key()
@@ -439,6 +473,7 @@ def api_chat_manychat():
     message = data.get("message", "").strip()
     user_id = data.get("user_id", "anonymous")
     first_name = data.get("first_name", "")
+    session_id = f"manychat_{user_id}"
     
     if not message:
         return jsonify({
@@ -450,7 +485,21 @@ def api_chat_manychat():
             }
         })
     
-    session_id = f"manychat_{user_id}"
+    client_ip = get_client_ip(request)
+    
+    allowed, reason, captcha = rate_limiter.check_rate_limit(client_ip, session_id)
+    if not allowed:
+        return jsonify({
+            "version": "v2",
+            "content": {
+                "messages": [{"type": "text", "text": f"Please slow down. {reason}"}],
+                "actions": [],
+                "quick_replies": []
+            }
+        })
+    
+    rate_limiter.log_request(client_ip, session_id, "/api/chat/manychat", message[:50] if message else "")
+    rate_limiter.record_request(client_ip, session_id)
     
     original_message = message
     message = fix_typos_with_llm(message)
@@ -1248,6 +1297,24 @@ def admin_monitoring():
     except Exception as e:
         print(f"Monitoring error: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/rate-limiter/stats", methods=["GET"])
+def rate_limiter_stats():
+    """Get rate limiter statistics for monitoring."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    return jsonify(rate_limiter.get_stats())
+
+
+@app.route("/api/admin/rate-limiter/ip/<ip>", methods=["GET"])
+def rate_limiter_ip_activity(ip):
+    """Get rate limiter activity for a specific IP."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    return jsonify(rate_limiter.get_ip_activity(ip))
 
 
 if __name__ == "__main__":

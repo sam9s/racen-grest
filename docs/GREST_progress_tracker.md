@@ -58,6 +58,27 @@
 - [x] Automatic Shopify product sync
 - [x] Sync logs captured in database
 
+### Phase 8: Security Implementation (Dec 27, 2025)
+- [x] **Rate Limiter Module**: `rate_limiter.py` with IP-based throttling
+- [x] **Thresholds Configured**:
+  - 10 requests/minute (soft limit)
+  - 50 requests/hour (10-minute block)
+  - 100 requests/day (24-hour block)
+  - CAPTCHA after 20 messages per session
+- [x] **Protected Endpoints**:
+  - `/api/chat` - Direct chat API
+  - `/api/chat/stream` - Streaming chat (SSE)
+  - `/api/chat/manychat` - ManyChat/Instagram integration
+- [x] **Frontend CAPTCHA Handling**: 429 response triggers math CAPTCHA prompt
+- [x] **Monitoring Endpoints**:
+  - `/api/admin/rate-limiter/stats` - View active IPs, blocked IPs, pending CAPTCHAs
+  - `/api/admin/rate-limiter/ip/<ip>` - Check specific IP activity
+- [x] **Protects Against**:
+  - DDoS attacks (API flooding)
+  - API cost abuse (OpenAI credit drain)
+  - Automated scripts and bots
+- [x] **Test Verified**: Rate limiting blocks 10th request correctly
+
 ---
 
 ## Current Status
@@ -69,6 +90,7 @@
 | Database | Synced (2,205 variants) |
 | Dashboard | Operational |
 | Auto-Sync | Running (6-hour intervals) |
+| Rate Limiter | Active (10 req/min limit) |
 | Uptime | 99.9% guaranteed (Reserved VM) |
 
 ### Recent Conversations
