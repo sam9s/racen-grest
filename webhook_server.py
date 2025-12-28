@@ -154,6 +154,19 @@ def validate_internal_api_key():
     return provided_key == expected_key
 
 
+@app.route("/debug/headers", methods=["GET", "POST"])
+def debug_headers():
+    """Temporary debug endpoint to see what headers arrive - DELETE AFTER DEBUGGING."""
+    client_ip = get_client_ip(request)
+    return jsonify({
+        "client_ip_detected": client_ip,
+        "x_forwarded_for": request.headers.get('X-Forwarded-For'),
+        "x_real_ip": request.headers.get('X-Real-IP'),
+        "remote_addr": request.remote_addr,
+        "all_headers": dict(request.headers)
+    })
+
+
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     """Direct API endpoint for chat integration - used by React frontend."""
@@ -307,6 +320,12 @@ def api_chat_stream():
     
     message = data.get("message")
     session_id = data.get("session_id", "anonymous")
+    
+    # DEBUG: Log all headers to diagnose IP forwarding in production
+    print(f"[DEBUG HEADERS] X-Forwarded-For: {request.headers.get('X-Forwarded-For')}")
+    print(f"[DEBUG HEADERS] X-Real-IP: {request.headers.get('X-Real-IP')}")
+    print(f"[DEBUG HEADERS] remote_addr: {request.remote_addr}")
+    print(f"[DEBUG HEADERS] All headers: {dict(request.headers)}")
     
     client_ip = get_client_ip(request)
     
