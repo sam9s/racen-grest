@@ -58,7 +58,7 @@
 - [x] Automatic Shopify product sync
 - [x] Sync logs captured in database
 
-### Phase 8: Security Implementation (Dec 27, 2025)
+### Phase 8: Security Implementation (Dec 27-28, 2025)
 - [x] **Rate Limiter Module**: `rate_limiter.py` with IP-based throttling
 - [x] **Thresholds Configured**:
   - 10 requests/minute (soft limit)
@@ -68,7 +68,7 @@
 - [x] **Protected Endpoints**:
   - `/api/chat` - Direct chat API
   - `/api/chat/stream` - Streaming chat (SSE)
-  - `/api/chat/manychat` - ManyChat/Instagram integration
+  - `/api/chat/manychat` - ManyChat/Instagram integration (greeting exempt)
 - [x] **Frontend CAPTCHA Handling**: 429 response triggers math CAPTCHA prompt
 - [x] **Monitoring Endpoints**:
   - `/api/admin/rate-limiter/stats` - View active IPs, blocked IPs, pending CAPTCHAs
@@ -77,7 +77,48 @@
   - DDoS attacks (API flooding)
   - API cost abuse (OpenAI credit drain)
   - Automated scripts and bots
-- [x] **Test Verified**: Rate limiting blocks 10th request correctly
+- [x] **Test Verified**: Rate limiting blocks at 11th request, 17 test messages saved to database
+
+#### Rate Limit Reset Timing
+| Limit | Threshold | Reset Behavior |
+|-------|-----------|----------------|
+| Per Minute | 10 requests | Resets after **1 minute** from first request |
+| Per Hour | 50 requests | If exceeded → **10-minute block**, then resets |
+| Per Day | 100 requests | If exceeded → **24-hour block** |
+
+#### Layered Security Architecture
+```
+Request Received
+       ↓
+┌──────────────────────────────────────────┐
+│ Layer 1: Rate Limit Check                │
+│ - 10 requests/minute per IP              │
+│ - 50 requests/hour per IP                │
+│ - 100 requests/day per IP                │
+│ If exceeded → 429 "Too many requests"    │
+└──────────────────────────────────────────┘
+       ↓ (if passed)
+┌──────────────────────────────────────────┐
+│ Layer 2: CAPTCHA Check                   │
+│ - Triggers after 20 messages in session  │
+│ - Math CAPTCHA (e.g., "What is 7 + 5?")  │
+│ - Resets after successful solve          │
+└──────────────────────────────────────────┘
+       ↓ (if passed or solved)
+┌──────────────────────────────────────────┐
+│ Layer 3: Process Message                 │
+│ - LLM generates response                 │
+│ - Conversation saved to database         │
+└──────────────────────────────────────────┘
+```
+
+#### Use Case Scenarios
+| Scenario | Behavior |
+|----------|----------|
+| **Rapid spam** (10+ messages in under 1 min) | Blocked at 11th message, wait 1 minute to resume |
+| **Slow but persistent** (under 10/min) | CAPTCHA triggers at 21st message |
+| **Bot attack** (100+ requests/day) | 24-hour IP block |
+| **Normal user** (occasional queries) | No interruption, smooth experience |
 
 ---
 
