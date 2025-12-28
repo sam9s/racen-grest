@@ -4,10 +4,6 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/chat/:path*',
-        destination: 'http://localhost:8080/api/chat/:path*',
-      },
-      {
         source: '/api/feedback/:path*',
         destination: 'http://localhost:8080/api/feedback/:path*',
       },

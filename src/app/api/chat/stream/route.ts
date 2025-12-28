@@ -44,6 +44,11 @@ export async function POST(request: NextRequest) {
     
     const session = await getServerSession(authOptions);
     
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
+      || request.headers.get('x-real-ip') 
+      || request.ip 
+      || '127.0.0.1';
+    
     const secureBody = {
       ...body,
       verified_user: session?.user ? {
@@ -59,6 +64,8 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'X-Internal-Api-Key': process.env.INTERNAL_API_KEY || '',
+        'X-Forwarded-For': clientIp,
+        'X-Real-IP': clientIp,
       },
       body: JSON.stringify(secureBody),
     });
