@@ -16,19 +16,19 @@
       "chunks": 5
     }
   ],
-  "last_scrape": "2025-12-26T09:12:51.521376",
+  "last_scrape": "2025-12-27T23:49:45.226077",
   "page_hashes": {
     "https://grest.in": "ac2788cbd0de71df6b2a14245fb2e5d7",
     "https://grest.in/collections/iphones": "d6f194e23e0554f2ba0be247cf13838c",
     "https://grest.in/collections/macbook": "0f5ba9f27f67f262c8453768b0346af8",
-    "https://grest.in/collections/all": "0cae94e13688989563fe032a1f632760",
+    "https://grest.in/collections/all": "8126858c74129fffe1c53eb967dbba8f",
     "https://grest.in/pages/about": "3e2c355bf102b0c9231b24c31f88eda3",
     "https://grest.in/pages/faqs": "77aa562fab647f572f8ad3454372b786",
     "https://grest.in/pages/contact-us": "117e2d4cc157332731246e49c6329b63",
     "https://grest.in/pages/warranty-policy": "89b1e6caa4116d168591675a8d1e069c",
     "https://grest.in/policies/refund-policy": "aadaebb6943e7ca4197733d01bb83930",
     "https://grest.in/policies/shipping-policy": "8082bd26e47f89388661d53973b8338f",
-    "https://grest.in/blogs/news": "8049ec0864789c505ab71d772d14cdcc",
+    "https://grest.in/blogs/news": "d5f67569bb153f65b29db560fd320980",
     "https://grest.in/blogs/news/how-much-storage-do-you-really-need-in-a-refurbished-iphone-64gb-vs-128gb-vs-256gb": "8f2031ef09baf7c28caeb93197318e14",
     "https://grest.in/blogs/news/why-refurbished-macbooks-are-a-smart-investment-for-freelancers-startups": "6f2cb9723c88341194b90410253c62e3",
     "https://grest.in/blogs/news/how-to-choose-the-best-refurbished-ipad-air-vs-mini-vs-pro-what-s-right-for-you": "c6f509ef309529ea0e2329916abe9179",
@@ -40,12 +40,12 @@
     "https://grest.in/collections/air-pods": "37570427b443e0fcb4671050eeae0fee",
     "https://grest.in/pages/christmas-page": "dbabae42dfdfc2f03a5279ba32c40f81",
     "https://grest.in/products/iphone-16": "42e2daccc74aa606393b5cdf17c22d7c",
-    "https://grest.in/blogs/news/lowest-price-iphone-india-without-sales": "7fdc601f2e36e643824e3823ef4d757a",
-    "https://grest.in/blogs/news/best-refurbished-phones-2026-india": "f4bafb2cc7b5c2aa900b137751feca5f",
-    "https://grest.in/blogs/news/refurbished-vs-second-hand-phones-difference": "05e7a4e981ac8f8dbc5d138b897d1f59",
+    "https://grest.in/blogs/news/refurbished-vs-new-iphone-2026-guide": "4d386a5261d27bf13366964a7140f08f",
+    "https://grest.in/blogs/news/lowest-price-iphone-india-without-sales": "bfb7b0244e8e2893e311893b9eb86a1f",
+    "https://grest.in/blogs/news/best-refurbished-phones-2026-india": "06055f87818c24ac7dc3d84a370f3cc2",
+    "https://grest.in/blogs/news/refurbished-vs-second-hand-phones-difference": "b04f4b06c95539282b406dcad16a0eff",
     "https://grest.in/blogs/news/how-to-choose-refurbished-phone-2026-india": "690f2352b2f17db5e6371e50db372a61",
-    "https://grest.in/blogs/news/refurbished-vs-second-hand-phones-difference-1": "11a2b38e46a8c0a5d28c528eb6dc68d5",
-    "https://grest.in/blogs/news/grest-phones-preferred-refurbished-choice-india": "1a1ae6998e61c6f1e54a1d8cec768163",
+    "https://grest.in/blogs/news/best-refurbished-iphone-deals-year-end-sale-2025": "63d9ca09dc436858b57e21e590a99fb7",
     "https://grest.in/collections/mobile-phones": "9cb1e6db3941e98f6bf6fbef22c350cd",
     "https://grest.in/collections/Wearables": "37570427b443e0fcb4671050eeae0fee",
     "https://grest.in/collections/refurbished-apple-iphone-11": "42d63aa98f415885619a93e47b9a3f66",
@@ -61,9 +61,9 @@
     "https://grest.in/pages/shipping": "a7c3e9ef8b01e946e10a3146f22f52ed",
     "https://grest.in/pages/returns-refund-cancellation": "7bb0c16c1f11c4c881cabed9b30537c6",
     "https://grest.in/collections/iphones.atom": "ba294eebffcb64e051db12f4ac13e010",
-    "https://grest.in/collections/iphones.oembed": "bf775a527b023428388644dcd161f3c5",
+    "https://grest.in/collections/iphones.oembed": "8810129bddcde9d55c7ce192d9c953d6",
     "https://grest.in/products/iphone-16-pro-max": "42e2daccc74aa606393b5cdf17c22d7c"
   },
   "website_pages": 45,
-  "website_chunks": 589
+  "website_chunks": 588
 }
