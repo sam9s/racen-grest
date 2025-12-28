@@ -167,6 +167,19 @@ def debug_headers():
     })
 
 
+@app.route("/debug/ratelimit", methods=["GET"])
+def debug_ratelimit():
+    """Temporary debug endpoint to see rate limiter state - DELETE AFTER DEBUGGING."""
+    client_ip = get_client_ip(request)
+    return jsonify({
+        "your_ip": client_ip,
+        "your_activity": rate_limiter.get_ip_activity(client_ip),
+        "global_stats": rate_limiter.get_stats(),
+        "all_tracked_ips": list(rate_limiter.ip_requests.keys())[:20],
+        "recent_logs": rate_limiter.ip_log[-10:] if rate_limiter.ip_log else []
+    })
+
+
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     """Direct API endpoint for chat integration - used by React frontend."""
@@ -337,8 +350,8 @@ def api_chat_stream():
     allowed, reason, captcha = rate_limiter.check_rate_limit(client_ip, session_id)
     if not allowed:
         if captcha:
-            return jsonify({"error": reason, "captcha_required": True, "captcha": captcha}), 429
-        return jsonify({"error": reason, "rate_limited": True}), 429
+            return jsonify({"error": reason, "captcha_required": True, "captcha": captcha, "debug_ip": client_ip}), 429
+        return jsonify({"error": reason, "rate_limited": True, "debug_ip": client_ip, "debug_stats": rate_limiter.get_ip_activity(client_ip)}), 429
     
     rate_limiter.log_request(client_ip, session_id, "/api/chat/stream", message[:50] if message else "")
     rate_limiter.record_request(client_ip, session_id)
