@@ -260,6 +260,7 @@ class RateLimiter:
     def check_rate_limit(self, ip: str, session_id: str = None) -> Tuple[bool, str, Optional[dict]]:
         """
         Check if the request should be allowed.
+        Uses a single database connection for all checks.
         
         Returns:
             Tuple of (allowed, reason, captcha_challenge)
@@ -267,49 +268,134 @@ class RateLimiter:
             - reason: Human-readable reason if blocked
             - captcha_challenge: If not None, user must solve this first
         """
-        is_blocked, block_until = self._is_ip_blocked(ip)
-        if is_blocked and block_until:
-            remaining = (block_until - datetime.utcnow()).seconds // 60
-            logger.warning(f"[Blocked] IP={ip} blocked for {remaining} more minutes")
-            return False, f"Too many requests. Please try again in {remaining} minutes.", None
+        conn = get_db_connection()
+        if not conn:
+            return True, "", None
         
-        minute_count = self._count_requests_in_window(ip, 60)
-        if minute_count >= self.requests_per_minute:
-            logger.warning(f"[Rate Limit] IP={ip} exceeded {self.requests_per_minute}/min limit")
-            return False, "Too many requests. Please wait a minute before trying again.", None
-        
-        hour_count = self._count_requests_in_window(ip, 3600)
-        if hour_count >= self.requests_per_hour:
-            block_until = datetime.utcnow() + self.block_duration
-            self._block_ip(ip, block_until, f"Exceeded {self.requests_per_hour}/hour limit")
-            logger.warning(f"[Rate Limit] IP={ip} exceeded {self.requests_per_hour}/hour limit, blocked for {self.block_duration}")
-            return False, f"Rate limit exceeded. Please try again in {self.block_duration.seconds // 60} minutes.", None
-        
-        day_count = self._count_requests_in_window(ip, 86400)
-        if day_count >= self.requests_per_day:
-            block_until = datetime.utcnow() + timedelta(hours=24)
-            self._block_ip(ip, block_until, f"Exceeded {self.requests_per_day}/day limit")
-            logger.warning(f"[Rate Limit] IP={ip} exceeded {self.requests_per_day}/day limit, blocked for 24 hours")
-            return False, "Daily limit reached. Please try again tomorrow.", None
-        
-        if session_id:
-            session_count = self._count_session_messages_in_day(session_id)
-            
-            if session_count >= self.session_daily_limit:
-                logger.warning(f"[Session Limit] Session={session_id[:16]}... exceeded {self.session_daily_limit} messages in 24h")
-                return False, "You've had a great conversation today! For more help, please contact support@grest.in or visit grest.in", None
-            
-            messages_since_captcha = self._count_messages_since_captcha(session_id)
-            if messages_since_captcha >= self.captcha_threshold:
-                pending = self._get_pending_captcha(session_id)
-                if pending:
-                    return False, "Please solve the verification challenge to continue.", {"type": "math", "question": pending['question']}
-                else:
-                    captcha = self._generate_captcha(session_id)
-                    logger.info(f"[CAPTCHA] Triggered for session={session_id[:16]}... (count={messages_since_captcha})")
-                    return False, "Please verify you're human to continue.", captcha
-        
-        return True, "", None
+        try:
+            with conn.cursor() as cur:
+                now = datetime.utcnow()
+                
+                cur.execute(
+                    "SELECT blocked_until FROM rate_limit_blocks WHERE ip_address = %s",
+                    (ip,)
+                )
+                block_result = cur.fetchone()
+                if block_result and block_result['blocked_until'] > now:
+                    remaining = (block_result['blocked_until'] - now).seconds // 60
+                    logger.warning(f"[Blocked] IP={ip} blocked for {remaining} more minutes")
+                    return False, f"Too many requests. Please try again in {remaining} minutes.", None
+                elif block_result:
+                    cur.execute("DELETE FROM rate_limit_blocks WHERE ip_address = %s", (ip,))
+                    conn.commit()
+                
+                minute_ago = now - timedelta(seconds=60)
+                hour_ago = now - timedelta(hours=1)
+                day_ago = now - timedelta(hours=24)
+                
+                cur.execute(
+                    """SELECT 
+                        COUNT(*) FILTER (WHERE created_at > %s) as minute_count,
+                        COUNT(*) FILTER (WHERE created_at > %s) as hour_count,
+                        COUNT(*) as day_count
+                       FROM rate_limit_requests 
+                       WHERE ip_address = %s AND created_at > %s""",
+                    (minute_ago, hour_ago, ip, day_ago)
+                )
+                ip_counts = cur.fetchone()
+                minute_count = ip_counts['minute_count'] if ip_counts else 0
+                hour_count = ip_counts['hour_count'] if ip_counts else 0
+                day_count = ip_counts['day_count'] if ip_counts else 0
+                
+                if minute_count >= self.requests_per_minute:
+                    logger.warning(f"[Rate Limit] IP={ip} exceeded {self.requests_per_minute}/min limit")
+                    return False, "Too many requests. Please wait a minute before trying again.", None
+                
+                if hour_count >= self.requests_per_hour:
+                    block_until = now + self.block_duration
+                    cur.execute(
+                        """INSERT INTO rate_limit_blocks (ip_address, blocked_until, reason) 
+                           VALUES (%s, %s, %s) 
+                           ON CONFLICT (ip_address) DO UPDATE SET blocked_until = %s, reason = %s""",
+                        (ip, block_until, f"Exceeded {self.requests_per_hour}/hour limit", block_until, f"Exceeded {self.requests_per_hour}/hour limit")
+                    )
+                    conn.commit()
+                    logger.warning(f"[Rate Limit] IP={ip} exceeded {self.requests_per_hour}/hour limit, blocked for {self.block_duration}")
+                    return False, f"Rate limit exceeded. Please try again in {self.block_duration.seconds // 60} minutes.", None
+                
+                if day_count >= self.requests_per_day:
+                    block_until = now + timedelta(hours=24)
+                    cur.execute(
+                        """INSERT INTO rate_limit_blocks (ip_address, blocked_until, reason) 
+                           VALUES (%s, %s, %s) 
+                           ON CONFLICT (ip_address) DO UPDATE SET blocked_until = %s, reason = %s""",
+                        (ip, block_until, f"Exceeded {self.requests_per_day}/day limit", block_until, f"Exceeded {self.requests_per_day}/day limit")
+                    )
+                    conn.commit()
+                    logger.warning(f"[Rate Limit] IP={ip} exceeded {self.requests_per_day}/day limit, blocked for 24 hours")
+                    return False, "Daily limit reached. Please try again tomorrow.", None
+                
+                if session_id:
+                    cur.execute(
+                        "SELECT COUNT(*) as count FROM rate_limit_requests WHERE session_id = %s AND created_at > %s",
+                        (session_id, day_ago)
+                    )
+                    session_result = cur.fetchone()
+                    session_count = session_result['count'] if session_result else 0
+                    
+                    if session_count >= self.session_daily_limit:
+                        logger.warning(f"[Session Limit] Session={session_id[:16]}... exceeded {self.session_daily_limit} messages in 24h")
+                        return False, "You've had a great conversation today! For more help, please contact support@grest.in or visit grest.in", None
+                    
+                    cur.execute(
+                        "SELECT verified_at FROM rate_limit_captcha_verified WHERE session_id = %s",
+                        (session_id,)
+                    )
+                    verified_result = cur.fetchone()
+                    
+                    if verified_result:
+                        cur.execute(
+                            "SELECT COUNT(*) as count FROM rate_limit_requests WHERE session_id = %s AND created_at > %s",
+                            (session_id, verified_result['verified_at'])
+                        )
+                    else:
+                        cur.execute(
+                            "SELECT COUNT(*) as count FROM rate_limit_requests WHERE session_id = %s AND created_at > %s",
+                            (session_id, day_ago)
+                        )
+                    
+                    captcha_result = cur.fetchone()
+                    messages_since_captcha = captcha_result['count'] if captcha_result else 0
+                    
+                    if messages_since_captcha >= self.captcha_threshold:
+                        cur.execute(
+                            "SELECT question FROM rate_limit_captchas WHERE session_id = %s",
+                            (session_id,)
+                        )
+                        pending = cur.fetchone()
+                        if pending:
+                            return False, "Please solve the verification challenge to continue.", {"type": "math", "question": pending['question']}
+                        else:
+                            a = random.randint(1, 10)
+                            b = random.randint(1, 10)
+                            answer = a + b
+                            question = f"What is {a} + {b}?"
+                            cur.execute(
+                                """INSERT INTO rate_limit_captchas (session_id, question, answer) 
+                                   VALUES (%s, %s, %s) 
+                                   ON CONFLICT (session_id) DO UPDATE SET question = %s, answer = %s, created_at = CURRENT_TIMESTAMP""",
+                                (session_id, question, str(answer), question, str(answer))
+                            )
+                            conn.commit()
+                            logger.info(f"[CAPTCHA] Triggered for session={session_id[:16]}... (count={messages_since_captcha})")
+                            return False, "Please verify you're human to continue.", {"type": "math", "question": question}
+                
+                return True, "", None
+        except Exception as e:
+            logger.error(f"Error in check_rate_limit: {e}")
+            return True, "", None
+        finally:
+            conn.close()
     
     def record_request(self, ip: str, session_id: str = None):
         """Record a successful request (already done in log_request for DB version)."""
@@ -481,36 +567,44 @@ class RateLimiter:
             conn.close()
     
     def get_top_ips(self, limit: int = 10) -> list:
-        """Get top active IPs in the last 24 hours."""
+        """Get top active IPs in the last 24 hours - optimized single query."""
         conn = get_db_connection()
         if not conn:
             return []
         try:
             with conn.cursor() as cur:
-                cutoff = datetime.utcnow() - timedelta(hours=24)
+                now = datetime.utcnow()
+                minute_ago = now - timedelta(seconds=60)
+                hour_ago = now - timedelta(hours=1)
+                day_ago = now - timedelta(hours=24)
+                
                 cur.execute(
-                    """SELECT ip_address, COUNT(*) as total_requests 
-                       FROM rate_limit_requests 
-                       WHERE created_at > %s 
-                       GROUP BY ip_address 
+                    """SELECT 
+                        r.ip_address,
+                        COUNT(*) as total_requests,
+                        COUNT(*) FILTER (WHERE r.created_at > %s) as requests_minute,
+                        COUNT(*) FILTER (WHERE r.created_at > %s) as requests_hour,
+                        CASE WHEN b.ip_address IS NOT NULL AND b.blocked_until > %s THEN true ELSE false END as is_blocked
+                       FROM rate_limit_requests r
+                       LEFT JOIN rate_limit_blocks b ON r.ip_address = b.ip_address
+                       WHERE r.created_at > %s 
+                       GROUP BY r.ip_address, b.ip_address, b.blocked_until
                        ORDER BY total_requests DESC 
                        LIMIT %s""",
-                    (cutoff, limit)
+                    (minute_ago, hour_ago, now, day_ago, limit)
                 )
                 results = cur.fetchall()
                 
-                top_ips = []
-                for row in results:
-                    ip = row['ip_address']
-                    is_blocked, _ = self._is_ip_blocked(ip)
-                    top_ips.append({
-                        "ip": ip,
-                        "requestsLastMinute": self._count_requests_in_window(ip, 60),
-                        "requestsLastHour": self._count_requests_in_window(ip, 3600),
+                return [
+                    {
+                        "ip": row['ip_address'],
+                        "requestsLastMinute": row['requests_minute'],
+                        "requestsLastHour": row['requests_hour'],
                         "requestsLastDay": row['total_requests'],
-                        "isBlocked": is_blocked
-                    })
-                return top_ips
+                        "isBlocked": row['is_blocked']
+                    }
+                    for row in results
+                ]
         except Exception as e:
             logger.error(f"Error getting top IPs: {e}")
             return []
