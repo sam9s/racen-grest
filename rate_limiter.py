@@ -19,72 +19,49 @@ FEATURES:
 - Session-based message counting
 - IP logging for monitoring and forensics
 - Simple math CAPTCHA challenge (widget-compatible, no page refresh)
-- Auto-cleanup of old requests (prevents memory bloat)
+- PostgreSQL persistence (survives server restarts)
 
 DEFAULT THRESHOLDS:
 - 10 requests per minute (soft limit)
 - 50 requests per hour (triggers 10-min block)
 - 100 requests per day (triggers 24-hour block)
 - CAPTCHA after 20 messages in session
+- 200 messages per session per day
 
 -----------------------------------------------------------------------------
-USAGE:
-
-1. Import in your Flask app:
-   from rate_limiter import rate_limiter, get_client_ip
-
-2. Add to your chat endpoint:
-   @app.route("/api/chat/stream", methods=["POST"])
-   def api_chat_stream():
-       data = request.get_json()
-       session_id = data.get("session_id", "anonymous")
-       client_ip = get_client_ip(request)
-       
-       # Check for CAPTCHA answer
-       captcha_answer = data.get("captcha_answer")
-       if captcha_answer:
-           if not rate_limiter.verify_captcha(session_id, captcha_answer):
-               return jsonify({"error": "Incorrect answer"}), 400
-       
-       # Check rate limit
-       allowed, reason, captcha = rate_limiter.check_rate_limit(client_ip, session_id)
-       if not allowed:
-           if captcha:
-               return jsonify({"error": reason, "captcha_required": True, "captcha": captcha}), 429
-           return jsonify({"error": reason, "rate_limited": True}), 429
-       
-       # Log and record
-       rate_limiter.log_request(client_ip, session_id, "/api/chat/stream", message[:50])
-       rate_limiter.record_request(client_ip, session_id)
-       
-       # Continue with normal processing...
-
-3. Frontend CAPTCHA handling (JavaScript):
-   if (response.status === 429) {
-       const errorData = await response.json();
-       if (errorData.captcha_required) {
-           const answer = prompt(errorData.captcha?.question);
-           // Retry with captcha_answer in body
-       }
-   }
-
------------------------------------------------------------------------------
-DEPENDENCIES: Python standard library only (no pip install needed)
+STORAGE: PostgreSQL (persistent across restarts)
+Tables: rate_limit_requests, rate_limit_blocks, rate_limit_captchas, rate_limit_captcha_verified
 
 CREATED: December 27, 2024
+UPDATED: December 29, 2024 - Added PostgreSQL persistence
 DOCUMENTATION: See docs/RACEN_SECURITY_ACTION_PLAN.md
 =============================================================================
 """
 
-import time
+import os
 import logging
 from datetime import datetime, timedelta
-from collections import defaultdict
 from typing import Tuple, Optional
 import random
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("rate_limiter")
+
+
+def get_db_connection():
+    """Get a PostgreSQL database connection."""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        logger.error("DATABASE_URL not set")
+        return None
+    try:
+        return psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {e}")
+        return None
+
 
 class RateLimiter:
     def __init__(
@@ -102,58 +79,183 @@ class RateLimiter:
         self.captcha_threshold = captcha_threshold
         self.block_duration = timedelta(minutes=block_duration_minutes)
         self.session_daily_limit = session_daily_limit
-        
-        self.ip_requests = defaultdict(list)
-        self.session_messages = defaultdict(list)  # List of timestamps for 24h rolling window
-        self.session_captcha_verified_at = {}  # Timestamp of last CAPTCHA verification
-        self.blocked_ips = {}
-        self.pending_captchas = {}
-        self.ip_log = []
-        
-    def _clean_old_requests(self, ip: str):
-        """Remove requests older than 24 hours."""
-        now = time.time()
-        day_ago = now - 86400
-        self.ip_requests[ip] = [t for t in self.ip_requests[ip] if t > day_ago]
-    
-    def _clean_old_session_messages(self, session_id: str):
-        """Remove session messages older than 24 hours."""
-        now = time.time()
-        day_ago = now - 86400
-        self.session_messages[session_id] = [t for t in self.session_messages[session_id] if t > day_ago]
-    
-    def _count_session_messages_in_day(self, session_id: str) -> int:
-        """Count session messages in the last 24 hours."""
-        self._clean_old_session_messages(session_id)
-        return len(self.session_messages[session_id])
-    
-    def _count_messages_since_captcha(self, session_id: str) -> int:
-        """Count messages since last CAPTCHA verification."""
-        self._clean_old_session_messages(session_id)
-        last_verified = self.session_captcha_verified_at.get(session_id, 0)
-        return sum(1 for t in self.session_messages[session_id] if t > last_verified)
     
     def _count_requests_in_window(self, ip: str, seconds: int) -> int:
         """Count requests from IP in the given time window."""
-        now = time.time()
-        cutoff = now - seconds
-        return sum(1 for t in self.ip_requests[ip] if t > cutoff)
+        conn = get_db_connection()
+        if not conn:
+            return 0
+        try:
+            with conn.cursor() as cur:
+                cutoff = datetime.utcnow() - timedelta(seconds=seconds)
+                cur.execute(
+                    "SELECT COUNT(*) as count FROM rate_limit_requests WHERE ip_address = %s AND created_at > %s",
+                    (ip, cutoff)
+                )
+                result = cur.fetchone()
+                return result['count'] if result else 0
+        except Exception as e:
+            logger.error(f"Error counting requests: {e}")
+            return 0
+        finally:
+            conn.close()
+    
+    def _count_session_messages_in_day(self, session_id: str) -> int:
+        """Count session messages in the last 24 hours."""
+        conn = get_db_connection()
+        if not conn:
+            return 0
+        try:
+            with conn.cursor() as cur:
+                cutoff = datetime.utcnow() - timedelta(hours=24)
+                cur.execute(
+                    "SELECT COUNT(*) as count FROM rate_limit_requests WHERE session_id = %s AND created_at > %s",
+                    (session_id, cutoff)
+                )
+                result = cur.fetchone()
+                return result['count'] if result else 0
+        except Exception as e:
+            logger.error(f"Error counting session messages: {e}")
+            return 0
+        finally:
+            conn.close()
+    
+    def _count_messages_since_captcha(self, session_id: str) -> int:
+        """Count messages since last CAPTCHA verification."""
+        conn = get_db_connection()
+        if not conn:
+            return 0
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT verified_at FROM rate_limit_captcha_verified WHERE session_id = %s",
+                    (session_id,)
+                )
+                verified_result = cur.fetchone()
+                
+                if verified_result:
+                    verified_at = verified_result['verified_at']
+                    cur.execute(
+                        "SELECT COUNT(*) as count FROM rate_limit_requests WHERE session_id = %s AND created_at > %s",
+                        (session_id, verified_at)
+                    )
+                else:
+                    cutoff = datetime.utcnow() - timedelta(hours=24)
+                    cur.execute(
+                        "SELECT COUNT(*) as count FROM rate_limit_requests WHERE session_id = %s AND created_at > %s",
+                        (session_id, cutoff)
+                    )
+                
+                result = cur.fetchone()
+                return result['count'] if result else 0
+        except Exception as e:
+            logger.error(f"Error counting messages since captcha: {e}")
+            return 0
+        finally:
+            conn.close()
+    
+    def _is_ip_blocked(self, ip: str) -> Tuple[bool, Optional[datetime]]:
+        """Check if IP is currently blocked."""
+        conn = get_db_connection()
+        if not conn:
+            return False, None
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT blocked_until FROM rate_limit_blocks WHERE ip_address = %s",
+                    (ip,)
+                )
+                result = cur.fetchone()
+                if result and result['blocked_until'] > datetime.utcnow():
+                    return True, result['blocked_until']
+                elif result:
+                    cur.execute("DELETE FROM rate_limit_blocks WHERE ip_address = %s", (ip,))
+                    conn.commit()
+                return False, None
+        except Exception as e:
+            logger.error(f"Error checking blocked IP: {e}")
+            return False, None
+        finally:
+            conn.close()
+    
+    def _block_ip(self, ip: str, until: datetime, reason: str):
+        """Block an IP address until a specific time."""
+        conn = get_db_connection()
+        if not conn:
+            return
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO rate_limit_blocks (ip_address, blocked_until, reason) 
+                       VALUES (%s, %s, %s) 
+                       ON CONFLICT (ip_address) DO UPDATE SET blocked_until = %s, reason = %s""",
+                    (ip, until, reason, until, reason)
+                )
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Error blocking IP: {e}")
+        finally:
+            conn.close()
+    
+    def _get_pending_captcha(self, session_id: str) -> Optional[dict]:
+        """Get pending CAPTCHA for a session."""
+        conn = get_db_connection()
+        if not conn:
+            return None
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT question, answer FROM rate_limit_captchas WHERE session_id = %s",
+                    (session_id,)
+                )
+                result = cur.fetchone()
+                if result:
+                    return {"type": "math", "question": result['question'], "answer": result['answer']}
+                return None
+        except Exception as e:
+            logger.error(f"Error getting pending captcha: {e}")
+            return None
+        finally:
+            conn.close()
+    
+    def _save_captcha(self, session_id: str, question: str, answer: str):
+        """Save a CAPTCHA challenge."""
+        conn = get_db_connection()
+        if not conn:
+            return
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO rate_limit_captchas (session_id, question, answer) 
+                       VALUES (%s, %s, %s) 
+                       ON CONFLICT (session_id) DO UPDATE SET question = %s, answer = %s, created_at = CURRENT_TIMESTAMP""",
+                    (session_id, question, answer, question, answer)
+                )
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Error saving captcha: {e}")
+        finally:
+            conn.close()
     
     def log_request(self, ip: str, session_id: str, endpoint: str, message_preview: str = ""):
         """Log a request for monitoring and forensics."""
-        log_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "ip": ip,
-            "session_id": session_id,
-            "endpoint": endpoint,
-            "message_preview": message_preview[:50] if message_preview else ""
-        }
-        self.ip_log.append(log_entry)
-        
-        if len(self.ip_log) > 10000:
-            self.ip_log = self.ip_log[-5000:]
-        
-        logger.info(f"[Request] IP={ip}, Session={session_id[:16]}..., Endpoint={endpoint}")
+        conn = get_db_connection()
+        if not conn:
+            logger.info(f"[Request] IP={ip}, Session={session_id[:16] if session_id else 'N/A'}..., Endpoint={endpoint}")
+            return
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO rate_limit_requests (ip_address, session_id, endpoint, message_preview) 
+                       VALUES (%s, %s, %s, %s)""",
+                    (ip, session_id, endpoint, message_preview[:100] if message_preview else "")
+                )
+                conn.commit()
+            logger.info(f"[Request] IP={ip}, Session={session_id[:16] if session_id else 'N/A'}..., Endpoint={endpoint}")
+        except Exception as e:
+            logger.error(f"Error logging request: {e}")
+        finally:
+            conn.close()
     
     def check_rate_limit(self, ip: str, session_id: str = None) -> Tuple[bool, str, Optional[dict]]:
         """
@@ -165,18 +267,11 @@ class RateLimiter:
             - reason: Human-readable reason if blocked
             - captcha_challenge: If not None, user must solve this first
         """
-        now = time.time()
-        
-        if ip in self.blocked_ips:
-            block_until = self.blocked_ips[ip]
-            if datetime.utcnow() < block_until:
-                remaining = (block_until - datetime.utcnow()).seconds // 60
-                logger.warning(f"[Blocked] IP={ip} blocked for {remaining} more minutes")
-                return False, f"Too many requests. Please try again in {remaining} minutes.", None
-            else:
-                del self.blocked_ips[ip]
-        
-        self._clean_old_requests(ip)
+        is_blocked, block_until = self._is_ip_blocked(ip)
+        if is_blocked and block_until:
+            remaining = (block_until - datetime.utcnow()).seconds // 60
+            logger.warning(f"[Blocked] IP={ip} blocked for {remaining} more minutes")
+            return False, f"Too many requests. Please try again in {remaining} minutes.", None
         
         minute_count = self._count_requests_in_window(ip, 60)
         if minute_count >= self.requests_per_minute:
@@ -185,13 +280,15 @@ class RateLimiter:
         
         hour_count = self._count_requests_in_window(ip, 3600)
         if hour_count >= self.requests_per_hour:
-            self.blocked_ips[ip] = datetime.utcnow() + self.block_duration
+            block_until = datetime.utcnow() + self.block_duration
+            self._block_ip(ip, block_until, f"Exceeded {self.requests_per_hour}/hour limit")
             logger.warning(f"[Rate Limit] IP={ip} exceeded {self.requests_per_hour}/hour limit, blocked for {self.block_duration}")
             return False, f"Rate limit exceeded. Please try again in {self.block_duration.seconds // 60} minutes.", None
         
         day_count = self._count_requests_in_window(ip, 86400)
         if day_count >= self.requests_per_day:
-            self.blocked_ips[ip] = datetime.utcnow() + timedelta(hours=24)
+            block_until = datetime.utcnow() + timedelta(hours=24)
+            self._block_ip(ip, block_until, f"Exceeded {self.requests_per_day}/day limit")
             logger.warning(f"[Rate Limit] IP={ip} exceeded {self.requests_per_day}/day limit, blocked for 24 hours")
             return False, "Daily limit reached. Please try again tomorrow.", None
         
@@ -202,11 +299,11 @@ class RateLimiter:
                 logger.warning(f"[Session Limit] Session={session_id[:16]}... exceeded {self.session_daily_limit} messages in 24h")
                 return False, "You've had a great conversation today! For more help, please contact support@grest.in or visit grest.in", None
             
-            # Count messages since last CAPTCHA verification (or all messages if never verified)
             messages_since_captcha = self._count_messages_since_captcha(session_id)
             if messages_since_captcha >= self.captcha_threshold:
-                if session_id in self.pending_captchas:
-                    return False, "Please solve the verification challenge to continue.", self.pending_captchas[session_id]
+                pending = self._get_pending_captcha(session_id)
+                if pending:
+                    return False, "Please solve the verification challenge to continue.", {"type": "math", "question": pending['question']}
                 else:
                     captcha = self._generate_captcha(session_id)
                     logger.info(f"[CAPTCHA] Triggered for session={session_id[:16]}... (count={messages_since_captcha})")
@@ -215,36 +312,43 @@ class RateLimiter:
         return True, "", None
     
     def record_request(self, ip: str, session_id: str = None):
-        """Record a successful request."""
-        self.ip_requests[ip].append(time.time())
-        if session_id:
-            self.session_messages[session_id].append(time.time())
+        """Record a successful request (already done in log_request for DB version)."""
+        pass
     
     def _generate_captcha(self, session_id: str) -> dict:
         """Generate a simple math CAPTCHA."""
         a = random.randint(1, 10)
         b = random.randint(1, 10)
         answer = a + b
+        question = f"What is {a} + {b}?"
         
-        captcha = {
-            "type": "math",
-            "question": f"What is {a} + {b}?",
-            "answer": str(answer),
-            "session_id": session_id
-        }
-        self.pending_captchas[session_id] = captcha
-        return {"type": "math", "question": captcha["question"]}
+        self._save_captcha(session_id, question, str(answer))
+        return {"type": "math", "question": question}
     
     def verify_captcha(self, session_id: str, user_answer: str) -> bool:
         """Verify a CAPTCHA answer. Resets CAPTCHA counter but preserves daily limit."""
-        if session_id not in self.pending_captchas:
+        pending = self._get_pending_captcha(session_id)
+        if not pending:
             return True
         
-        expected = self.pending_captchas[session_id]["answer"]
+        expected = pending['answer']
         if user_answer.strip() == expected:
-            del self.pending_captchas[session_id]
-            # Record verification time - CAPTCHA counter resets, but daily limit preserved
-            self.session_captcha_verified_at[session_id] = time.time()
+            conn = get_db_connection()
+            if conn:
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute("DELETE FROM rate_limit_captchas WHERE session_id = %s", (session_id,))
+                        cur.execute(
+                            """INSERT INTO rate_limit_captcha_verified (session_id, verified_at) 
+                               VALUES (%s, CURRENT_TIMESTAMP) 
+                               ON CONFLICT (session_id) DO UPDATE SET verified_at = CURRENT_TIMESTAMP""",
+                            (session_id,)
+                        )
+                        conn.commit()
+                except Exception as e:
+                    logger.error(f"Error verifying captcha: {e}")
+                finally:
+                    conn.close()
             logger.info(f"[CAPTCHA] Verified for session={session_id[:16]}...")
             return True
         
@@ -253,40 +357,226 @@ class RateLimiter:
     
     def get_stats(self) -> dict:
         """Get rate limiter statistics for monitoring."""
-        return {
-            "active_ips": len(self.ip_requests),
-            "blocked_ips": len(self.blocked_ips),
-            "pending_captchas": len(self.pending_captchas),
-            "total_logged_requests": len(self.ip_log),
-            "blocked_ip_list": list(self.blocked_ips.keys())[:10],
-            "config": {
-                "requests_per_minute": self.requests_per_minute,
-                "requests_per_hour": self.requests_per_hour,
-                "requests_per_day": self.requests_per_day,
-                "captcha_threshold": self.captcha_threshold,
-                "session_daily_limit": self.session_daily_limit
+        conn = get_db_connection()
+        if not conn:
+            return {
+                "active_ips": 0,
+                "blocked_ips": 0,
+                "pending_captchas": 0,
+                "total_logged_requests": 0,
+                "blocked_ip_list": [],
+                "config": {
+                    "requests_per_minute": self.requests_per_minute,
+                    "requests_per_hour": self.requests_per_hour,
+                    "requests_per_day": self.requests_per_day,
+                    "captcha_threshold": self.captcha_threshold,
+                    "session_daily_limit": self.session_daily_limit
+                }
             }
-        }
+        
+        try:
+            with conn.cursor() as cur:
+                cutoff = datetime.utcnow() - timedelta(hours=24)
+                
+                cur.execute(
+                    "SELECT COUNT(DISTINCT ip_address) as count FROM rate_limit_requests WHERE created_at > %s",
+                    (cutoff,)
+                )
+                active_ips = cur.fetchone()['count']
+                
+                cur.execute(
+                    "SELECT COUNT(*) as count FROM rate_limit_blocks WHERE blocked_until > %s",
+                    (datetime.utcnow(),)
+                )
+                blocked_ips = cur.fetchone()['count']
+                
+                cur.execute("SELECT COUNT(*) as count FROM rate_limit_captchas")
+                pending_captchas = cur.fetchone()['count']
+                
+                cur.execute(
+                    "SELECT COUNT(*) as count FROM rate_limit_requests WHERE created_at > %s",
+                    (cutoff,)
+                )
+                total_logged = cur.fetchone()['count']
+                
+                cur.execute(
+                    "SELECT ip_address FROM rate_limit_blocks WHERE blocked_until > %s LIMIT 10",
+                    (datetime.utcnow(),)
+                )
+                blocked_list = [row['ip_address'] for row in cur.fetchall()]
+                
+                return {
+                    "active_ips": active_ips,
+                    "blocked_ips": blocked_ips,
+                    "pending_captchas": pending_captchas,
+                    "total_logged_requests": total_logged,
+                    "blocked_ip_list": blocked_list,
+                    "config": {
+                        "requests_per_minute": self.requests_per_minute,
+                        "requests_per_hour": self.requests_per_hour,
+                        "requests_per_day": self.requests_per_day,
+                        "captcha_threshold": self.captcha_threshold,
+                        "session_daily_limit": self.session_daily_limit
+                    }
+                }
+        except Exception as e:
+            logger.error(f"Error getting stats: {e}")
+            return {
+                "active_ips": 0,
+                "blocked_ips": 0,
+                "pending_captchas": 0,
+                "total_logged_requests": 0,
+                "blocked_ip_list": [],
+                "config": {
+                    "requests_per_minute": self.requests_per_minute,
+                    "requests_per_hour": self.requests_per_hour,
+                    "requests_per_day": self.requests_per_day,
+                    "captcha_threshold": self.captcha_threshold,
+                    "session_daily_limit": self.session_daily_limit
+                }
+            }
+        finally:
+            conn.close()
     
     def get_ip_activity(self, ip: str) -> dict:
         """Get activity for a specific IP."""
-        self._clean_old_requests(ip)
+        is_blocked, _ = self._is_ip_blocked(ip)
         return {
             "ip": ip,
             "requests_last_minute": self._count_requests_in_window(ip, 60),
             "requests_last_hour": self._count_requests_in_window(ip, 3600),
             "requests_last_day": self._count_requests_in_window(ip, 86400),
-            "is_blocked": ip in self.blocked_ips
+            "is_blocked": is_blocked
         }
     
+    def get_recent_requests(self, limit: int = 20) -> list:
+        """Get recent request logs."""
+        conn = get_db_connection()
+        if not conn:
+            return []
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT ip_address, session_id, endpoint, message_preview, created_at 
+                       FROM rate_limit_requests 
+                       ORDER BY created_at DESC 
+                       LIMIT %s""",
+                    (limit,)
+                )
+                results = cur.fetchall()
+                return [
+                    {
+                        "ip": row['ip_address'],
+                        "session_id": row['session_id'],
+                        "endpoint": row['endpoint'],
+                        "message_preview": row['message_preview'],
+                        "timestamp": row['created_at'].isoformat() if row['created_at'] else None
+                    }
+                    for row in results
+                ]
+        except Exception as e:
+            logger.error(f"Error getting recent requests: {e}")
+            return []
+        finally:
+            conn.close()
+    
+    def get_top_ips(self, limit: int = 10) -> list:
+        """Get top active IPs in the last 24 hours."""
+        conn = get_db_connection()
+        if not conn:
+            return []
+        try:
+            with conn.cursor() as cur:
+                cutoff = datetime.utcnow() - timedelta(hours=24)
+                cur.execute(
+                    """SELECT ip_address, COUNT(*) as total_requests 
+                       FROM rate_limit_requests 
+                       WHERE created_at > %s 
+                       GROUP BY ip_address 
+                       ORDER BY total_requests DESC 
+                       LIMIT %s""",
+                    (cutoff, limit)
+                )
+                results = cur.fetchall()
+                
+                top_ips = []
+                for row in results:
+                    ip = row['ip_address']
+                    is_blocked, _ = self._is_ip_blocked(ip)
+                    top_ips.append({
+                        "ip": ip,
+                        "requestsLastMinute": self._count_requests_in_window(ip, 60),
+                        "requestsLastHour": self._count_requests_in_window(ip, 3600),
+                        "requestsLastDay": row['total_requests'],
+                        "isBlocked": is_blocked
+                    })
+                return top_ips
+        except Exception as e:
+            logger.error(f"Error getting top IPs: {e}")
+            return []
+        finally:
+            conn.close()
+    
+    def get_blocked_ips_details(self) -> list:
+        """Get details of currently blocked IPs."""
+        conn = get_db_connection()
+        if not conn:
+            return []
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT ip_address, blocked_until, reason 
+                       FROM rate_limit_blocks 
+                       WHERE blocked_until > %s""",
+                    (datetime.utcnow(),)
+                )
+                results = cur.fetchall()
+                return [
+                    {
+                        "ip": row['ip_address'],
+                        "blockedUntil": row['blocked_until'].isoformat() if row['blocked_until'] else None,
+                        "remainingMinutes": round((row['blocked_until'] - datetime.utcnow()).total_seconds() / 60, 1) if row['blocked_until'] else 0,
+                        "reason": row['reason']
+                    }
+                    for row in results
+                ]
+        except Exception as e:
+            logger.error(f"Error getting blocked IPs: {e}")
+            return []
+        finally:
+            conn.close()
+    
     def reset_session(self, session_id: str):
-        """Reset session message count (e.g., when user starts new conversation)."""
-        if session_id in self.session_messages:
-            del self.session_messages[session_id]
-        if session_id in self.pending_captchas:
-            del self.pending_captchas[session_id]
-        if session_id in self.session_captcha_verified_at:
-            del self.session_captcha_verified_at[session_id]
+        """Reset session data."""
+        conn = get_db_connection()
+        if not conn:
+            return
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM rate_limit_captchas WHERE session_id = %s", (session_id,))
+                cur.execute("DELETE FROM rate_limit_captcha_verified WHERE session_id = %s", (session_id,))
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Error resetting session: {e}")
+        finally:
+            conn.close()
+    
+    def cleanup_old_data(self):
+        """Clean up data older than 24 hours."""
+        conn = get_db_connection()
+        if not conn:
+            return
+        try:
+            with conn.cursor() as cur:
+                cutoff = datetime.utcnow() - timedelta(hours=24)
+                cur.execute("DELETE FROM rate_limit_requests WHERE created_at < %s", (cutoff,))
+                cur.execute("DELETE FROM rate_limit_blocks WHERE blocked_until < %s", (datetime.utcnow(),))
+                conn.commit()
+                logger.info("[Cleanup] Old rate limit data cleaned up")
+        except Exception as e:
+            logger.error(f"Error cleaning up old data: {e}")
+        finally:
+            conn.close()
 
 
 rate_limiter = RateLimiter(

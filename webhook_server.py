@@ -1306,35 +1306,9 @@ def admin_security():
         return jsonify({"error": "Unauthorized"}), 401
     
     stats = rate_limiter.get_stats()
-    
-    blocked_details = []
-    for ip, block_until in rate_limiter.blocked_ips.items():
-        remaining_seconds = (block_until - datetime.utcnow()).total_seconds()
-        if remaining_seconds > 0:
-            blocked_details.append({
-                "ip": ip,
-                "blockedUntil": block_until.isoformat(),
-                "remainingMinutes": round(remaining_seconds / 60, 1)
-            })
-    
-    top_ips = []
-    for ip in list(rate_limiter.ip_requests.keys())[:20]:
-        activity = rate_limiter.get_ip_activity(ip)
-        if activity["requests_last_day"] > 0:
-            top_ips.append({
-                "ip": ip,
-                "requestsLastMinute": activity["requests_last_minute"],
-                "requestsLastHour": activity["requests_last_hour"],
-                "requestsLastDay": activity["requests_last_day"],
-                "isBlocked": activity["is_blocked"]
-            })
-    
-    top_ips.sort(key=lambda x: x["requestsLastDay"], reverse=True)
-    
-    rate_limit_violations = []
-    for log in rate_limiter.ip_log[-100:]:
-        if "Rate Limit" in str(log.get("message_preview", "")):
-            rate_limit_violations.append(log)
+    blocked_details = rate_limiter.get_blocked_ips_details()
+    top_ips = rate_limiter.get_top_ips(10)
+    recent_requests = rate_limiter.get_recent_requests(20)
     
     return jsonify({
         "summary": {
@@ -1344,8 +1318,8 @@ def admin_security():
             "totalRequests": stats["total_logged_requests"]
         },
         "blockedIpDetails": blocked_details,
-        "topActiveIps": top_ips[:10],
-        "recentRequests": rate_limiter.ip_log[-20:] if rate_limiter.ip_log else [],
+        "topActiveIps": top_ips,
+        "recentRequests": recent_requests,
         "config": {
             "requestsPerMinute": rate_limiter.requests_per_minute,
             "requestsPerHour": rate_limiter.requests_per_hour,
