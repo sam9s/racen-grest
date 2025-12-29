@@ -13,12 +13,14 @@ This document serves as a security blueprint for all RACEN conversational AI cha
 
 ### Applicable Bots
 
-| Bot Name | Product | Status |
-|----------|---------|--------|
-| Jovee | JoveHeal | Implemented |
-| SOMERA | JoveHeal | Implemented |
-| GRESTA | GREST | Apply this blueprint |
-| Naira | Nature Mania | Apply this blueprint |
+| Bot Name | Product | Status | Reference |
+|----------|---------|--------|-----------|
+| GRESTA | GREST | ✅ **Implemented (Dec 29, 2025)** | See Phase 8 in `docs/GREST_progress_tracker.md` |
+| Jovee | JoveHeal | 🔄 Apply this blueprint | Use GRESTA as reference |
+| SOMERA | JoveHeal | 🔄 Apply this blueprint | Use GRESTA as reference |
+| Naira | Nature Mania | 🔄 Apply this blueprint | Use GRESTA as reference |
+
+> **REFERENCE IMPLEMENTATION**: GRESTA is now the production-tested reference. See `docs/GREST_progress_tracker.md` Phase 8 for complete implementation details, issues faced, and solutions.
 
 ---
 
@@ -424,14 +426,39 @@ for i in range(12):
 
 ## Notes
 
-- **In-memory storage**: Current implementation uses in-memory dicts. For production multi-instance deployments, consider Redis.
+> ⚠️ **CRITICAL UPDATE (Dec 29, 2025)**: In-memory storage DOES NOT WORK in production. Server restarts lose all rate limiting data. **USE POSTGRESQL** for persistence.
+
+- **Database Storage (REQUIRED)**: Use PostgreSQL tables for all rate limiting data. See GREST Phase 8 for table schemas:
+  - `rate_limit_requests` - Request logging with IP, session, timestamp
+  - `rate_limit_blocks` - Blocked IPs with expiry
+  - `rate_limit_captchas` - Pending CAPTCHA challenges
+  - `rate_limit_captcha_verified` - CAPTCHA verification timestamps
+- **In-memory storage**: ~~Current implementation uses in-memory dicts.~~ **DEPRECATED** - Do not use in production.
 - **HTTPS**: All Replit deployments use HTTPS by default - data in transit is encrypted.
 - **Database encryption at rest**: Not implemented (overkill for coaching chat, consider for financial data).
 
+### Known Issues & Solutions (From GREST Implementation)
+
+See `docs/GREST_progress_tracker.md` Phase 8 for detailed documentation of 7 issues encountered and their solutions:
+
+1. **In-Memory Storage Lost on Restart** → PostgreSQL tables
+2. **Database Connection Exhaustion** → Single connection with FILTER queries
+3. **Multi-Layer Proxy IP Detection** → X-Forwarded-For header chain
+4. **CAPTCHA Not Displaying** → Handle 429 status in Next.js routes
+5. **Dashboard Auth Mismatch** → Correct cookie name (admin_token)
+6. **CAPTCHA Counter Not Resetting** → Track verified_at timestamp
+7. **Test Session CAPTCHA Already Solved** → Clear verification records for testing
+
 ---
 
-*Document Version: 1.1*  
+*Document Version: 1.2*  
 *Created: December 27, 2025*  
 *Updated: December 29, 2025*  
-*Changelog v1.1: Added session daily limit (200/24h rolling), dual CAPTCHA tracking, admin security dashboard, debug endpoint cleanup*  
-*Applicable to: All RACEN conversational AI chatbots*
+
+**Changelog:**
+- **v1.2 (Dec 29, 2025)**: GRESTA implementation complete - marked as reference implementation. Added CRITICAL note about database persistence requirement. Added 7 known issues with solutions. Updated status table.
+- **v1.1 (Dec 29, 2025)**: Added session daily limit (200/24h rolling), dual CAPTCHA tracking, admin security dashboard, debug endpoint cleanup.
+- **v1.0 (Dec 27, 2025)**: Initial blueprint with rate limiting, CAPTCHA, IP logging.
+
+*Applicable to: All RACEN conversational AI chatbots*  
+*Reference Implementation: GRESTA (GREST) - See docs/GREST_progress_tracker.md Phase 8*
