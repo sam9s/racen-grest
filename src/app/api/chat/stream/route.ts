@@ -70,6 +70,20 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(secureBody),
     });
 
+    if (response.status === 429) {
+      const data = await response.json();
+      return new Response(
+        JSON.stringify(data),
+        { 
+          status: 429, 
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          } 
+        }
+      );
+    }
+
     if (!response.ok) {
       console.error(`[Chat Stream API] Backend returned status ${response.status}`);
       return new Response(
