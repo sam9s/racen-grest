@@ -36,8 +36,9 @@ RateLimiter(
     requests_per_minute=10,    # Soft limit - blocks after 10 requests/minute
     requests_per_hour=50,      # Block for 10 minutes after 50/hour
     requests_per_day=100,      # Block for 24 hours after 100/day
-    captcha_threshold=20,      # Trigger CAPTCHA after 20 messages in session
-    block_duration_minutes=10  # Duration of temporary blocks
+    captcha_threshold=20,      # Trigger CAPTCHA after 20 messages since last solve
+    block_duration_minutes=10, # Duration of temporary blocks
+    session_daily_limit=200    # 24h rolling window per session
 )
 ```
 
@@ -45,23 +46,53 @@ RateLimiter(
 
 1. **IP-based tracking** - Uses `X-Forwarded-For` header for real client IP behind proxies
 2. **Session-based counting** - Tracks messages per session for CAPTCHA trigger
-3. **Auto-cleanup** - Removes requests older than 24 hours to prevent memory bloat
-4. **Graceful degradation** - Returns user-friendly error messages
+3. **Session daily limit** - Rolling 24h window (200 msgs) with friendly redirect to support
+4. **Dual CAPTCHA tracking** - CAPTCHA counter resets after solve, but daily limit preserved
+5. **Auto-cleanup** - Removes requests older than 24 hours to prevent memory bloat
+6. **Graceful degradation** - Returns user-friendly error messages
 
 ### Rate Limiter Code Structure
 
 ```python
 class RateLimiter:
+    # Core methods
     def check_rate_limit(ip, session_id) -> (allowed, reason, captcha)
     def record_request(ip, session_id)
     def log_request(ip, session_id, endpoint, message_preview)
     def verify_captcha(session_id, user_answer) -> bool
-    def get_stats() -> dict  # For monitoring
+    def reset_session(session_id)  # Clear all session data
+    
+    # Monitoring methods
+    def get_stats() -> dict  # For dashboard
     def get_ip_activity(ip) -> dict  # For forensics
+    
+    # Internal helpers
+    def _count_session_messages_in_day(session_id) -> int  # Rolling 24h window
+    def _count_messages_since_captcha(session_id) -> int   # Since last CAPTCHA solve
+    def _clean_old_session_messages(session_id)  # Prune expired entries
 
 def get_client_ip(request) -> str:
     # Extract real IP from X-Forwarded-For or X-Real-IP headers
 ```
+
+### Important: Dual Tracking for CAPTCHA vs Daily Limit
+
+```python
+# Session messages tracked as timestamps (not counters)
+session_messages = defaultdict(list)        # All messages in 24h window
+session_captcha_verified_at = {}            # When CAPTCHA was last solved
+
+# CAPTCHA check: Only counts messages AFTER last verification
+messages_since_captcha = _count_messages_since_captcha(session_id)
+
+# Daily limit check: Counts ALL messages in rolling 24h window
+session_count = _count_session_messages_in_day(session_id)
+```
+
+This design ensures:
+- CAPTCHA resets allow continued conversation (20 more messages each time)
+- Daily limit (200) cannot be bypassed by solving CAPTCHAs
+- Old messages automatically expire after 24 hours
 
 ---
 
@@ -212,18 +243,144 @@ def rate_limiter_stats():
 
 ---
 
+## Security Layer 7: Admin Security Dashboard
+
+### Purpose
+Real-time monitoring of security events, blocked IPs, and attack patterns.
+
+### Dashboard Tab Features
+
+Add a "Security" tab to your admin dashboard with:
+
+1. **Summary Metrics** (auto-refresh every 10 seconds)
+   - Active IPs count
+   - Blocked IPs count
+   - Pending CAPTCHAs
+   - Total requests logged
+
+2. **Rate Limit Configuration Display**
+   - Per minute limit
+   - Per hour limit
+   - Per day limit
+   - CAPTCHA threshold
+   - Session daily limit
+
+3. **Blocked IPs Panel** (red highlighting)
+   - IP address
+   - Blocked until timestamp
+   - Remaining minutes countdown
+
+4. **Top Active IPs** (last 24h)
+   - IP address with status indicator (green = active, red = blocked)
+   - Requests per minute/hour/day
+   - Total request count
+
+5. **Recent Requests Log**
+   - Timestamp
+   - IP address
+   - Message preview
+   - Scrollable, newest at top
+
+### Backend Endpoint
+
+```python
+@app.route("/api/admin/security", methods=["GET"])
+def admin_security():
+    """Comprehensive security data for dashboard."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    stats = rate_limiter.get_stats()
+    
+    # Build blocked IP details with countdown
+    blocked_details = []
+    for ip, block_until in rate_limiter.blocked_ips.items():
+        remaining = (block_until - datetime.utcnow()).total_seconds()
+        if remaining > 0:
+            blocked_details.append({
+                "ip": ip,
+                "blockedUntil": block_until.isoformat(),
+                "remainingMinutes": round(remaining / 60, 1)
+            })
+    
+    # Get top active IPs
+    top_ips = []
+    for ip in list(rate_limiter.ip_requests.keys())[:20]:
+        activity = rate_limiter.get_ip_activity(ip)
+        if activity["requests_last_day"] > 0:
+            top_ips.append({
+                "ip": ip,
+                "requestsLastMinute": activity["requests_last_minute"],
+                "requestsLastHour": activity["requests_last_hour"],
+                "requestsLastDay": activity["requests_last_day"],
+                "isBlocked": activity["is_blocked"]
+            })
+    
+    return jsonify({
+        "summary": {
+            "activeIps": stats["active_ips"],
+            "blockedIps": stats["blocked_ips"],
+            "pendingCaptchas": stats["pending_captchas"],
+            "totalRequests": stats["total_logged_requests"]
+        },
+        "blockedIpDetails": blocked_details,
+        "topActiveIps": sorted(top_ips, key=lambda x: x["requestsLastDay"], reverse=True)[:10],
+        "recentRequests": rate_limiter.ip_log[-20:],
+        "config": {
+            "requestsPerMinute": rate_limiter.requests_per_minute,
+            "requestsPerHour": rate_limiter.requests_per_hour,
+            "requestsPerDay": rate_limiter.requests_per_day,
+            "captchaThreshold": rate_limiter.captcha_threshold,
+            "sessionDailyLimit": rate_limiter.session_daily_limit
+        }
+    })
+```
+
+---
+
+## Security Layer 8: Debug Endpoint Cleanup
+
+### Purpose
+Remove temporary debug endpoints before production deployment.
+
+### What to Remove
+
+1. **Backend routes** (Flask/webhook_server.py):
+   ```python
+   # DELETE THESE before production:
+   @app.route("/debug/headers")
+   @app.route("/debug/ratelimit")
+   ```
+
+2. **Frontend rewrites** (next.config.js):
+   ```javascript
+   // DELETE THESE rewrites before production:
+   { source: '/debug/:path*', destination: '...' }
+   ```
+
+### Why This Matters
+- Debug endpoints expose internal system information
+- Can reveal IP detection logic to attackers
+- May leak rate limiter state
+
+---
+
 ## Implementation Checklist
 
 Apply to each new RACEN chatbot:
 
-- [ ] Create `rate_limiter.py` with RateLimiter class
+- [ ] Create `rate_limiter.py` with RateLimiter class (including session_daily_limit)
 - [ ] Add import: `from rate_limiter import rate_limiter, get_client_ip`
 - [ ] Add rate limit checks to ALL chat endpoints
 - [ ] Add CAPTCHA handling to frontend error handling
 - [ ] Add `/api/admin/rate-limiter/stats` monitoring endpoint
+- [ ] Add `/api/admin/security` comprehensive security endpoint
+- [ ] Add Security tab to admin dashboard
 - [ ] Test with rapid requests (should block on 11th request)
-- [ ] Verify CAPTCHA triggers after 20 messages
+- [ ] Verify CAPTCHA triggers after 20 messages (resets after solve)
+- [ ] Verify session daily limit (200 msgs in 24h rolling window)
 - [ ] Apply content safety guardrails (crisis, medical, PII)
+- [ ] Remove all debug endpoints before production deployment
 
 ---
 
@@ -260,7 +417,8 @@ for i in range(12):
 | Sustained abuse (50+ req/hr) | 10-min block | Auto-unblock |
 | Heavy abuse (100+ req/day) | 24-hour block | Auto-unblock |
 | Bot automation | CAPTCHA after 20 msgs | Pass challenge to continue |
-| Attack analysis | IP logging | Review logs for patterns |
+| Extended sessions | 200 msgs/day limit | Redirect to human support |
+| Attack analysis | IP logging + dashboard | Review logs for patterns |
 
 ---
 
@@ -272,6 +430,8 @@ for i in range(12):
 
 ---
 
-*Document Version: 1.0*  
+*Document Version: 1.1*  
 *Created: December 27, 2025*  
+*Updated: December 29, 2025*  
+*Changelog v1.1: Added session daily limit (200/24h rolling), dual CAPTCHA tracking, admin security dashboard, debug endpoint cleanup*  
 *Applicable to: All RACEN conversational AI chatbots*

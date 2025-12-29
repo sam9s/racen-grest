@@ -6,7 +6,7 @@
 **Production URL:** https://gresta.sam9scloud.in  
 **Developer:** Sam (Product Owner, Project Manager, Developer)  
 **Start Date:** December 2024  
-**Last Updated:** December 27, 2025
+**Last Updated:** December 29, 2025
 
 ---
 
@@ -58,13 +58,14 @@
 - [x] Automatic Shopify product sync
 - [x] Sync logs captured in database
 
-### Phase 8: Security Implementation (Dec 27-28, 2025)
+### Phase 8: Security Implementation (Dec 27-29, 2025)
 - [x] **Rate Limiter Module**: `rate_limiter.py` with IP-based throttling
 - [x] **Thresholds Configured**:
   - 10 requests/minute (soft limit)
   - 50 requests/hour (10-minute block)
   - 100 requests/day (24-hour block)
-  - CAPTCHA after 20 messages per session
+  - CAPTCHA after 20 messages per session (resets after solving)
+  - **200 messages/day per session** (24h rolling window, friendly message)
 - [x] **Protected Endpoints**:
   - `/api/chat` - Direct chat API
   - `/api/chat/stream` - Streaming chat (SSE)
@@ -73,11 +74,25 @@
 - [x] **Monitoring Endpoints**:
   - `/api/admin/rate-limiter/stats` - View active IPs, blocked IPs, pending CAPTCHAs
   - `/api/admin/rate-limiter/ip/<ip>` - Check specific IP activity
+  - `/api/admin/security` - Comprehensive security dashboard data
+- [x] **Security Dashboard Tab** (Dec 29, 2025):
+  - Summary metrics: Active IPs, Blocked IPs, Pending CAPTCHAs, Total Requests
+  - Rate limit configuration display (all thresholds including session limit)
+  - Currently blocked IPs with countdown timers
+  - Top active IPs with per-minute/hour/day request counts
+  - Recent requests log with 10-second auto-refresh
+- [x] **Debug Endpoints Removed** (Dec 29, 2025):
+  - Removed `/debug/headers` and `/debug/ratelimit` from production
+  - Cleaned up Next.js rewrites
+- [x] **Multi-Layer Proxy IP Forwarding Fixed**:
+  - Caddy → Next.js → Flask all properly forward X-Forwarded-For headers
+  - Real client IPs now correctly identified through entire chain
 - [x] **Protects Against**:
   - DDoS attacks (API flooding)
   - API cost abuse (OpenAI credit drain)
   - Automated scripts and bots
-- [x] **Test Verified**: Rate limiting blocks at 11th request, 17 test messages saved to database
+  - Excessive single-session usage (200/day soft cap)
+- [x] **Test Verified**: Rate limiting blocks at 11th request in production
 
 #### Rate Limit Reset Timing
 | Limit | Threshold | Reset Behavior |
@@ -85,13 +100,15 @@
 | Per Minute | 10 requests | Resets after **1 minute** from first request |
 | Per Hour | 50 requests | If exceeded → **10-minute block**, then resets |
 | Per Day | 100 requests | If exceeded → **24-hour block** |
+| Session Daily | 200 messages | **24-hour rolling window** - old messages age out |
+| CAPTCHA | 20 messages | Resets after solving, preserves daily limit |
 
 #### Layered Security Architecture
 ```
 Request Received
        ↓
 ┌──────────────────────────────────────────┐
-│ Layer 1: Rate Limit Check                │
+│ Layer 1: IP Rate Limit Check             │
 │ - 10 requests/minute per IP              │
 │ - 50 requests/hour per IP                │
 │ - 100 requests/day per IP                │
@@ -99,14 +116,21 @@ Request Received
 └──────────────────────────────────────────┘
        ↓ (if passed)
 ┌──────────────────────────────────────────┐
-│ Layer 2: CAPTCHA Check                   │
-│ - Triggers after 20 messages in session  │
+│ Layer 2: Session Daily Limit             │
+│ - 200 messages/day per session           │
+│ - Rolling 24h window (auto-resets)       │
+│ If exceeded → Friendly support message   │
+└──────────────────────────────────────────┘
+       ↓ (if passed)
+┌──────────────────────────────────────────┐
+│ Layer 3: CAPTCHA Check                   │
+│ - Triggers after 20 messages since last  │
 │ - Math CAPTCHA (e.g., "What is 7 + 5?")  │
-│ - Resets after successful solve          │
+│ - Solving resets counter, not daily limit│
 └──────────────────────────────────────────┘
        ↓ (if passed or solved)
 ┌──────────────────────────────────────────┐
-│ Layer 3: Process Message                 │
+│ Layer 4: Process Message                 │
 │ - LLM generates response                 │
 │ - Conversation saved to database         │
 └──────────────────────────────────────────┘
@@ -118,6 +142,7 @@ Request Received
 | **Rapid spam** (10+ messages in under 1 min) | Blocked at 11th message, wait 1 minute to resume |
 | **Slow but persistent** (under 10/min) | CAPTCHA triggers at 21st message |
 | **Bot attack** (100+ requests/day) | 24-hour IP block |
+| **Very long conversation** (200+ messages) | Friendly message: "Contact support@grest.in" |
 | **Normal user** (occasional queries) | No interruption, smooth experience |
 
 ---
