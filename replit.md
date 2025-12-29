@@ -3,7 +3,15 @@
 ## Overview
 GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and MacBook e-commerce platform. The chatbot serves as a front-line customer engagement tool, answering questions about products, pricing, warranty, and policies with bilingual support (English + Hinglish).
 
-## Recent Updates (Dec 24, 2025)
+## Recent Updates (Dec 29, 2025)
+- **PHASE 8 SECURITY BLUEPRINT COMPLETE**: Full rate limiting with database persistence
+  - PostgreSQL-backed storage (survives server restarts)
+  - CAPTCHA system working (triggers at 20 messages, math questions)
+  - Security dashboard displaying real-time metrics
+  - 7 issues documented with solutions (reusable for Joviheal)
+  - See `docs/GREST_progress_tracker.md` Phase 8 for full blueprint
+
+### Previous Updates (Dec 24, 2025)
 - **ANTI-HALLUCINATION ARCHITECTURE (BLUEPRINT)**: Implemented Option A+B to prevent LLM price hallucination
   - Always inject compact product summary for ANY query (even vague ones like "phone" or "mobile")
   - LLM intent detection enhanced for specific queries
