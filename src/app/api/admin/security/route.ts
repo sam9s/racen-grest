@@ -5,13 +5,14 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
 
 async function isAdminAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies();
-  const adminSession = cookieStore.get('admin_session');
-  if (!adminSession) return false;
+  const adminToken = cookieStore.get('admin_token');
+  if (!adminToken) return false;
   
   try {
-    const session = JSON.parse(adminSession.value);
+    const decoded = Buffer.from(adminToken.value, 'base64').toString('utf-8');
+    const [email] = decoded.split(':');
     const allowedEmails = (process.env.DASHBOARD_EMAIL || '').split(',').map(e => e.trim().toLowerCase());
-    return allowedEmails.includes(session.email?.toLowerCase());
+    return allowedEmails.includes(email?.toLowerCase());
   } catch {
     return false;
   }
