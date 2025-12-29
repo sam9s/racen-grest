@@ -4,14 +4,6 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/debug/headers',
-        destination: 'http://localhost:8080/debug/headers',
-      },
-      {
-        source: '/debug/ratelimit',
-        destination: 'http://localhost:8080/debug/ratelimit',
-      },
-      {
         source: '/api/feedback/:path*',
         destination: 'http://localhost:8080/api/feedback/:path*',
       },

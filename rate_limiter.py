@@ -93,16 +93,19 @@ class RateLimiter:
         requests_per_hour: int = 50,
         requests_per_day: int = 100,
         captcha_threshold: int = 20,
-        block_duration_minutes: int = 10
+        block_duration_minutes: int = 10,
+        session_daily_limit: int = 200
     ):
         self.requests_per_minute = requests_per_minute
         self.requests_per_hour = requests_per_hour
         self.requests_per_day = requests_per_day
         self.captcha_threshold = captcha_threshold
         self.block_duration = timedelta(minutes=block_duration_minutes)
+        self.session_daily_limit = session_daily_limit
         
         self.ip_requests = defaultdict(list)
-        self.session_message_counts = defaultdict(int)
+        self.session_messages = defaultdict(list)  # List of timestamps for 24h rolling window
+        self.session_captcha_verified_at = {}  # Timestamp of last CAPTCHA verification
         self.blocked_ips = {}
         self.pending_captchas = {}
         self.ip_log = []
@@ -112,6 +115,23 @@ class RateLimiter:
         now = time.time()
         day_ago = now - 86400
         self.ip_requests[ip] = [t for t in self.ip_requests[ip] if t > day_ago]
+    
+    def _clean_old_session_messages(self, session_id: str):
+        """Remove session messages older than 24 hours."""
+        now = time.time()
+        day_ago = now - 86400
+        self.session_messages[session_id] = [t for t in self.session_messages[session_id] if t > day_ago]
+    
+    def _count_session_messages_in_day(self, session_id: str) -> int:
+        """Count session messages in the last 24 hours."""
+        self._clean_old_session_messages(session_id)
+        return len(self.session_messages[session_id])
+    
+    def _count_messages_since_captcha(self, session_id: str) -> int:
+        """Count messages since last CAPTCHA verification."""
+        self._clean_old_session_messages(session_id)
+        last_verified = self.session_captcha_verified_at.get(session_id, 0)
+        return sum(1 for t in self.session_messages[session_id] if t > last_verified)
     
     def _count_requests_in_window(self, ip: str, seconds: int) -> int:
         """Count requests from IP in the given time window."""
@@ -176,13 +196,20 @@ class RateLimiter:
             return False, "Daily limit reached. Please try again tomorrow.", None
         
         if session_id:
-            session_count = self.session_message_counts.get(session_id, 0)
-            if session_count >= self.captcha_threshold:
+            session_count = self._count_session_messages_in_day(session_id)
+            
+            if session_count >= self.session_daily_limit:
+                logger.warning(f"[Session Limit] Session={session_id[:16]}... exceeded {self.session_daily_limit} messages in 24h")
+                return False, "You've had a great conversation today! For more help, please contact support@grest.in or visit grest.in", None
+            
+            # Count messages since last CAPTCHA verification (or all messages if never verified)
+            messages_since_captcha = self._count_messages_since_captcha(session_id)
+            if messages_since_captcha >= self.captcha_threshold:
                 if session_id in self.pending_captchas:
                     return False, "Please solve the verification challenge to continue.", self.pending_captchas[session_id]
                 else:
                     captcha = self._generate_captcha(session_id)
-                    logger.info(f"[CAPTCHA] Triggered for session={session_id[:16]}... (count={session_count})")
+                    logger.info(f"[CAPTCHA] Triggered for session={session_id[:16]}... (count={messages_since_captcha})")
                     return False, "Please verify you're human to continue.", captcha
         
         return True, "", None
@@ -191,7 +218,7 @@ class RateLimiter:
         """Record a successful request."""
         self.ip_requests[ip].append(time.time())
         if session_id:
-            self.session_message_counts[session_id] += 1
+            self.session_messages[session_id].append(time.time())
     
     def _generate_captcha(self, session_id: str) -> dict:
         """Generate a simple math CAPTCHA."""
@@ -209,14 +236,15 @@ class RateLimiter:
         return {"type": "math", "question": captcha["question"]}
     
     def verify_captcha(self, session_id: str, user_answer: str) -> bool:
-        """Verify a CAPTCHA answer."""
+        """Verify a CAPTCHA answer. Resets CAPTCHA counter but preserves daily limit."""
         if session_id not in self.pending_captchas:
             return True
         
         expected = self.pending_captchas[session_id]["answer"]
         if user_answer.strip() == expected:
             del self.pending_captchas[session_id]
-            self.session_message_counts[session_id] = 0
+            # Record verification time - CAPTCHA counter resets, but daily limit preserved
+            self.session_captcha_verified_at[session_id] = time.time()
             logger.info(f"[CAPTCHA] Verified for session={session_id[:16]}...")
             return True
         
@@ -230,7 +258,14 @@ class RateLimiter:
             "blocked_ips": len(self.blocked_ips),
             "pending_captchas": len(self.pending_captchas),
             "total_logged_requests": len(self.ip_log),
-            "blocked_ip_list": list(self.blocked_ips.keys())[:10]
+            "blocked_ip_list": list(self.blocked_ips.keys())[:10],
+            "config": {
+                "requests_per_minute": self.requests_per_minute,
+                "requests_per_hour": self.requests_per_hour,
+                "requests_per_day": self.requests_per_day,
+                "captcha_threshold": self.captcha_threshold,
+                "session_daily_limit": self.session_daily_limit
+            }
         }
     
     def get_ip_activity(self, ip: str) -> dict:
@@ -246,10 +281,12 @@ class RateLimiter:
     
     def reset_session(self, session_id: str):
         """Reset session message count (e.g., when user starts new conversation)."""
-        if session_id in self.session_message_counts:
-            del self.session_message_counts[session_id]
+        if session_id in self.session_messages:
+            del self.session_messages[session_id]
         if session_id in self.pending_captchas:
             del self.pending_captchas[session_id]
+        if session_id in self.session_captcha_verified_at:
+            del self.session_captcha_verified_at[session_id]
 
 
 rate_limiter = RateLimiter(
@@ -257,7 +294,8 @@ rate_limiter = RateLimiter(
     requests_per_hour=50,
     requests_per_day=100,
     captcha_threshold=20,
-    block_duration_minutes=10
+    block_duration_minutes=10,
+    session_daily_limit=200
 )
 
 

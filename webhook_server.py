@@ -154,32 +154,6 @@ def validate_internal_api_key():
     return provided_key == expected_key
 
 
-@app.route("/debug/headers", methods=["GET", "POST"])
-def debug_headers():
-    """Temporary debug endpoint to see what headers arrive - DELETE AFTER DEBUGGING."""
-    client_ip = get_client_ip(request)
-    return jsonify({
-        "client_ip_detected": client_ip,
-        "x_forwarded_for": request.headers.get('X-Forwarded-For'),
-        "x_real_ip": request.headers.get('X-Real-IP'),
-        "remote_addr": request.remote_addr,
-        "all_headers": dict(request.headers)
-    })
-
-
-@app.route("/debug/ratelimit", methods=["GET"])
-def debug_ratelimit():
-    """Temporary debug endpoint to see rate limiter state - DELETE AFTER DEBUGGING."""
-    client_ip = get_client_ip(request)
-    return jsonify({
-        "your_ip": client_ip,
-        "your_activity": rate_limiter.get_ip_activity(client_ip),
-        "global_stats": rate_limiter.get_stats(),
-        "all_tracked_ips": list(rate_limiter.ip_requests.keys())[:20],
-        "recent_logs": rate_limiter.ip_log[-10:] if rate_limiter.ip_log else []
-    })
-
-
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     """Direct API endpoint for chat integration - used by React frontend."""
@@ -334,12 +308,6 @@ def api_chat_stream():
     message = data.get("message")
     session_id = data.get("session_id", "anonymous")
     
-    # DEBUG: Log all headers to diagnose IP forwarding in production
-    print(f"[DEBUG HEADERS] X-Forwarded-For: {request.headers.get('X-Forwarded-For')}")
-    print(f"[DEBUG HEADERS] X-Real-IP: {request.headers.get('X-Real-IP')}")
-    print(f"[DEBUG HEADERS] remote_addr: {request.remote_addr}")
-    print(f"[DEBUG HEADERS] All headers: {dict(request.headers)}")
-    
     client_ip = get_client_ip(request)
     
     captcha_answer = data.get("captcha_answer")
@@ -350,8 +318,8 @@ def api_chat_stream():
     allowed, reason, captcha = rate_limiter.check_rate_limit(client_ip, session_id)
     if not allowed:
         if captcha:
-            return jsonify({"error": reason, "captcha_required": True, "captcha": captcha, "debug_ip": client_ip}), 429
-        return jsonify({"error": reason, "rate_limited": True, "debug_ip": client_ip, "debug_stats": rate_limiter.get_ip_activity(client_ip)}), 429
+            return jsonify({"error": reason, "captcha_required": True, "captcha": captcha}), 429
+        return jsonify({"error": reason, "rate_limited": True}), 429
     
     rate_limiter.log_request(client_ip, session_id, "/api/chat/stream", message[:50] if message else "")
     rate_limiter.record_request(client_ip, session_id)
@@ -1329,6 +1297,63 @@ def admin_monitoring():
     except Exception as e:
         print(f"Monitoring error: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/security", methods=["GET"])
+def admin_security():
+    """Get comprehensive security/rate limiting data for dashboard."""
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    stats = rate_limiter.get_stats()
+    
+    blocked_details = []
+    for ip, block_until in rate_limiter.blocked_ips.items():
+        remaining_seconds = (block_until - datetime.utcnow()).total_seconds()
+        if remaining_seconds > 0:
+            blocked_details.append({
+                "ip": ip,
+                "blockedUntil": block_until.isoformat(),
+                "remainingMinutes": round(remaining_seconds / 60, 1)
+            })
+    
+    top_ips = []
+    for ip in list(rate_limiter.ip_requests.keys())[:20]:
+        activity = rate_limiter.get_ip_activity(ip)
+        if activity["requests_last_day"] > 0:
+            top_ips.append({
+                "ip": ip,
+                "requestsLastMinute": activity["requests_last_minute"],
+                "requestsLastHour": activity["requests_last_hour"],
+                "requestsLastDay": activity["requests_last_day"],
+                "isBlocked": activity["is_blocked"]
+            })
+    
+    top_ips.sort(key=lambda x: x["requestsLastDay"], reverse=True)
+    
+    rate_limit_violations = []
+    for log in rate_limiter.ip_log[-100:]:
+        if "Rate Limit" in str(log.get("message_preview", "")):
+            rate_limit_violations.append(log)
+    
+    return jsonify({
+        "summary": {
+            "activeIps": stats["active_ips"],
+            "blockedIps": stats["blocked_ips"],
+            "pendingCaptchas": stats["pending_captchas"],
+            "totalRequests": stats["total_logged_requests"]
+        },
+        "blockedIpDetails": blocked_details,
+        "topActiveIps": top_ips[:10],
+        "recentRequests": rate_limiter.ip_log[-20:] if rate_limiter.ip_log else [],
+        "config": {
+            "requestsPerMinute": rate_limiter.requests_per_minute,
+            "requestsPerHour": rate_limiter.requests_per_hour,
+            "requestsPerDay": rate_limiter.requests_per_day,
+            "captchaThreshold": rate_limiter.captcha_threshold,
+            "sessionDailyLimit": rate_limiter.session_daily_limit
+        }
+    })
 
 
 @app.route("/api/admin/rate-limiter/stats", methods=["GET"])
