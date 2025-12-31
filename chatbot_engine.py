@@ -653,7 +653,7 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
                 if specs.get('conditions'):
                     context_parts.append(f"  Conditions: {', '.join(specs['conditions'])}")
             
-            # Always use hardcoded specs for iPhones (database specs are often empty)
+            # Use specs from database (Shopify metafields)
             if iphone_specs:
                 context_parts.append(f"\n  *** TECHNICAL SPECIFICATIONS (AUTHORITATIVE - USE THESE EXACTLY) ***")
                 context_parts.append(f"  - **Display:** {iphone_specs.get('display', 'N/A')}")
