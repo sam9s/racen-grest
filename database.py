@@ -694,9 +694,13 @@ def get_products_in_price_range(min_price: float, max_price: float, category: st
         ]
 
 
-def get_cheapest_product(category: str = None):
+def get_cheapest_product(category: str = None, model_name: str = None):
     """
-    Get the cheapest product, optionally filtered by category.
+    Get the cheapest product, optionally filtered by category and/or model.
+    
+    Args:
+        category: Filter by category (e.g., "iPhone", "MacBook")
+        model_name: Filter by specific model (e.g., "iPhone 16", "iPhone 15 Pro Max")
     """
     with get_db_session() as db:
         if db is None:
@@ -704,7 +708,29 @@ def get_cheapest_product(category: str = None):
         
         query = db.query(GRESTProduct).filter(GRESTProduct.in_stock == True)
         
-        if category:
+        if model_name:
+            # If specific model requested, filter by model name
+            # Handle suffix matching to avoid matching "iPhone 16" to "iPhone 16 Pro"
+            model_lower = model_name.lower()
+            all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'max', 'air']
+            
+            exclude_suffixes = []
+            for suffix in all_suffixes:
+                if suffix not in model_lower:
+                    exclude_suffixes.append(suffix)
+            
+            # Don't exclude 'pro' or 'max' if 'pro max' is in the model
+            if 'pro max' in model_lower:
+                if 'pro' in exclude_suffixes:
+                    exclude_suffixes.remove('pro')
+                if 'max' in exclude_suffixes:
+                    exclude_suffixes.remove('max')
+            
+            query = query.filter(GRESTProduct.name.ilike(f"%{model_name}%"))
+            
+            for suffix in exclude_suffixes:
+                query = query.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
+        elif category:
             query = query.filter(GRESTProduct.category.ilike(f"%{category}%"))
         
         product = query.order_by(GRESTProduct.price.asc()).first()
@@ -871,11 +897,15 @@ def search_product_by_specs(model_name: str = None, storage: str = None, conditi
 
 
 def search_products_by_category(category: str, storage: str = None, condition: str = None, 
-                                 color: str = None, limit: int = 10):
+                                 color: str = None, limit: int = 10, dedupe_by_model: bool = False):
     """
     Search products by category with optional filters.
     Returns multiple products sorted by price.
+    
+    If dedupe_by_model=True, returns only the cheapest variant per model.
     """
+    from sqlalchemy import func, or_
+    
     with get_db_session() as db:
         if db is None:
             return []
@@ -886,8 +916,12 @@ def search_products_by_category(category: str, storage: str = None, condition: s
         )
         
         if storage:
-            storage_clean = storage.upper().replace(' ', '').replace('GB', ' GB').replace('TB', ' TB').strip()
-            q = q.filter(GRESTProduct.storage.ilike(f"%{storage_clean}%"))
+            storage_no_space = storage.upper().replace(' ', '')
+            storage_with_space = storage_no_space.replace('GB', ' GB').replace('TB', ' TB').strip()
+            q = q.filter(or_(
+                GRESTProduct.storage.ilike(f"%{storage_no_space}%"),
+                GRESTProduct.storage.ilike(f"%{storage_with_space}%")
+            ))
         
         if condition:
             q = q.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
@@ -895,7 +929,50 @@ def search_products_by_category(category: str, storage: str = None, condition: s
         if color:
             q = q.filter(GRESTProduct.color.ilike(f"%{color}%"))
         
-        products = q.order_by(GRESTProduct.price.asc()).limit(limit).all()
+        if dedupe_by_model:
+            subq = db.query(
+                GRESTProduct.name,
+                func.min(GRESTProduct.price).label('min_price')
+            ).filter(
+                GRESTProduct.category.ilike(f"%{category}%"),
+                GRESTProduct.in_stock == True
+            )
+            
+            if storage:
+                subq = subq.filter(or_(
+                    GRESTProduct.storage.ilike(f"%{storage_no_space}%"),
+                    GRESTProduct.storage.ilike(f"%{storage_with_space}%")
+                ))
+            
+            if condition:
+                subq = subq.filter(GRESTProduct.condition.ilike(f"%{condition}%"))
+            
+            if color:
+                subq = subq.filter(GRESTProduct.color.ilike(f"%{color}%"))
+            
+            subq = subq.group_by(GRESTProduct.name).subquery()
+            
+            q = db.query(GRESTProduct).join(
+                subq,
+                (GRESTProduct.name == subq.c.name) & (GRESTProduct.price == subq.c.min_price)
+            ).filter(GRESTProduct.in_stock == True)
+            
+            if storage:
+                q = q.filter(or_(
+                    GRESTProduct.storage.ilike(f"%{storage_no_space}%"),
+                    GRESTProduct.storage.ilike(f"%{storage_with_space}%")
+                ))
+            
+            products = q.order_by(GRESTProduct.price.asc()).limit(limit).all()
+            seen_names = set()
+            unique_products = []
+            for p in products:
+                if p.name not in seen_names:
+                    seen_names.add(p.name)
+                    unique_products.append(p)
+            products = unique_products
+        else:
+            products = q.order_by(GRESTProduct.price.asc()).limit(limit).all()
         
         return [{
             'name': p.name,
@@ -1092,6 +1169,49 @@ def get_storage_options_for_model(model_name: str):
         storages = query.all()
         
         return [s[0] for s in storages if s[0]]
+
+
+def get_colors_for_model(model_name: str):
+    """
+    Get all available colors for a product model from the database.
+    Returns distinct color values - this is the AUTHORITATIVE source for colors.
+    """
+    with get_db_session() as db:
+        if db is None:
+            return []
+        
+        from sqlalchemy import distinct
+        
+        model_normalized = model_name.strip()
+        model_lower = model_normalized.lower()
+        
+        all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'new', 'max', 'air']
+        
+        exclude_suffixes = []
+        for suffix in all_suffixes:
+            if suffix not in model_lower:
+                exclude_suffixes.append(suffix)
+        
+        if 'pro max' in model_lower:
+            if 'pro' in exclude_suffixes:
+                exclude_suffixes.remove('pro')
+            if 'max' in exclude_suffixes:
+                exclude_suffixes.remove('max')
+        
+        query = db.query(distinct(GRESTProduct.color)).filter(
+            GRESTProduct.name.ilike(f"%{model_normalized}%"),
+            GRESTProduct.in_stock == True,
+            GRESTProduct.color.isnot(None),
+            GRESTProduct.color != ''
+        )
+        
+        for suffix in exclude_suffixes:
+            query = query.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
+        
+        colors = query.all()
+        
+        # Filter out 'Random' color which is not a real color option
+        return [c[0] for c in colors if c[0] and c[0].lower() != 'random']
 
 
 def get_top_products_for_recommendations(category: str = "iPhone", limit: int = 6, 

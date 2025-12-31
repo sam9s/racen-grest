@@ -433,23 +433,39 @@ def inject_product_links(response: str) -> str:
     """
     Post-process LLM response to add clickable links to product/page mentions.
     Case-insensitive matching, only converts if not already a markdown link.
+    IMPORTANT: Skips any text inside URLs (between parentheses in markdown links).
     Also sanitizes any malformed URLs.
     """
     import re
     
+    if not response:
+        return response
+    
+    existing_link_ranges = []
+    for match in re.finditer(r'\[[^\]]+\]\([^)]+\)', response):
+        existing_link_ranges.append((match.start(), match.end()))
+    
+    def is_inside_link(pos):
+        for start, end in existing_link_ranges:
+            if start <= pos < end:
+                return True
+        return False
+    
     result = response
     
-    link_patterns = {
-        r'(?<!\[)(iphones?)(?!\]|\()': ("iPhones", GREST_URLS["iPhones"]),
-        r'(?<!\[)(macbooks?)(?!\]|\()': ("MacBooks", GREST_URLS["MacBooks"]),
-    }
+    link_patterns = [
+        (r'(?<!\[)(iphones?)(?!\]|\()', "iPhones", GREST_URLS["iPhones"]),
+        (r'(?<!\[)(macbooks?)(?!\]|\()', "MacBooks", GREST_URLS["MacBooks"]),
+    ]
     
-    for pattern, (display_name, url) in link_patterns.items():
+    for pattern, display_name, url in link_patterns:
         match = re.search(pattern, result, re.IGNORECASE)
-        if match:
-            matched_text = match.group(1)
+        if match and not is_inside_link(match.start()):
             markdown_link = f"[{display_name}]({url})"
             result = result[:match.start()] + markdown_link + result[match.end():]
+            existing_link_ranges = []
+            for m in re.finditer(r'\[[^\]]+\]\([^)]+\)', result):
+                existing_link_ranges.append((m.start(), m.end()))
     
     result = sanitize_markdown_urls(result)
     

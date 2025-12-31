@@ -25,6 +25,7 @@ from database import (
     search_product_by_specs,
     get_product_variants,
     get_storage_options_for_model,
+    get_colors_for_model,
     get_product_specifications,
     compare_products,
     search_products_by_category,
@@ -205,8 +206,81 @@ def get_iphone_specs_from_db(model_name: str) -> dict:
         return {}
 
 
+HARDCODED_IPHONE_SPECS = {
+    'iphone 16': {
+        'display': '6.1-inch Super Retina XDR OLED, 60Hz, 460 ppi',
+        'processor': 'Apple A18 chip (6-core CPU)',
+        'rear_camera': '48MP Fusion camera, 12MP Ultra Wide',
+        'front_camera': '12MP TrueDepth camera',
+        '5g': 'Yes',
+        'design': 'Aluminum frame',
+        'water_resistance': 'IP68 (6 meters, 30 minutes)',
+    },
+    'iphone 16 plus': {
+        'display': '6.7-inch Super Retina XDR OLED, 60Hz, 460 ppi',
+        'processor': 'Apple A18 chip (6-core CPU)',
+        'rear_camera': '48MP Fusion camera, 12MP Ultra Wide',
+        'front_camera': '12MP TrueDepth camera',
+        '5g': 'Yes',
+        'design': 'Aluminum frame',
+        'water_resistance': 'IP68 (6 meters, 30 minutes)',
+    },
+    'iphone 16 pro': {
+        'display': '6.3-inch Super Retina XDR OLED, 120Hz ProMotion, Always-On, 460 ppi',
+        'processor': 'Apple A18 Pro chip (6-core CPU)',
+        'rear_camera': '48MP Fusion, 48MP Ultra Wide, 12MP 5x Telephoto, LiDAR',
+        'front_camera': '12MP TrueDepth camera',
+        '5g': 'Yes',
+        'design': 'Titanium frame',
+        'water_resistance': 'IP68 (6 meters, 30 minutes)',
+    },
+    'iphone 16 pro max': {
+        'display': '6.9-inch Super Retina XDR OLED, 120Hz ProMotion, Always-On, 460 ppi',
+        'processor': 'Apple A18 Pro chip (6-core CPU)',
+        'rear_camera': '48MP Fusion, 48MP Ultra Wide, 12MP 5x Telephoto, LiDAR',
+        'front_camera': '12MP TrueDepth camera',
+        '5g': 'Yes',
+        'design': 'Titanium frame',
+        'water_resistance': 'IP68 (6 meters, 30 minutes)',
+    },
+    'iphone 14 pro': {
+        'display': '6.1-inch Super Retina XDR OLED, 120Hz ProMotion, Always-On',
+        'processor': 'Apple A16 Bionic chip',
+        'rear_camera': '48MP Wide, 12MP Ultra Wide, 12MP Telephoto',
+        'front_camera': '12MP TrueDepth camera',
+        '5g': 'Yes',
+        'design': 'Stainless steel frame',
+        'water_resistance': 'IP68 (6 meters, 30 minutes)',
+    },
+    'iphone 14 pro max': {
+        'display': '6.7-inch Super Retina XDR OLED, 120Hz ProMotion, Always-On',
+        'processor': 'Apple A16 Bionic chip',
+        'rear_camera': '48MP Wide, 12MP Ultra Wide, 12MP Telephoto',
+        'front_camera': '12MP TrueDepth camera',
+        '5g': 'Yes',
+        'design': 'Stainless steel frame',
+        'water_resistance': 'IP68 (6 meters, 30 minutes)',
+    },
+}
+
+
 def get_iphone_specs(model_name: str) -> dict:
-    """Get specifications for an iPhone model - reads from database."""
+    """
+    Get specifications for an iPhone model.
+    
+    Uses HARDCODED_IPHONE_SPECS as the PRIMARY source for known models
+    (to override potentially wrong Shopify metafield data), 
+    then falls back to database.
+    """
+    if not model_name:
+        return {}
+    
+    model_clean = model_name.replace("Apple ", "").strip().lower()
+    
+    if model_clean in HARDCODED_IPHONE_SPECS:
+        print(f"[Specs] Using hardcoded specs for: {model_clean}")
+        return HARDCODED_IPHONE_SPECS[model_clean]
+    
     return get_iphone_specs_from_db(model_name)
 
 
@@ -727,6 +801,12 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
                 if storage_options:
                     context_parts.append(f"\n  STORAGE OPTIONS AVAILABLE:")
                     context_parts.append(f"    {', '.join(storage_options)}")
+            
+            colors_available = get_colors_for_model(model or product['name'])
+            if colors_available:
+                context_parts.append(f"\n  *** COLORS AVAILABLE (USE ONLY THESE - DO NOT INVENT COLORS) ***")
+                context_parts.append(f"    {', '.join(colors_available)}")
+                context_parts.append(f"  *** DO NOT mention colors NOT in this list ***")
         else:
             context_parts.append(f"\n*** CRITICAL: PRODUCT NOT IN DATABASE ***")
             context_parts.append(f"Product: {model}")
@@ -741,6 +821,7 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
         search_category = category if category else ('iPhone' if not model or 'iphone' in (model or '').lower() else None)
         
         if storage or color:
+            # Filter by storage/color if specified
             product = search_product_by_specs(model, storage, condition, color, search_category)
             if product:
                 context_parts.append(f"CHEAPEST MATCHING PRODUCT:")
@@ -750,8 +831,45 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
                 context_parts.append(f"  Condition: {product.get('condition', 'N/A')}")
                 context_parts.append(f"  PRICE: Rs. {int(product['price']):,} (USE THIS EXACT PRICE)")
                 context_parts.append(f"  URL: {product['product_url']}")
+        elif model:
+            # CRITICAL FIX: When specific model requested (e.g., "cheapest iPhone 16"), 
+            # use model filter - don't just get cheapest from entire category!
+            cheapest = get_cheapest_product(category=search_category, model_name=model)
+            if cheapest:
+                context_parts.append(f"CHEAPEST {model.upper()} AVAILABLE:")
+                context_parts.append(f"  Model: {cheapest['name']}")
+                context_parts.append(f"  Storage: {cheapest.get('storage', 'N/A')}")
+                context_parts.append(f"  Condition: {cheapest.get('condition', 'N/A')}")
+                context_parts.append(f"  PRICE: Rs. {int(cheapest['price']):,} (USE THIS EXACT PRICE)")
+                context_parts.append(f"  URL: {cheapest['product_url']}")
+                if cheapest.get('image_url'):
+                    context_parts.append(f"  IMAGE: {cheapest['image_url']}")
+                
+                iphone_specs = get_iphone_specs(cheapest['name'])
+                if iphone_specs:
+                    context_parts.append(f"\n  *** SPECIFICATIONS ***")
+                    context_parts.append(f"  - **Display:** {iphone_specs.get('display', 'N/A')}")
+                    context_parts.append(f"  - **Processor:** {iphone_specs.get('processor', 'N/A')}")
+                    context_parts.append(f"  - **Rear Camera:** {iphone_specs.get('rear_camera', 'N/A')}")
+                    context_parts.append(f"  - **5G:** {iphone_specs.get('5g', 'N/A')}")
+                    context_parts.append(f"  - **Design:** {iphone_specs.get('design', 'N/A')}")
+                
+                storage_options = get_storage_options_for_model(model)
+                if storage_options:
+                    context_parts.append(f"\n  STORAGE OPTIONS: {', '.join(storage_options)}")
+                
+                colors_available = get_colors_for_model(model)
+                if colors_available:
+                    context_parts.append(f"\n  *** COLORS AVAILABLE (USE ONLY THESE) ***")
+                    context_parts.append(f"    {', '.join(colors_available)}")
+            else:
+                context_parts.append(f"\n*** CRITICAL: MODEL NOT AVAILABLE ***")
+                context_parts.append(f"Model: {model}")
+                context_parts.append(f"Status: NOT AVAILABLE at GREST")
+                context_parts.append(f"*** TELL THE USER: 'Sorry, {model} is not currently available.' ***")
         else:
-            cheapest = get_cheapest_product(search_category)
+            # No model specified - get cheapest from category
+            cheapest = get_cheapest_product(category=search_category)
             if cheapest:
                 category_label = search_category if search_category else 'Product'
                 context_parts.append(f"CHEAPEST {category_label} AVAILABLE:")
@@ -806,6 +924,29 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
             cheapest = get_cheapest_product(None)
             if cheapest:
                 context_parts.append(f"\n  Cheapest available: {cheapest['name']} at Rs. {int(cheapest['price']):,}")
+    
+    elif (query_type == 'general' or not query_type or query_type == 'other') and category and storage and not model:
+        # Handle "show me all 512GB iPhones" type queries (category + storage, no specific model)
+        products = search_products_by_category(category, storage, condition, color, limit=15)
+        
+        if products:
+            context_parts.append(f"ALL {storage} {category}S AVAILABLE (sorted by price):")
+            context_parts.append(f"  *** USE ONLY THESE PRICES - DO NOT USE TRAINING DATA ***\n")
+            
+            seen_models = set()
+            for p in products:
+                model_key = p['name']
+                if model_key not in seen_models:
+                    seen_models.add(model_key)
+                    cond = p.get('condition', 'N/A')
+                    context_parts.append(f"  - **{p['name']}** ({storage}, {cond}): Rs. {int(p['price']):,}")
+                    context_parts.append(f"    URL: {p['product_url']}")
+            
+            context_parts.append(f"\n  TOTAL: {len(products)} variants in {storage}")
+            context_parts.append(f"  *** CRITICAL: Use ONLY the prices above. DO NOT guess or estimate. ***")
+        else:
+            context_parts.append(f"No {storage} {category}s found in stock.")
+            context_parts.append(f"*** Tell user: 'We don't have {storage} {category}s in stock currently.' ***")
     
     elif query_type == 'general' and (model or condition or color):
         if model:
@@ -891,11 +1032,17 @@ def get_product_context_from_database(message: str, session_id: str = None) -> s
     
     parsed_intent = parse_query_with_llm(message)
     llm_category = parsed_intent.get('category')
+    llm_storage = parsed_intent.get('storage')
+    llm_condition = parsed_intent.get('condition')
     is_cheapest = parsed_intent.get('is_cheapest_query', False)
     query_type = parsed_intent.get('query_type', 'other')
     
     if not category and llm_category:
         category = llm_category
+    if not parsed_storage and llm_storage:
+        parsed_storage = llm_storage
+    if not parsed_condition and llm_condition:
+        parsed_condition = llm_condition
     
     msg_lower = message.lower()
     if not category:
@@ -971,6 +1118,26 @@ def get_product_context_from_database(message: str, session_id: str = None) -> s
             context_parts.append(f"Status: NOT IN STOCK or NOT AVAILABLE at GREST")
             context_parts.append(f"*** YOU MUST SAY: 'Sorry, {model_name} is not currently available. Check grest.in for latest inventory.' ***")
             context_parts.append(f"DO NOT guess price. DO NOT use training data.")
+    
+    elif category and storage and not model_name:
+        # Handle "show me all 512GB iPhones" type queries (category + storage, no specific model)
+        # Use dedupe_by_model=True to get cheapest variant per model
+        products = search_products_by_category(category, storage, condition, limit=30, dedupe_by_model=True)
+        
+        if products:
+            context_parts.append(f"ALL {storage} {category}S AVAILABLE (sorted by price):")
+            context_parts.append(f"  *** USE ONLY THESE PRICES - DO NOT USE TRAINING DATA ***\n")
+            
+            for p in products:
+                cond = p.get('condition', 'N/A')
+                context_parts.append(f"  - **{p['name']}** ({storage}, {cond} condition): Starting Rs. {int(p['price']):,}")
+                context_parts.append(f"    URL: {p['product_url']}")
+            
+            context_parts.append(f"\n  TOTAL: {len(products)} models with {storage}")
+            context_parts.append(f"  *** CRITICAL: Use ONLY the prices above. DO NOT guess or estimate. ***")
+        else:
+            context_parts.append(f"No {storage} {category}s found in stock.")
+            context_parts.append(f"*** Tell user: 'We don't have {storage} {category}s in stock currently.' ***")
     
     elif is_cheapest or 'sasta' in msg_lower or 'cheapest' in msg_lower or 'lowest' in msg_lower or 'cheap' in msg_lower or 'low budget' in msg_lower or 'budget' in msg_lower:
         search_category = category if category else 'iPhone'
