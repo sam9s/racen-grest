@@ -206,80 +206,15 @@ def get_iphone_specs_from_db(model_name: str) -> dict:
         return {}
 
 
-HARDCODED_IPHONE_SPECS = {
-    'iphone 16': {
-        'display': '6.1-inch Super Retina XDR OLED, 60Hz, 460 ppi',
-        'processor': 'Apple A18 chip (6-core CPU)',
-        'rear_camera': '48MP Fusion camera, 12MP Ultra Wide',
-        'front_camera': '12MP TrueDepth camera',
-        '5g': 'Yes',
-        'design': 'Aluminum frame',
-        'water_resistance': 'IP68 (6 meters, 30 minutes)',
-    },
-    'iphone 16 plus': {
-        'display': '6.7-inch Super Retina XDR OLED, 60Hz, 460 ppi',
-        'processor': 'Apple A18 chip (6-core CPU)',
-        'rear_camera': '48MP Fusion camera, 12MP Ultra Wide',
-        'front_camera': '12MP TrueDepth camera',
-        '5g': 'Yes',
-        'design': 'Aluminum frame',
-        'water_resistance': 'IP68 (6 meters, 30 minutes)',
-    },
-    'iphone 16 pro': {
-        'display': '6.3-inch Super Retina XDR OLED, 120Hz ProMotion, Always-On, 460 ppi',
-        'processor': 'Apple A18 Pro chip (6-core CPU)',
-        'rear_camera': '48MP Fusion, 48MP Ultra Wide, 12MP 5x Telephoto, LiDAR',
-        'front_camera': '12MP TrueDepth camera',
-        '5g': 'Yes',
-        'design': 'Titanium frame',
-        'water_resistance': 'IP68 (6 meters, 30 minutes)',
-    },
-    'iphone 16 pro max': {
-        'display': '6.9-inch Super Retina XDR OLED, 120Hz ProMotion, Always-On, 460 ppi',
-        'processor': 'Apple A18 Pro chip (6-core CPU)',
-        'rear_camera': '48MP Fusion, 48MP Ultra Wide, 12MP 5x Telephoto, LiDAR',
-        'front_camera': '12MP TrueDepth camera',
-        '5g': 'Yes',
-        'design': 'Titanium frame',
-        'water_resistance': 'IP68 (6 meters, 30 minutes)',
-    },
-    'iphone 14 pro': {
-        'display': '6.1-inch Super Retina XDR OLED, 120Hz ProMotion, Always-On',
-        'processor': 'Apple A16 Bionic chip',
-        'rear_camera': '48MP Wide, 12MP Ultra Wide, 12MP Telephoto',
-        'front_camera': '12MP TrueDepth camera',
-        '5g': 'Yes',
-        'design': 'Stainless steel frame',
-        'water_resistance': 'IP68 (6 meters, 30 minutes)',
-    },
-    'iphone 14 pro max': {
-        'display': '6.7-inch Super Retina XDR OLED, 120Hz ProMotion, Always-On',
-        'processor': 'Apple A16 Bionic chip',
-        'rear_camera': '48MP Wide, 12MP Ultra Wide, 12MP Telephoto',
-        'front_camera': '12MP TrueDepth camera',
-        '5g': 'Yes',
-        'design': 'Stainless steel frame',
-        'water_resistance': 'IP68 (6 meters, 30 minutes)',
-    },
-}
-
-
 def get_iphone_specs(model_name: str) -> dict:
     """
-    Get specifications for an iPhone model.
+    Get specifications for an iPhone model from the database.
     
-    Uses HARDCODED_IPHONE_SPECS as the PRIMARY source for known models
-    (to override potentially wrong Shopify metafield data), 
-    then falls back to database.
+    Architecture: All data flows from Shopify → Database → Chatbot.
+    No hardcoded specs - database is the single source of truth.
     """
     if not model_name:
         return {}
-    
-    model_clean = model_name.replace("Apple ", "").strip().lower()
-    
-    if model_clean in HARDCODED_IPHONE_SPECS:
-        print(f"[Specs] Using hardcoded specs for: {model_clean}")
-        return HARDCODED_IPHONE_SPECS[model_clean]
     
     return get_iphone_specs_from_db(model_name)
 
