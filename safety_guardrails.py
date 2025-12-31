@@ -255,6 +255,12 @@ LINKS (CRITICAL):
 - ALWAYS use markdown links: [Link Text](url)
 - For products: [View iPhone 12](https://grest.in/products/refurbished-apple-iphone-12)
 - For pages: [Contact Us](https://grest.in/pages/contact-us)
+- NEVER insert links in the middle of product names or sentences!
+  - WRONG: "The [iPhones](url) 16 is available" (breaks up "iPhone 16")
+  - WRONG: "Apple [iPhones](url) XR" (breaks up product name)
+  - CORRECT: "The iPhone 16 is available" (plain text for product names)
+  - CORRECT: "Check out the [iPhone 16](product-url)" (link wraps full product name)
+- Only add navigation links at the END of responses, not inline in sentences
 
 PRODUCT IMAGES:
 - When showing a specific product, include its image using: ![Product Name](image_url)
@@ -281,6 +287,7 @@ DON'T:
 - Sound like a pushy salesperson
 - Refer to GREST as "them" or "they"
 - Ignore the user's language preference
+- Break up product names with links (e.g., "[iPhones](url) 17" is WRONG)
 
 === EXAMPLES (FORMAT REFERENCE ONLY) ===
 
@@ -429,17 +436,54 @@ def sanitize_markdown_urls(response: str) -> str:
     return result
 
 
-def inject_product_links(response: str) -> str:
+def fix_broken_product_links(response: str) -> str:
     """
-    Post-process LLM response to add clickable links to product/page mentions.
-    Case-insensitive matching, only converts if not already a markdown link.
-    IMPORTANT: Skips any text inside URLs (between parentheses in markdown links).
-    Also sanitizes any malformed URLs.
+    Fix malformed markdown links where product names are broken up.
+    
+    Examples fixed:
+    - "[iPhones](url) 17" → "iPhone 17"
+    - "Apple [iPhones](url) XR" → "Apple iPhone XR"
+    - "[iPhones](url) 16 Pro Max" → "iPhone 16 Pro Max"
     """
     import re
     
     if not response:
         return response
+    
+    result = response
+    
+    iphone_pattern = r'\[iPhones?\]\([^)]+\)\s*(\d+[^,.\n]*)'
+    
+    def fix_iphone_match(match):
+        suffix = match.group(1).strip()
+        return f"iPhone {suffix}"
+    
+    result = re.sub(iphone_pattern, fix_iphone_match, result, flags=re.IGNORECASE)
+    
+    macbook_pattern = r'\[MacBooks?\]\([^)]+\)\s*(Pro|Air|M\d+[^,.\n]*)'
+    
+    def fix_macbook_match(match):
+        suffix = match.group(1).strip()
+        return f"MacBook {suffix}"
+    
+    result = re.sub(macbook_pattern, fix_macbook_match, result, flags=re.IGNORECASE)
+    
+    return result
+
+
+def inject_product_links(response: str) -> str:
+    """
+    Post-process LLM response to add clickable links to product/page mentions.
+    Case-insensitive matching, only converts if not already a markdown link.
+    IMPORTANT: Skips any text inside URLs (between parentheses in markdown links).
+    Also sanitizes any malformed URLs and fixes broken product links.
+    """
+    import re
+    
+    if not response:
+        return response
+    
+    response = fix_broken_product_links(response)
     
     existing_link_ranges = []
     for match in re.finditer(r'\[[^\]]+\]\([^)]+\)', response):
@@ -454,8 +498,8 @@ def inject_product_links(response: str) -> str:
     result = response
     
     link_patterns = [
-        (r'(?<!\[)(iphones?)(?!\]|\()', "iPhones", GREST_URLS["iPhones"]),
-        (r'(?<!\[)(macbooks?)(?!\]|\()', "MacBooks", GREST_URLS["MacBooks"]),
+        (r'(?<!\[)(iphones?)(?!\]|\(|\s*\d)', "iPhones", GREST_URLS["iPhones"]),
+        (r'(?<!\[)(macbooks?)(?!\]|\(|\s*\d)', "MacBooks", GREST_URLS["MacBooks"]),
     ]
     
     for pattern, display_name, url in link_patterns:

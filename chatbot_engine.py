@@ -932,6 +932,20 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
             context_parts.append(f"  URL: {product['product_url']}")
             if product.get('image_url'):
                 context_parts.append(f"  IMAGE: {product['image_url']}")
+            
+            colors_available = get_colors_for_model(model or product['name'])
+            if colors_available:
+                context_parts.append(f"\n  *** COLORS AVAILABLE (USE ONLY THESE - DO NOT INVENT COLORS) ***")
+                context_parts.append(f"    {', '.join(colors_available)}")
+                context_parts.append(f"  *** DO NOT mention colors NOT in this list ***")
+            
+            iphone_specs = get_iphone_specs(product['name'])
+            if iphone_specs:
+                context_parts.append(f"\n  *** SPECIFICATIONS ***")
+                context_parts.append(f"  - **Display:** {iphone_specs.get('display', 'N/A')}")
+                context_parts.append(f"  - **Processor:** {iphone_specs.get('processor', 'N/A')}")
+                context_parts.append(f"  - **Rear Camera:** {iphone_specs.get('rear_camera', 'N/A')}")
+                context_parts.append(f"  - **5G:** {iphone_specs.get('5g', 'N/A')}")
         else:
             # Fallback to database context
             return get_product_context_from_database(message, session_id)
