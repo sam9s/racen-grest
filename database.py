@@ -752,6 +752,61 @@ def get_cheapest_product(category: str = None, model_name: str = None):
         return None
 
 
+def get_most_expensive_product(category: str = None, model_name: str = None):
+    """
+    Get the most expensive product, optionally filtered by category and/or model.
+    
+    Args:
+        category: Filter by category (e.g., "iPhone", "MacBook")
+        model_name: Filter by specific model (e.g., "iPhone 16", "iPhone 15 Pro Max")
+    """
+    with get_db_session() as db:
+        if db is None:
+            return None
+        
+        query = db.query(GRESTProduct).filter(GRESTProduct.in_stock == True)
+        
+        if model_name:
+            model_lower = model_name.lower()
+            all_suffixes = ['mini', 'pro max', 'pro', 'plus', 'ultra', 'se', 'max', 'air']
+            
+            exclude_suffixes = []
+            for suffix in all_suffixes:
+                if suffix not in model_lower:
+                    exclude_suffixes.append(suffix)
+            
+            if 'pro max' in model_lower:
+                if 'pro' in exclude_suffixes:
+                    exclude_suffixes.remove('pro')
+                if 'max' in exclude_suffixes:
+                    exclude_suffixes.remove('max')
+            
+            query = query.filter(GRESTProduct.name.ilike(f"%{model_name}%"))
+            
+            for suffix in exclude_suffixes:
+                query = query.filter(~GRESTProduct.name.ilike(f"% {suffix}%"))
+        elif category:
+            query = query.filter(GRESTProduct.category.ilike(f"%{category}%"))
+        
+        product = query.order_by(GRESTProduct.price.desc()).first()
+        
+        if product:
+            return {
+                'name': product.name,
+                'price': float(product.price),
+                'original_price': float(product.original_price) if product.original_price else None,
+                'discount_percent': product.discount_percent,
+                'category': product.category,
+                'storage': product.storage,
+                'condition': product.condition,
+                'color': product.color,
+                'product_url': product.product_url,
+                'image_url': product.image_url,
+                'specifications': product.specifications
+            }
+        return None
+
+
 def get_all_products_formatted():
     """
     Get all products formatted for chatbot context.

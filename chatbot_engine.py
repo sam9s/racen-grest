@@ -20,6 +20,7 @@ from database import (
     get_products_under_price,
     get_products_in_price_range,
     get_cheapest_product,
+    get_most_expensive_product,
     get_all_products_formatted,
     search_products_for_chatbot,
     search_product_by_specs,
@@ -70,6 +71,8 @@ def detect_coreference(message: str) -> bool:
         r'\bsame\s*(product|model|phone|device|one)?\b',
         r'\bthat\s*(one|product|model|phone)?\b',
         r'\bthis\s*(one|product|model|phone)?\b',
+        r'\bthe\s+(most\s+)?(expensive|cheapest|costliest|highest|lowest)\s+one\b',  # "the most expensive one"
+        r'\b(expensive|cheapest|costliest)\s+one\b',  # "expensive one", "cheapest one"
         r'\bwoh\s*wala\b',  # Hinglish: "that one"
         r'\bwahi\b',  # Hinglish: "the same"
         r'\biske\b',  # Hinglish: "of this"
@@ -80,6 +83,7 @@ def detect_coreference(message: str) -> bool:
         r'\bmentioned\b',
         r'\bvariant\b',  # "256GB variant" implies same product
         r'\bit\b(?!\s*is)',  # "it" but not "it is"
+        r'\band\s+the\s+\w+\s+one\b',  # "and the most expensive one", "and the cheapest one"
     ]
     message_lower = message.lower()
     for pattern in coreference_patterns:
@@ -532,9 +536,10 @@ OUTPUT FORMAT (JSON only):
   "budget_max": 40000 or null,
   "is_price_query": true/false,
   "is_cheapest_query": true/false,
+  "is_most_expensive_query": true/false,
   "spec_only": true/false,
   "comparison_models": ["iPhone 15", "iPhone 16"] or null,
-  "query_type": "specific_price" | "budget_search" | "cheapest" | "comparison" | "specs" | "general" | "other"
+  "query_type": "specific_price" | "budget_search" | "cheapest" | "most_expensive" | "comparison" | "specs" | "general" | "other"
 }
 
 EXAMPLES:
@@ -545,7 +550,13 @@ Query: "Neela wala iPhone dikhao"
 {"model": null, "storage": null, "condition": null, "color": "Blue", "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "spec_only": false, "comparison_models": null, "query_type": "budget_search"}
 
 Query: "Cheapest 256GB iPhone"
-{"model": null, "storage": "256 GB", "condition": null, "color": null, "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": true, "spec_only": false, "comparison_models": null, "query_type": "cheapest"}
+{"model": null, "storage": "256 GB", "condition": null, "color": null, "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": true, "is_most_expensive_query": false, "spec_only": false, "comparison_models": null, "query_type": "cheapest"}
+
+Query: "Most expensive iPhone 16"
+{"model": "iPhone 16", "storage": null, "condition": null, "color": null, "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "is_most_expensive_query": true, "spec_only": false, "comparison_models": null, "query_type": "most_expensive"}
+
+Query: "And the most expensive one?" (follow-up to previous iPhone 16 question)
+{"model": null, "storage": null, "condition": null, "color": null, "category": null, "budget_min": null, "budget_max": null, "is_price_query": true, "is_cheapest_query": false, "is_most_expensive_query": true, "spec_only": false, "comparison_models": null, "query_type": "most_expensive"}
 
 Query: "Show specs for iPhone 16 Pro Max"
 {"model": "iPhone 16 Pro Max", "storage": null, "condition": null, "color": null, "category": "iPhone", "budget_min": null, "budget_max": null, "is_price_query": false, "is_cheapest_query": false, "spec_only": true, "comparison_models": null, "query_type": "specs"}
@@ -814,6 +825,58 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
                 context_parts.append(f"  PRICE: Rs. {int(cheapest['price']):,} (USE THIS EXACT PRICE)")
                 context_parts.append(f"  URL: {cheapest['product_url']}")
     
+    elif query_type == 'most_expensive' or parsed_intent.get('is_most_expensive_query'):
+        search_category = category if category else ('iPhone' if not model or 'iphone' in (model or '').lower() else None)
+        
+        if model:
+            most_exp = get_most_expensive_product(category=search_category, model_name=model)
+            if most_exp:
+                context_parts.append(f"MOST EXPENSIVE {model.upper()} VARIANT:")
+                context_parts.append(f"  Model: {most_exp['name']}")
+                context_parts.append(f"  Storage: {most_exp.get('storage', 'N/A')}")
+                context_parts.append(f"  Condition: {most_exp.get('condition', 'N/A')}")
+                context_parts.append(f"  Color: {most_exp.get('color', 'N/A')}")
+                context_parts.append(f"  PRICE: Rs. {int(most_exp['price']):,} (USE THIS EXACT PRICE)")
+                context_parts.append(f"  URL: {most_exp['product_url']}")
+                if most_exp.get('image_url'):
+                    context_parts.append(f"  IMAGE: {most_exp['image_url']}")
+                
+                iphone_specs = get_iphone_specs(most_exp['name'])
+                if iphone_specs:
+                    context_parts.append(f"\n  *** SPECIFICATIONS ***")
+                    context_parts.append(f"  - **Display:** {iphone_specs.get('display', 'N/A')}")
+                    context_parts.append(f"  - **Processor:** {iphone_specs.get('processor', 'N/A')}")
+                    context_parts.append(f"  - **Rear Camera:** {iphone_specs.get('rear_camera', 'N/A')}")
+                    context_parts.append(f"  - **5G:** {iphone_specs.get('5g', 'N/A')}")
+                    context_parts.append(f"  - **Design:** {iphone_specs.get('design', 'N/A')}")
+                
+                colors_available = get_colors_for_model(model)
+                if colors_available:
+                    context_parts.append(f"\n  *** COLORS AVAILABLE (USE ONLY THESE) ***")
+                    context_parts.append(f"    {', '.join(colors_available)}")
+            else:
+                context_parts.append(f"\n*** CRITICAL: MODEL NOT AVAILABLE ***")
+                context_parts.append(f"Model: {model}")
+                context_parts.append(f"*** TELL THE USER: 'Sorry, {model} is not currently available.' ***")
+        else:
+            most_exp = get_most_expensive_product(category=search_category)
+            if most_exp:
+                category_label = search_category if search_category else 'Product'
+                context_parts.append(f"MOST EXPENSIVE {category_label} AVAILABLE:")
+                context_parts.append(f"  Model: {most_exp['name']}")
+                context_parts.append(f"  Storage: {most_exp.get('storage', 'N/A')}")
+                context_parts.append(f"  Condition: {most_exp.get('condition', 'N/A')}")
+                context_parts.append(f"  Color: {most_exp.get('color', 'N/A')}")
+                context_parts.append(f"  PRICE: Rs. {int(most_exp['price']):,} (USE THIS EXACT PRICE)")
+                context_parts.append(f"  URL: {most_exp['product_url']}")
+                if most_exp.get('image_url'):
+                    context_parts.append(f"  IMAGE: {most_exp['image_url']}")
+                
+                colors_available = get_colors_for_model(most_exp['name'])
+                if colors_available:
+                    context_parts.append(f"\n  *** COLORS AVAILABLE (USE ONLY THESE) ***")
+                    context_parts.append(f"    {', '.join(colors_available)}")
+
     elif query_type == 'budget_search':
         if budget_min and budget_max:
             products = get_products_in_price_range(budget_min, budget_max, category, storage, condition)
@@ -1735,6 +1798,7 @@ def generate_response(
             parsed_intent.get('budget_max') or
             parsed_intent.get('budget_min') or
             parsed_intent.get('is_cheapest_query') or
+            parsed_intent.get('is_most_expensive_query') or
             parsed_intent.get('storage') or  # Use hybrid when storage is detected (LLM parsing)
             parsed_intent.get('model') or    # Use hybrid when model is detected
             parsed_intent.get('color')       # Use hybrid when color is detected
@@ -1905,6 +1969,7 @@ def generate_response_stream(
             parsed_intent.get('budget_max') or
             parsed_intent.get('budget_min') or
             parsed_intent.get('is_cheapest_query') or
+            parsed_intent.get('is_most_expensive_query') or
             parsed_intent.get('storage') or  # Use hybrid when storage is detected (LLM parsing)
             parsed_intent.get('model') or    # Use hybrid when model is detected
             parsed_intent.get('color')       # Use hybrid when color is detected
