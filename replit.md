@@ -51,6 +51,34 @@ GRESTA is a RAG-based chatbot for GREST, India's premium refurbished iPhone and 
 ## User Preferences
 Focus on high-level features and architectural decisions. Prioritize clarity and conciseness. Direct communication style preferred. Do not make changes to existing file structure without explicit approval.
 
+## CRITICAL: UAT Validation Principle (MUST FOLLOW)
+**The ONLY source of truth for validation is the GREST website (grest.in).**
+
+### Core Logic:
+1. **GREST website** is built on Shopify
+2. **Our database** syncs from Shopify API
+3. **Our chatbot (GRESTA)** reads from our database
+4. **Data flow**: Shopify → Scraper → Database → Chatbot
+
+### UAT Validation Rules:
+- **NEVER** cross-check chatbot responses against official Apple/manufacturer websites
+- **ALWAYS** cross-check against what GREST website (grest.in) shows
+- If GREST website shows "A18 Pro" for iPhone 16 (even if technically incorrect), our chatbot MUST also show "A18 Pro"
+- **Goal**: Chatbot output MUST match GREST website exactly
+- **Not our job**: Fixing incorrect data at Shopify source - that's GREST's responsibility
+
+### When UAT Reports Issues:
+1. Check what GREST website shows for that product
+2. Check what our database has
+3. If database ≠ website → sync issue (re-run scraper)
+4. If database = website but chatbot ≠ database → chatbot code issue
+5. **Never use external sources** (Apple.com, GSMArena, etc.) to determine "correct" data
+
+### No Hardcoding:
+- All product data MUST come from database (synced from Shopify)
+- No hardcoded specs, prices, colors, or any product attributes
+- If data is wrong, fix at source (Shopify) or in scraper logic, not by hardcoding overrides
+
 ## System Architecture
 
 ### Technical Stack
