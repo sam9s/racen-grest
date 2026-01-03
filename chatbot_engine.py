@@ -39,7 +39,7 @@ from database import (
 _openai_client = None
 
 # Session-level product context tracking for multi-turn conversations
-# Key: session_id, Value: dict with model, storage, condition, color, last_updated
+# Key: session_id, Value: dict with model, storage, condition, color, category, last_updated
 _session_product_context = {}
 
 def get_session_context(session_id: str) -> dict:
@@ -47,7 +47,7 @@ def get_session_context(session_id: str) -> dict:
     return _session_product_context.get(session_id, {})
 
 def update_session_context(session_id: str, model: str = None, storage: str = None, 
-                           condition: str = None, color: str = None):
+                           condition: str = None, color: str = None, category: str = None):
     """Update the product context for a session. Only updates non-None values."""
     if session_id not in _session_product_context:
         _session_product_context[session_id] = {}
@@ -61,6 +61,8 @@ def update_session_context(session_id: str, model: str = None, storage: str = No
         ctx['condition'] = condition
     if color:
         ctx['color'] = color
+    if category:
+        ctx['category'] = category
     
     import time
     ctx['last_updated'] = time.time()
@@ -73,6 +75,9 @@ def detect_coreference(message: str) -> bool:
         r'\bthis\s*(one|product|model|phone)?\b',
         r'\bthe\s+(most\s+)?(expensive|cheapest|costliest|highest|lowest)\s+one\b',  # "the most expensive one"
         r'\b(expensive|cheapest|costliest)\s+one\b',  # "expensive one", "cheapest one"
+        r'\bhow\s+about\s+(the\s+)?(most\s+)?(expensive|cheapest|costliest)\b',  # "how about the most expensive?"
+        r'\baur\s+(sabse\s+)?(sasta|mehnga|expensive|cheapest)\b',  # Hinglish: "aur sabse sasta/mehnga"
+        r'\bsabse\s+(sasta|mehnga|expensive|cheapest)\s*(kaun|kaunsa|konsa|wala)?\b',  # "sabse sasta kaun sa hai" - contextual
         r'\bwoh\s*wala\b',  # Hinglish: "that one"
         r'\bwahi\b',  # Hinglish: "the same"
         r'\biske\b',  # Hinglish: "of this"
@@ -84,6 +89,8 @@ def detect_coreference(message: str) -> bool:
         r'\bvariant\b',  # "256GB variant" implies same product
         r'\bit\b(?!\s*is)',  # "it" but not "it is"
         r'\band\s+the\s+\w+\s+one\b',  # "and the most expensive one", "and the cheapest one"
+        r'\bcolou?rs?\s+(available|hai|hain|in\s+this)\b',  # "colors available in this"
+        r'\bisme\s+(kaun|kaunse|konse)?\s*colou?r\b',  # "isme kaun color hai"
     ]
     message_lower = message.lower()
     for pattern in coreference_patterns:
@@ -93,10 +100,11 @@ def detect_coreference(message: str) -> bool:
 
 def merge_with_session_context(session_id: str, parsed_model: str, parsed_storage: str, 
                                 parsed_condition: str, parsed_color: str = None,
-                                message: str = "") -> Tuple[str, str, str, str]:
+                                parsed_category: str = None, message: str = "") -> Tuple[str, str, str, str, str]:
     """
     Merge parsed query values with session context.
     If message contains co-reference and parsed values are missing, use session context.
+    Returns: (model, storage, condition, color, category)
     """
     ctx = get_session_context(session_id)
     has_coreference = detect_coreference(message)
@@ -105,17 +113,23 @@ def merge_with_session_context(session_id: str, parsed_model: str, parsed_storag
     final_storage = parsed_storage
     final_condition = parsed_condition
     final_color = parsed_color
+    final_category = parsed_category
     
     # If no model detected but has co-reference, use session context
     if not final_model and has_coreference and ctx.get('model'):
         final_model = ctx['model']
         print(f"[Session Context] Using model from context: {final_model}")
     
-    # Update session context with new values
-    if final_model or final_storage or final_condition or final_color:
-        update_session_context(session_id, final_model, final_storage, final_condition, final_color)
+    # If no category detected but has co-reference, use session context for category
+    if not final_category and has_coreference and ctx.get('category'):
+        final_category = ctx['category']
+        print(f"[Session Context] Using category from context: {final_category}")
     
-    return (final_model, final_storage, final_condition, final_color)
+    # Update session context with new values
+    if final_model or final_storage or final_condition or final_color or final_category:
+        update_session_context(session_id, final_model, final_storage, final_condition, final_color, final_category)
+    
+    return (final_model, final_storage, final_condition, final_color, final_category)
 
 
 def get_iphone_specs_from_db(model_name: str) -> dict:
@@ -620,15 +634,16 @@ def get_product_context_with_parsed_intent(message: str, parsed_intent: dict, se
     parsed_condition = parsed_intent.get('condition')
     parsed_color = parsed_intent.get('color')
     
+    # Get category from parsed intent
+    parsed_category = parsed_intent.get('category')
+    
     # Merge with session context for multi-turn conversations
     if session_id:
-        model, storage, condition, color = merge_with_session_context(
-            session_id, parsed_model, parsed_storage, parsed_condition, parsed_color, message
+        model, storage, condition, color, category = merge_with_session_context(
+            session_id, parsed_model, parsed_storage, parsed_condition, parsed_color, parsed_category, message
         )
     else:
-        model, storage, condition, color = parsed_model, parsed_storage, parsed_condition, parsed_color
-    
-    category = parsed_intent.get('category')
+        model, storage, condition, color, category = parsed_model, parsed_storage, parsed_condition, parsed_color, parsed_category
     budget_min = parsed_intent.get('budget_min')
     budget_max = parsed_intent.get('budget_max')
     is_cheapest = parsed_intent.get('is_cheapest_query', False)
@@ -1065,9 +1080,13 @@ def get_product_context_from_database(message: str, session_id: str = None) -> s
     
     # Merge with session context for multi-turn conversations
     if session_id:
-        model_name, storage, condition, _ = merge_with_session_context(
-            session_id, parsed_model, parsed_storage, parsed_condition, None, message
+        model_name, storage, condition, _, ctx_category = merge_with_session_context(
+            session_id, parsed_model, parsed_storage, parsed_condition, None, category, message
         )
+        # Use session category if not detected in current query
+        if not category and ctx_category:
+            category = ctx_category
+            print(f"[Session Context] Using category from context: {category}")
     else:
         model_name, storage, condition = parsed_model, parsed_storage, parsed_condition
     
