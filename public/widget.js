@@ -843,6 +843,8 @@
     showTyping();
 
     try {
+      console.log('[GRESTA Widget] Sending to:', WIDGET_CONFIG.apiEndpoint);
+      
       const response = await fetch(WIDGET_CONFIG.apiEndpoint, {
         method: 'POST',
         headers: {
@@ -856,11 +858,42 @@
         }),
       });
 
+      console.log('[GRESTA Widget] Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        const errorText = await response.text();
+        console.error('[GRESTA Widget] Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       hideTyping();
+
+      if (!response.body) {
+        console.error('[GRESTA Widget] Response body is null - streaming not supported');
+        const text = await response.text();
+        console.log('[GRESTA Widget] Fallback text response:', text);
+        let assistantContent = '';
+        const lines = text.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data !== '[DONE]') {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content) assistantContent += parsed.content;
+              } catch (e) {}
+            }
+          }
+        }
+        if (assistantContent) {
+          addMessage('assistant', assistantContent);
+          messages.push({ role: 'assistant', content: assistantContent });
+          saveMessagesToStorage();
+        } else {
+          throw new Error('No content in response');
+        }
+        return;
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -901,6 +934,8 @@
       if (assistantContent) {
         messages.push({ role: 'assistant', content: assistantContent });
         saveMessagesToStorage();
+      } else {
+        console.warn('[GRESTA Widget] No content received from stream');
       }
 
     } catch (error) {
