@@ -27,16 +27,19 @@
 
   async function checkWidgetEnabled() {
     try {
-      const response = await fetch(getConfigEndpoint(), {
+      const cacheBuster = Date.now();
+      const response = await fetch(`${getConfigEndpoint()}?_t=${cacheBuster}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('[GRESTA Widget] Config response:', data);
         return data.enabled !== false;
       }
     } catch (e) {
-      console.log('[GRESTA Widget] Config check failed, enabling by default');
+      console.log('[GRESTA Widget] Config check failed, enabling by default:', e);
     }
     return true;
   }
