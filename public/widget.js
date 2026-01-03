@@ -287,6 +287,43 @@
       word-wrap: break-word;
     }
 
+    .gresta-markdown-content p {
+      margin: 0 0 8px 0;
+    }
+
+    .gresta-markdown-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .gresta-markdown-content strong {
+      font-weight: 600;
+      color: #10b981;
+    }
+
+    .gresta-markdown-content em {
+      font-style: italic;
+    }
+
+    .gresta-markdown-content .gresta-list {
+      margin: 8px 0;
+      padding-left: 20px;
+      list-style-type: disc;
+    }
+
+    .gresta-markdown-content .gresta-list li {
+      margin: 4px 0;
+      line-height: 1.5;
+    }
+
+    .gresta-markdown-content a {
+      color: #10b981;
+      text-decoration: underline;
+    }
+
+    .gresta-markdown-content a:hover {
+      color: #059669;
+    }
+
     @keyframes grestaFadeIn {
       from {
         opacity: 0;
@@ -650,37 +687,49 @@
   }
 
   function createSafeContent(text) {
-    const container = document.createDocumentFragment();
-    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = linkRegex.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        container.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-      }
+    const container = document.createElement('div');
+    container.className = 'gresta-markdown-content';
+    
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    
+    const lines = html.split('\n');
+    let result = [];
+    let inList = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
       
-      const linkText = match[1];
-      const url = match[2];
-      
-      if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.target = '_blank';
-        anchor.rel = 'noopener noreferrer';
-        anchor.textContent = linkText;
-        container.appendChild(anchor);
+      if (line.match(/^[-•]\s+/)) {
+        if (!inList) {
+          result.push('<ul class="gresta-list">');
+          inList = true;
+        }
+        result.push('<li>' + line.replace(/^[-•]\s+/, '') + '</li>');
       } else {
-        container.appendChild(document.createTextNode(match[0]));
+        if (inList) {
+          result.push('</ul>');
+          inList = false;
+        }
+        if (line) {
+          result.push('<p>' + line + '</p>');
+        }
       }
-      
-      lastIndex = match.index + match[0].length;
     }
-
-    if (lastIndex < text.length) {
-      container.appendChild(document.createTextNode(text.slice(lastIndex)));
+    
+    if (inList) {
+      result.push('</ul>');
     }
-
+    
+    container.innerHTML = result.join('');
     return container;
   }
 
