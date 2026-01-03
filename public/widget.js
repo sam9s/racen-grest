@@ -904,7 +904,9 @@
       }
 
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('[GRESTA Widget] Chat error:', error);
+      console.error('[GRESTA Widget] API endpoint was:', WIDGET_CONFIG.apiEndpoint);
+      console.error('[GRESTA Widget] Base URL:', getBaseUrl());
       hideTyping();
       addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
     }
