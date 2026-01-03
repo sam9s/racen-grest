@@ -67,6 +67,43 @@ def health_check():
     return jsonify({"status": "healthy", "service": "GRESTA API Server"})
 
 
+@app.route("/api/widget/config", methods=["GET", "POST"])
+def widget_config():
+    """Get or update widget configuration (toggle on/off)."""
+    from database import get_db_session
+    from sqlalchemy import text
+    
+    if request.method == "GET":
+        try:
+            with get_db_session() as session:
+                if session:
+                    result = session.execute(
+                        text("SELECT value FROM widget_config WHERE key = 'widget_enabled'")
+                    ).fetchone()
+                    enabled = result[0].lower() == 'true' if result else True
+                    return jsonify({"enabled": enabled})
+        except Exception as e:
+            print(f"[Widget Config] Error: {e}")
+        return jsonify({"enabled": True})
+    
+    elif request.method == "POST":
+        data = request.get_json() or {}
+        enabled = data.get("enabled", True)
+        try:
+            with get_db_session() as session:
+                if session:
+                    session.execute(
+                        text("UPDATE widget_config SET value = :value, updated_at = CURRENT_TIMESTAMP WHERE key = 'widget_enabled'"),
+                        {"value": "true" if enabled else "false"}
+                    )
+                    session.commit()
+                    return jsonify({"success": True, "enabled": enabled})
+        except Exception as e:
+            print(f"[Widget Config] Error updating: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": True, "enabled": enabled})
+
+
 @app.route("/api/channels/status", methods=["GET"])
 def channel_status():
     """Get configuration status of all messaging channels."""

@@ -1,25 +1,42 @@
 (function() {
   'use strict';
 
-  function getApiEndpoint() {
-    if (window.GRESTA_API_URL) return window.GRESTA_API_URL;
-    
+  function getBaseUrl() {
+    if (window.GRESTA_BASE_URL) return window.GRESTA_BASE_URL;
     const scriptTag = document.querySelector('script[src*="widget.js"]');
     if (scriptTag && scriptTag.src) {
-      const scriptUrl = new URL(scriptTag.src);
-      return scriptUrl.origin + '/api/chat/stream';
+      return new URL(scriptTag.src).origin;
     }
-    
-    return '/api/chat/stream';
+    return '';
+  }
+
+  function getApiEndpoint() {
+    if (window.GRESTA_API_URL) return window.GRESTA_API_URL;
+    return getBaseUrl() + '/api/chat/stream';
+  }
+
+  function getConfigEndpoint() {
+    return getBaseUrl() + '/api/widget/config';
   }
 
   function getLogoUrl() {
-    const scriptTag = document.querySelector('script[src*="widget.js"]');
-    if (scriptTag && scriptTag.src) {
-      const scriptUrl = new URL(scriptTag.src);
-      return scriptUrl.origin + '/gresta-logo.png';
+    return getBaseUrl() + '/gresta-logo.png';
+  }
+
+  async function checkWidgetEnabled() {
+    try {
+      const response = await fetch(getConfigEndpoint(), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.enabled !== false;
+      }
+    } catch (e) {
+      console.log('[GRESTA Widget] Config check failed, enabling by default');
     }
-    return '/gresta-logo.png';
+    return true;
   }
 
   const WIDGET_CONFIG = {
@@ -176,6 +193,33 @@
       margin: 2px 0 0;
       color: rgba(255, 255, 255, 0.6);
       font-size: 12px;
+    }
+
+    #gresta-new-chat-btn {
+      margin-left: auto;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    #gresta-new-chat-btn:hover {
+      background: rgba(16, 185, 129, 0.4);
+      border-color: rgba(16, 185, 129, 0.6);
+    }
+
+    #gresta-new-chat-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: #10b981;
+      stroke-width: 2;
+      fill: none;
     }
 
     #gresta-chat-messages {
@@ -457,6 +501,12 @@
             <h3>GRESTA</h3>
             <p>Your GREST Assistant</p>
           </div>
+          <button id="gresta-new-chat-btn" title="Start new chat">
+            <svg viewBox="0 0 24 24">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
         </div>
         <div id="gresta-chat-messages">
           <div class="gresta-welcome">
@@ -568,6 +618,27 @@
       bubble.classList.add('open');
       document.getElementById('gresta-chat-input').focus();
     }
+  }
+
+  function startNewChat() {
+    sessionId = generateSessionId();
+    messages = [];
+    
+    try {
+      localStorage.setItem(STORAGE_KEY_SESSION, sessionId);
+      localStorage.removeItem(STORAGE_KEY_MESSAGES);
+    } catch (e) {}
+    
+    const messagesContainer = document.getElementById('gresta-chat-messages');
+    messagesContainer.innerHTML = `
+      <div class="gresta-welcome">
+        <h4>Hi, I'm GRESTA</h4>
+        <p>Your shopping assistant for GREST. How can I help you today?</p>
+      </div>
+    `;
+    
+    document.getElementById('gresta-chat-input').value = '';
+    updateSendButton();
   }
 
   function escapeHtml(text) {
@@ -842,8 +913,14 @@
     updateSendButton();
   }
 
-  function init() {
+  async function init() {
     if (document.getElementById('gresta-widget-container')) return;
+
+    const isEnabled = await checkWidgetEnabled();
+    if (!isEnabled) {
+      console.log('[GRESTA Widget] Widget is disabled by configuration');
+      return;
+    }
 
     injectStyles();
     createWidget();
@@ -855,6 +932,11 @@
 
     const bubble = document.getElementById('gresta-chat-bubble');
     bubble.addEventListener('click', toggleChat);
+
+    const newChatBtn = document.getElementById('gresta-new-chat-btn');
+    if (newChatBtn) {
+      newChatBtn.addEventListener('click', startNewChat);
+    }
 
     const input = document.getElementById('gresta-chat-input');
     input.addEventListener('input', updateSendButton);
@@ -868,6 +950,12 @@
     const sendBtn = document.getElementById('gresta-send-btn');
     sendBtn.addEventListener('click', sendMessage);
   }
+
+  window.GRESTAWidget = {
+    init: init,
+    startNewChat: startNewChat,
+    toggle: toggleChat
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
