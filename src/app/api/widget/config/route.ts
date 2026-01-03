@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+const CACHE_HEADERS = {
   'Cache-Control': 'no-cache, no-store, must-revalidate',
   'Pragma': 'no-cache',
   'Expires': '0',
 };
-
-export async function OPTIONS() {
-  return new NextResponse(null, { headers: CORS_HEADERS });
-}
 
 export async function GET() {
   try {
@@ -24,17 +17,17 @@ export async function GET() {
     if (!response.ok) {
       return NextResponse.json(
         { enabled: true, error: 'Config fetch failed, defaulting to enabled' },
-        { headers: CORS_HEADERS }
+        { headers: CACHE_HEADERS }
       );
     }
 
     const data = await response.json();
-    return NextResponse.json(data, { headers: CORS_HEADERS });
+    return NextResponse.json(data, { headers: CACHE_HEADERS });
   } catch (error) {
     console.error('Widget config error:', error);
     return NextResponse.json(
       { enabled: true, error: 'Config unavailable, defaulting to enabled' },
-      { headers: CORS_HEADERS }
+      { headers: CACHE_HEADERS }
     );
   }
 }
