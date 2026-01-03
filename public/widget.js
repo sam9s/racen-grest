@@ -3,11 +3,13 @@
 
   function getBaseUrl() {
     if (window.GRESTA_BASE_URL) return window.GRESTA_BASE_URL;
-    const scriptTag = document.querySelector('script[src*="widget.js"]');
+    const scriptTag = document.querySelector('script[src*="gresta"][src*="widget.js"]') 
+      || document.querySelector('script[src*="sam9scloud"][src*="widget.js"]')
+      || document.querySelector('script[src*="replit.app"][src*="widget.js"]');
     if (scriptTag && scriptTag.src) {
       return new URL(scriptTag.src).origin;
     }
-    return '';
+    return 'https://gresta.sam9scloud.in';
   }
 
   function getApiEndpoint() {
