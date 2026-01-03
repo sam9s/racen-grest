@@ -55,7 +55,7 @@
     #gresta-chat-bubble {
       position: fixed;
       bottom: 24px;
-      right: 24px;
+      left: 24px;
       width: 60px;
       height: 60px;
       border-radius: 50%;
@@ -96,7 +96,7 @@
     #gresta-chat-window {
       position: fixed;
       bottom: 100px;
-      right: 24px;
+      left: 24px;
       width: 380px;
       height: 550px;
       min-width: 300px;
@@ -454,7 +454,7 @@
       #gresta-chat-window {
         width: calc(100vw - 20px);
         height: calc(100vh - 120px);
-        right: 10px;
+        left: 10px;
         bottom: 90px;
         max-height: none;
         resize: none;
@@ -467,7 +467,7 @@
       #gresta-chat-bubble {
         width: 54px;
         height: 54px;
-        right: 16px;
+        left: 16px;
         bottom: 16px;
       }
     }
