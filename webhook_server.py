@@ -67,9 +67,14 @@ def health_check():
     return jsonify({"status": "healthy", "service": "GRESTA API Server"})
 
 
+WIDGET_ADMIN_TOKEN = os.environ.get("WIDGET_ADMIN_TOKEN")
+
 @app.route("/api/widget/config", methods=["GET", "POST"])
 def widget_config():
-    """Get or update widget configuration (toggle on/off)."""
+    """Get or update widget configuration (toggle on/off).
+    GET is public (for widget to check status).
+    POST requires authentication via X-Admin-Token header.
+    """
     from database import get_db_session
     from sqlalchemy import text
     
@@ -87,6 +92,13 @@ def widget_config():
         return jsonify({"enabled": True})
     
     elif request.method == "POST":
+        if not WIDGET_ADMIN_TOKEN:
+            return jsonify({"error": "Widget admin token not configured on server."}), 503
+        
+        auth_token = request.headers.get("X-Admin-Token", "")
+        if auth_token != WIDGET_ADMIN_TOKEN:
+            return jsonify({"error": "Unauthorized. Provide valid X-Admin-Token header."}), 401
+        
         data = request.get_json() or {}
         enabled = data.get("enabled", True)
         try:
