@@ -1,0 +1,339 @@
+<!doctype html>
+<html
+  class="no-js{% if request.design_mode %} shopify-design-mode{% endif %}"
+  lang="{{ request.locale.iso_code }}"
+>
+
+  <!-- Breeze App Loader -->
+    <!-- Do not remove -->
+    <script src="{{ 'breeze.js' | asset_url }}" defer="defer"></script>
+    <script src="https://sdk.breeze.in/configs/grestmobile/crt.js" async></script>
+<script src="https://sdk.breeze.in/nexus/ctrl/shopify/mods/184.0.1/mod.js" async></script>
+    <script src="{{ 'breezeUtmTracker.js' | asset_url }}" async></script>
+    <script
+      type="module"
+      src="https://sdk.breeze.in/electron/209.0.0/index.js"
+      type="module"
+      id="breeze-script-tag"
+      data-environment="release"
+      data-platform="shopify"
+      data-enable-external-trackers="true"
+      data-enable-snap-tracker="false"
+      data-enable-ga="true"
+      data-enable-fbp="true"
+      data-emit-tracker-events="true"
+      data-ga4-measurement-id="G-0BQ31KKFYF"
+      data-ga-version="new"
+      data-merchantid="grest"
+      ghost-mode="false"
+      async
+    ></script>
+
+  <script>
+      try {
+        function updateButtonState(checkbox, button) {
+          if (checkbox.checked) {
+            button.style.pointerEvents = "auto";
+            button.style.opacity = 1;
+          } else {
+            button.style.pointerEvents = "none";
+            button.style.opacity = 0.5;
+          }
+        }
+    
+        async function initialSetupBreeze(checkbox_id, breeze_btn_id) {
+          let checkbox = document.getElementById(checkbox_id);
+          let breezeButton = document.getElementById(breeze_btn_id); 
+    
+          if (checkbox && breezeButton) {
+            // Set initial state
+            updateButtonState(checkbox, breezeButton);
+    
+            // Add event listener to update state on change
+            checkbox.addEventListener('change', () => {
+              updateButtonState(checkbox, breezeButton);
+            });
+          }
+        }
+    
+        document.addEventListener("DOMContentLoaded", (e) => { 
+          initialSetupBreeze('agreeId', 'bzCheckoutId');
+        });
+      } catch (e) {
+        console.error(e);
+      }
+      
+    </script>
+    <!-- End of Breeze App Loader -->
+  <head>
+    <meta name="google-site-verification" content="MDjo9tMKZUfXdIQurheDPL_rCkBJ-S_rDToQw0KoXZs" />
+
+    
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Fire only on Shopify Thank You page
+  if (window.location.pathname.includes('/checkout/thank_you')) {
+    // Check if gtag is loaded
+    if (typeof gtag === 'function') {
+      gtag('event', 'conversion', {
+        'send_to': 'AW-16519690888/eGKpCI3D-78ZEIj1mcU9', // Your Google Shopping Purchase label
+        'value': {{ checkout.total_price | divided_by: 100.0 }}, // Convert from cents to full currency
+        'currency': '{{ checkout.currency }}',
+        'transaction_id': '{{ checkout.order_id }}'
+      });
+      console.log('✅ Google Ads Shopping Purchase conversion fired for Order #{{ checkout.order_id }}');
+    } else {
+      console.warn('⚠️ gtag not found or not initialized yet.');
+    }
+  }
+});
+</script>
+
+
+<script>
+document.addEventListener('click', function(e) {
+  // Detect common Add to Cart buttons (adjust selector if needed)
+  if (
+    e.target.matches('[name="add"], .add-to-cart, button[data-add-to-cart], .product-form__submit')
+  ) {
+    if (typeof gtag === 'function') {
+      gtag('event', 'conversion', {
+        'send_to': 'AW-16519690888/BwnOCMzG-78ZEIj1mcU9', // Your Add to Cart label
+        'value': 1.0,
+        'currency': 'INR'
+      });
+      console.log('🛒 Google Ads Add-to-Cart conversion fired');
+    } else {
+      console.warn('⚠️ gtag not found or not initialized yet.');
+    }
+  }
+});
+</script>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Fire conversion if user is on the Shopify Thank You page
+  if (window.location.pathname.includes('/checkout/thank_you')) {
+    if (typeof gtag === 'function') {
+      gtag('event', 'conversion', {
+        'send_to': 'AW-16519690888/C_Qc6Xoe9woz0', // Replace with your conversion label
+        'value': 1.0, // Optional: Replace with dynamic total if desired
+        'currency': 'INR'
+      });
+      console.log('✅ Google Ads Purchase conversion fired on /checkout/thank_you page');
+    } else {
+      console.warn('⚠️ gtag not found or not initialized yet.');
+    }
+  }
+});
+</script>
+
+<!-- Google tag (gtag.js) --> <script async src="https://www.googletagmanager.com/gtag/js?id=AW-16519690888"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'AW-16519690888'); </script>
+
+<!-- Google Ads Add to basket_COACT Conversion -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Fire conversion if URL contains "/cart"
+  if (window.location.pathname.includes('/cart')) {
+    gtag('event', 'conversion', {
+      'send_to': 'AW-16519690888/99dwCIXStLEbEIj1mcU9',
+      'value': 1.0,
+      'currency': 'INR'
+    });
+
+    console.log('✅ Google Ads Add to Cart conversion fired on /cart page');
+  }
+});
+</script>
+
+
+ {%- render 'ecom_header' -%}
+    {%- render 'stylesheets' -%}
+
+    {%- if settings.favicon != blank -%}
+      <link
+        rel="icon"
+        type="image/png"
+        href="{{ settings.favicon | image_url: width: 32, height: 32 }}"
+      >
+    {%- endif -%}
+
+    {% comment %} This a way to wait for main content to load when navigating to a new page so that the view transitions can work consistently {% endcomment %}
+    <link
+      rel="expect"
+      href="#MainContent"
+      blocking="render"
+      id="view-transition-render-blocker"
+    >
+
+    {%- render 'meta-tags' -%}
+    {%- render 'fonts' -%}
+    {%- render 'scripts' -%}
+    {%- render 'theme-styles-variables' -%}
+    {%- render 'color-schemes' -%}
+
+    {% if request.design_mode %}
+      {%- render 'theme-editor' -%}
+    {% endif %}
+
+    {{ content_for_header }}
+    {% comment %} {% style %}
+      .breezeButtonContainerClass.dj_sold_custom_product {display: none;}      
+    {% endstyle %} {% endcomment %}
+
+    <script>
+  (function() {
+    // 1. Get the UTM Source from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const utmSource = urlParams.get('utm_source');
+
+    // 2. If a UTM source exists, save it to the Cart Attributes
+    if (utmSource) {
+      fetch('/cart/update.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          attributes: {
+            'utm_source': utmSource
+          }
+        })
+      }).then(response => {
+        console.log('UTM Source saved to cart:', utmSource);
+      }).catch(error => {
+        console.error('Error saving UTM:', error);
+      });
+    }
+  })();
+</script>
+  </head>
+
+  <body class="page-width-{{ settings.page_width }} card-hover-effect-{{ settings.card_hover_effect }}">
+    {% render 'skip-to-content-link', href: '#MainContent', text: 'accessibility.skip_to_text' %}
+    <div id="header-group">
+      {% sections 'header-group' %}
+    </div>
+
+    <script
+      src="{{ 'critical.js' | asset_url }}"
+      type="module"
+      async
+      blocking="render"
+    ></script>
+
+    <main
+      id="MainContent"
+      class="content-for-layout"
+      role="main"
+      data-page-transition-enabled="{{ settings.page_transition_enabled }}"
+      data-product-transition="{{ settings.transition_to_main_product }}"
+      data-template="{{ template }}"
+    >
+      {{ content_for_layout }}
+    </main>
+
+    {% sections 'footer-group' %}
+
+    {% render 'search-modal' %}
+
+    {% if settings.quick_add or settings.mobile_quick_add %}
+      {% render 'quick-add-modal' %}
+    {% endif %}
+
+    <script src="{{ 'custom-script.js' | asset_url }}" async></script>
+
+  {%- render "ecom_footer"-%}
+
+<!-- Begin Shopify–payment-cart JavaScript -->
+<script type="text/javascript">
+  var mid = '7456';
+</script>
+<script src="https://checkout-merchant.snapmint.com/js/v1/7456" defer></script>
+<!-- End Shopify-payment JavaScript -->
+ 
+
+
+
+<script>
+(function () {
+  let isProcessing = false;
+
+  async function getCart() {
+    return fetch('/cart.js').then(r => r.json());
+  }
+
+  async function enforceComboRules(cart) {
+    const combos = {};
+    cart.items.forEach(item => {
+      if (!item.properties?._combo_id) return;
+      (combos[item.properties._combo_id] ||= []).push(item);
+    });
+
+    const updates = {};
+
+    Object.values(combos).forEach(group => {
+      const hasMain = group.some(i => i.properties._combo_role === 'main');
+      if (!hasMain) {
+        group.forEach(i => updates[i.key] = 0);
+      }
+    });
+
+    if (!Object.keys(updates).length) return false;
+
+    await fetch('/cart/update.js', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ updates })
+    });
+
+    return true;
+  }
+
+  async function syncCart() {
+    if (isProcessing) return;
+    isProcessing = true;
+
+    const cart = await getCart();
+    const removed = await enforceComboRules(cart);
+
+    if (removed) {
+      await getCart(); // allow Shopify to settle
+      location.reload(); // ONE controlled reload
+    }
+
+    isProcessing = false;
+  }
+
+  // Intercept all cart requests ONCE
+  const originalFetch = window.fetch;
+  window.fetch = async function (...args) {
+    const response = await originalFetch.apply(this, args);
+
+    if (
+      typeof args[0] === 'string' &&
+      args[0].includes('/cart/')
+    ) {
+      setTimeout(syncCart, 150);
+    }
+
+    return response;
+  };
+
+  document.addEventListener('DOMContentLoaded', syncCart);
+})();
+</script>
+
+
+<!-- ============================================================ -->
+<!-- GRESTA CHATBOT WIDGET - ADD THIS LINE BELOW                  -->
+<!-- ============================================================ -->
+<script src="https://gresta.sam9scloud.in/widget.js"></script>
+<!-- ============================================================ -->
+<!-- END GRESTA CHATBOT WIDGET                                    -->
+<!-- ============================================================ -->
+
+</body>
+</html>

@@ -1504,6 +1504,44 @@ function SecurityView() {
   const [data, setData] = useState<SecurityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [widgetEnabled, setWidgetEnabled] = useState<boolean | null>(null);
+  const [widgetLoading, setWidgetLoading] = useState(false);
+  const [widgetMessage, setWidgetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchWidgetStatus = async () => {
+    try {
+      const res = await fetch('/api/widget/config');
+      if (res.ok) {
+        const json = await res.json();
+        setWidgetEnabled(json.enabled);
+      }
+    } catch (error) {
+      console.error('Failed to fetch widget status:', error);
+    }
+  };
+
+  const toggleWidget = async (enable: boolean) => {
+    setWidgetLoading(true);
+    setWidgetMessage(null);
+    try {
+      const res = await fetch('/api/widget/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: enable }),
+      });
+      if (res.ok) {
+        setWidgetEnabled(enable);
+        setWidgetMessage({ type: 'success', text: `Widget ${enable ? 'enabled' : 'disabled'} successfully!` });
+      } else {
+        const err = await res.json();
+        setWidgetMessage({ type: 'error', text: err.error || 'Failed to update widget status' });
+      }
+    } catch (error) {
+      setWidgetMessage({ type: 'error', text: 'Failed to connect to server' });
+    }
+    setWidgetLoading(false);
+    setTimeout(() => setWidgetMessage(null), 3000);
+  };
 
   const fetchData = async () => {
     try {
@@ -1520,6 +1558,7 @@ function SecurityView() {
 
   useEffect(() => {
     fetchData();
+    fetchWidgetStatus();
     let interval: NodeJS.Timeout | null = null;
     if (autoRefresh) {
       interval = setInterval(fetchData, 10000);
@@ -1568,6 +1607,77 @@ function SecurityView() {
             Refresh Now
           </button>
         </div>
+      </div>
+
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-white font-semibold">Website Widget Control</h3>
+              <p className="text-gray-400 text-sm">Control the GRESTA chatbot widget on grest.in</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {widgetEnabled !== null && (
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                widgetEnabled 
+                  ? 'bg-emerald-500/20 text-emerald-400' 
+                  : 'bg-red-500/20 text-red-400'
+              }`}>
+                {widgetEnabled ? 'Currently ON' : 'Currently OFF'}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => toggleWidget(true)}
+            disabled={widgetLoading || widgetEnabled === true}
+            className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
+              widgetEnabled === true
+                ? 'bg-emerald-500/30 text-emerald-300 cursor-not-allowed'
+                : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Turn Widget ON
+          </button>
+          <button
+            onClick={() => toggleWidget(false)}
+            disabled={widgetLoading || widgetEnabled === false}
+            className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
+              widgetEnabled === false
+                ? 'bg-red-500/30 text-red-300 cursor-not-allowed'
+                : 'bg-red-500 hover:bg-red-600 text-white'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Turn Widget OFF
+          </button>
+          {widgetLoading && (
+            <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-emerald-400"></div>
+          )}
+        </div>
+
+        {widgetMessage && (
+          <div className={`mt-4 px-4 py-2 rounded-lg text-sm ${
+            widgetMessage.type === 'success' 
+              ? 'bg-emerald-500/20 text-emerald-400' 
+              : 'bg-red-500/20 text-red-400'
+          }`}>
+            {widgetMessage.text}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
