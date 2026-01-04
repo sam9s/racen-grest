@@ -580,6 +580,7 @@
 
   const STORAGE_KEY_SESSION = 'gresta_session_id';
   const STORAGE_KEY_MESSAGES = 'gresta_messages';
+  const STORAGE_KEY_WINDOW_OPEN = 'gresta_window_open';
 
   function generateSessionId() {
     return 'widget_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -647,6 +648,20 @@
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 
+  function saveWindowState(isOpen) {
+    try {
+      localStorage.setItem(STORAGE_KEY_WINDOW_OPEN, isOpen ? 'true' : 'false');
+    } catch (e) {}
+  }
+
+  function loadWindowState() {
+    try {
+      return localStorage.getItem(STORAGE_KEY_WINDOW_OPEN) === 'true';
+    } catch (e) {
+      return false;
+    }
+  }
+
   function toggleChat() {
     const bubble = document.getElementById('gresta-chat-bubble');
     const window = document.getElementById('gresta-chat-window');
@@ -655,10 +670,23 @@
     if (isOpen) {
       window.classList.remove('open');
       bubble.classList.remove('open');
+      saveWindowState(false);
     } else {
       window.classList.add('open');
       bubble.classList.add('open');
       document.getElementById('gresta-chat-input').focus();
+      saveWindowState(true);
+    }
+  }
+
+  function openChatWindow() {
+    const bubble = document.getElementById('gresta-chat-bubble');
+    const window = document.getElementById('gresta-chat-window');
+    window.classList.add('open');
+    bubble.classList.add('open');
+    const messagesContainer = document.getElementById('gresta-chat-messages');
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
   }
 
@@ -702,7 +730,7 @@
     
     html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
     
-    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" class="gresta-product-link" data-url="$2">$1</a>');
     
     const lines = html.split('\n');
     let result = [];
@@ -980,6 +1008,13 @@
                 const messagesContainer = document.getElementById('gresta-chat-messages');
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
               }
+              if (parsed.navigate_to) {
+                saveWindowState(true);
+                saveMessagesToStorage();
+                setTimeout(() => {
+                  window.location.href = parsed.navigate_to;
+                }, 500);
+              }
             } catch (e) {}
           }
         }
@@ -1004,6 +1039,19 @@
     updateSendButton();
   }
 
+  function handleProductLinkClick(e) {
+    const link = e.target.closest('.gresta-product-link');
+    if (link) {
+      e.preventDefault();
+      const url = link.getAttribute('data-url') || link.getAttribute('href');
+      if (url) {
+        saveWindowState(true);
+        saveMessagesToStorage();
+        window.location.href = url;
+      }
+    }
+  }
+
   async function init() {
     if (document.getElementById('gresta-widget-container')) return;
 
@@ -1020,6 +1068,11 @@
     sessionId = getOrCreateSessionId();
     messages = loadMessagesFromStorage();
     restoreMessages(messages);
+
+    const wasOpen = loadWindowState();
+    if (wasOpen && messages.length > 0) {
+      openChatWindow();
+    }
 
     const bubble = document.getElementById('gresta-chat-bubble');
     bubble.addEventListener('click', toggleChat);
@@ -1040,6 +1093,9 @@
 
     const sendBtn = document.getElementById('gresta-send-btn');
     sendBtn.addEventListener('click', sendMessage);
+
+    const messagesContainer = document.getElementById('gresta-chat-messages');
+    messagesContainer.addEventListener('click', handleProductLinkClick);
   }
 
   window.GRESTAWidget = {

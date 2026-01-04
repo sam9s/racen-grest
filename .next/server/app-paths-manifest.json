@@ -1,5 +1,1 @@
-{
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
-  "/api/admin/session/route": "app/api/admin/session/route.js",
-  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js"
-}
+{}

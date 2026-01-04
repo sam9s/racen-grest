@@ -8,7 +8,9 @@ This module implements safety filters and the GRESTA persona for:
 """
 
 import re
-from typing import Tuple
+from typing import Tuple, Optional, Dict
+
+_product_url_cache: Dict[str, str] = {}
 
 GREST_URLS = {
     "iPhones": "https://grest.in/collections/iphones",
@@ -74,6 +76,165 @@ WARM_CLOSING_SENTENCES = [
     "Here are some helpful links:",
     "Browse more options here:",
 ]
+
+NAVIGATION_AFFIRMATIVES = [
+    "yes", "yeah", "yep", "sure", "ok", "okay", "please", "go ahead",
+    "take me", "show me", "open", "let's go", "do it",
+    "haan", "haanji", "ha", "haji", "theek", "thik", "chalo", "chaliye",
+    "dikhao", "le chalo", "le jao", "kar do", "karo", "ji haan"
+]
+
+NAVIGATION_PROMPT_EN = "Would you like me to take you to that page?"
+NAVIGATION_PROMPT_HI = "Kya aap chahte hain ki main aapko us page par le jaoon?"
+
+
+def load_product_url_cache():
+    """Load all product names and URLs into cache from database."""
+    global _product_url_cache
+    if _product_url_cache:
+        return _product_url_cache
+    
+    try:
+        from database import get_db_session, GRESTProduct
+        with get_db_session() as session:
+            if not session:
+                return {}
+            
+            products = session.query(
+                GRESTProduct.name, 
+                GRESTProduct.product_url,
+                GRESTProduct.storage,
+                GRESTProduct.condition
+            ).filter(
+                GRESTProduct.product_url.isnot(None)
+            ).distinct().all()
+            
+            for name, url, storage, condition in products:
+                if name and url:
+                    _product_url_cache[name.lower()] = url
+                    if storage:
+                        key = f"{name} {storage}".lower()
+                        _product_url_cache[key] = url
+                    if storage and condition:
+                        key = f"{name} {storage} {condition}".lower()
+                        _product_url_cache[key] = url
+            
+            print(f"[Product URL Cache] Loaded {len(_product_url_cache)} product URL mappings")
+    except Exception as e:
+        print(f"[Product URL Cache] Error loading: {e}")
+    
+    return _product_url_cache
+
+
+def get_product_url_for_name(product_name: str) -> Optional[str]:
+    """Get the product URL for a specific product name from cache."""
+    if not _product_url_cache:
+        load_product_url_cache()
+    
+    name_lower = product_name.lower().strip()
+    name_lower = name_lower.replace("apple ", "")
+    
+    if name_lower in _product_url_cache:
+        return _product_url_cache[name_lower]
+    
+    for cached_name, url in _product_url_cache.items():
+        if name_lower in cached_name or cached_name in name_lower:
+            return url
+    
+    return None
+
+
+def detect_navigation_confirmation(message: str) -> bool:
+    """Detect if user message is an affirmative response for navigation."""
+    message_lower = message.lower().strip()
+    
+    for affirmative in NAVIGATION_AFFIRMATIVES:
+        if affirmative in message_lower:
+            return True
+    
+    if len(message_lower) < 15 and any(word in message_lower for word in ["yes", "haan", "ok", "chalo"]):
+        return True
+    
+    return False
+
+
+def extract_product_mentions(response: str) -> list:
+    """
+    Extract specific product mentions from response text.
+    Returns list of (product_name, start_pos, end_pos) tuples.
+    """
+    if not _product_url_cache:
+        load_product_url_cache()
+    
+    mentions = []
+    response_lower = response.lower()
+    
+    iphone_pattern = r'(apple\s+)?(iphone\s*\d+\s*(pro\s*max|pro|plus|mini)?)'
+    for match in re.finditer(iphone_pattern, response_lower):
+        product_name = match.group(0).strip()
+        mentions.append((product_name, match.start(), match.end()))
+    
+    macbook_pattern = r'(apple\s+)?(macbook\s*(air|pro)\s*(m\d+)?(\s*\d+[\s-]?inch)?)'
+    for match in re.finditer(macbook_pattern, response_lower):
+        product_name = match.group(0).strip()
+        mentions.append((product_name, match.start(), match.end()))
+    
+    return mentions
+
+
+def inject_specific_product_links(response: str) -> str:
+    """
+    Inject clickable links for specific product mentions using database URLs.
+    Converts "iPhone 15 Pro Max" to "[iPhone 15 Pro Max](https://grest.in/products/...)"
+    """
+    if not response:
+        return response
+    
+    if not _product_url_cache:
+        load_product_url_cache()
+    
+    existing_links = set()
+    for match in re.finditer(r'\[([^\]]+)\]\([^)]+\)', response):
+        existing_links.add(match.group(1).lower())
+    
+    mentions = extract_product_mentions(response)
+    
+    mentions = sorted(mentions, key=lambda x: x[1], reverse=True)
+    
+    for product_name, start, end in mentions:
+        if product_name.lower() in existing_links:
+            continue
+        
+        url = get_product_url_for_name(product_name)
+        if url:
+            original_text = response[start:end]
+            display_name = original_text.strip()
+            display_name = ' '.join(word.capitalize() if word.lower() not in ['pro', 'max', 'plus', 'mini', 'air'] 
+                                   else word.capitalize() for word in display_name.split())
+            markdown_link = f"[{display_name}]({url})"
+            response = response[:start] + markdown_link + response[end:]
+            existing_links.add(product_name.lower())
+    
+    return response
+
+
+def add_navigation_prompt(response: str, language: str = "english") -> str:
+    """
+    Add a navigation prompt at the end of response if it contains product links.
+    """
+    if not re.search(r'\[[^\]]+\]\(https://grest\.in/products/[^)]+\)', response):
+        return response
+    
+    if "would you like" in response.lower() or "kya aap chahte" in response.lower():
+        return response
+    
+    prompt = NAVIGATION_PROMPT_HI if language == "hinglish" else NAVIGATION_PROMPT_EN
+    
+    if not response.rstrip().endswith('?'):
+        response = response.rstrip() + "\n\n" + prompt
+    
+    return response
+
 
 CRISIS_KEYWORDS = [
     "suicide", "suicidal", "kill myself", "end my life", "want to die", 
