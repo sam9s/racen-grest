@@ -16,7 +16,7 @@
       "chunks": 5
     }
   ],
-  "last_scrape": "2026-01-08T18:07:22.179967",
+  "last_scrape": "2026-01-09T11:51:03.107747",
   "page_hashes": {
     "https://grest.in": "ac2788cbd0de71df6b2a14245fb2e5d7",
     "https://grest.in/collections/iphones": "d6f194e23e0554f2ba0be247cf13838c",
@@ -40,7 +40,6 @@
     "https://grest.in/collections/air-pods": "37570427b443e0fcb4671050eeae0fee",
     "https://grest.in/products/refurbished-apple-iphone-14": "42e2daccc74aa606393b5cdf17c22d7c",
     "https://grest.in/products/refurbished-apple-iphone-13": "42e2daccc74aa606393b5cdf17c22d7c",
-    "https://grest.in/products/iphone-16": "42e2daccc74aa606393b5cdf17c22d7c",
     "https://grest.in/blogs/news/iphone-14-pro-vs-iphone-13-pro-refurbished-2026": "0a73bf9d108ec12abd0c231f1a10e212",
     "https://grest.in/blogs/news/iphone-15-vs-iphone-14-refurbished-2026": "7835fe4deb4d49d1e7f3d29c96d695c7",
     "https://grest.in/blogs/news/best-iphones-for-android-users-switching-2026": "19ef6a4113eef15d31211c914db35aed",
@@ -62,7 +61,8 @@
     "https://grest.in/pages/shipping": "a7c3e9ef8b01e946e10a3146f22f52ed",
     "https://grest.in/pages/returns-refund-cancellation": "7bb0c16c1f11c4c881cabed9b30537c6",
     "https://grest.in/collections/iphones.atom": "1e3047ad4993ac59158df3cc50ca8819",
-    "https://grest.in/collections/iphones.oembed": "ade6b67a502969d7c6a4068adc5d3a3b"
+    "https://grest.in/collections/iphones.oembed": "7235e4a78fb17c1246c8863ee48b9df2",
+    "https://grest.in/products/iphone-16-pro-max": "42e2daccc74aa606393b5cdf17c22d7c"
   },
   "website_pages": 45,
   "website_chunks": 602
