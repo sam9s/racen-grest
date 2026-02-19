@@ -16,7 +16,7 @@
       "chunks": 5
     }
   ],
-  "last_scrape": "2026-01-23T21:30:54.353931",
+  "last_scrape": "2026-01-25T09:44:37.237229",
   "page_hashes": {
     "https://grest.in": "ac2788cbd0de71df6b2a14245fb2e5d7",
     "https://grest.in/collections/iphones": "d6f194e23e0554f2ba0be247cf13838c",
@@ -34,7 +34,7 @@
     "https://grest.in/blogs/news/how-to-choose-the-best-refurbished-ipad-air-vs-mini-vs-pro-what-s-right-for-you": "c6f509ef309529ea0e2329916abe9179",
     "https://grest.in/blogs/news/trade-in-vs-buying-a-refurbished-iphone-which-route-gives-you-better-value": "2b58080467279f25818fb438f35c13c0",
     "https://grest.in/blogs/news/best-time-season-to-buy-a-refurbished-iphone-in-india-festival-deals-to-year-end-discounts": "4a1dcb4919d8eac0254e9d345dffc6f5",
-    "https://grest.in/cart": "09c203754cb2dc387b6fd298c3a96deb",
+    "https://grest.in/cart": "fe9b6876d063de30744ee22016eca9de",
     "https://grest.in/collections/ipads": "0f5ba9f27f67f262c8453768b0346af8",
     "https://grest.in/pages/store-locator": "2195e9667c4becb4e720bd4e693ca076",
     "https://grest.in/collections/air-pods": "37570427b443e0fcb4671050eeae0fee",
@@ -60,10 +60,10 @@
     "https://grest.in/pages/warranty": "8c6a8e00e81199c7d03c8c24afbb5d55",
     "https://grest.in/pages/shipping": "a7c3e9ef8b01e946e10a3146f22f52ed",
     "https://grest.in/pages/returns-refund-cancellation": "7bb0c16c1f11c4c881cabed9b30537c6",
-    "https://grest.in/collections/iphones.atom": "42c72b0dfdcd87dbea3d23ddae7b8dae",
-    "https://grest.in/collections/iphones.oembed": "f7deecb7b09132d61bbb1504e69dfcf3",
+    "https://grest.in/collections/iphones.atom": "99395d68c0abb617fb3fbd55c1c69d92",
+    "https://grest.in/collections/iphones.oembed": "d0545f369f166a5a573843b0c12cf79b",
     "https://grest.in/products/iphone-16-pro-max": "42e2daccc74aa606393b5cdf17c22d7c"
   },
   "website_pages": 45,
-  "website_chunks": 600
+  "website_chunks": 601
 }
